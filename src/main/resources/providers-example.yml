@@ -1,0 +1,72 @@
+providers:
+  openai:
+    name: openai
+    type: OpenAI
+    api-key: ${OPENAI_API_KEY}
+    base-url: ${OPENAI_BASE_URL}
+    models:
+      - name: gpt-3.5-turbo
+        vendor-model: gpt-3.5-turbo
+      - name: gpt-4
+        vendor-model: gpt-4
+  deepseek:
+    name: deepseek
+    type: OpenAI
+    api-key: ${DEEPSEEK_API_KEY}
+    base-url: https://api.deepseek.com/v1
+    models:
+      - name: deepseek-chat
+        vendor-model: deepseek-chat
+      - name: deepseek-coder
+        vendor-model: deepseek-coder
+  openrouter:
+    name: openrouter
+    type: OpenAI
+    api-key: ${OPENROUTER_API_KEY}
+    base-url: https://openrouter.ai/api/v1
+    models:
+      - name: mistralai/mistral-7b-instruct
+        vendor-model: mistralai/mistral-7b-instruct
+      - name: google/gemma-7b-it
+        vendor-model: google/gemma-7b-it
+  azure-openai:
+    name: azure-openai
+    type: AzureOpenAI
+    api-key: ${AZURE_OPENAI_API_KEY}
+    base-url: ${AZURE_OPENAI_BASE_URL}
+    deployment-name: ${AZURE_OPENAI_DEPLOYMENT_NAME}
+    models:
+      - name: gpt-35-turbo
+        vendor-model: gpt-35-turbo
+  claude:
+    name: claude
+    type: Anthropic
+    api-key: ${CLAUDE_API_KEY}
+    base-url: https://api.anthropic.com/v1
+    models:
+      - name: claude-3-opus
+        vendor-model: claude-3-opus-20240229
+      - name: claude-3-sonnet
+        vendor-model: claude-3-sonnet-20240229
+  gemini:
+    name: gemini
+    type: Gemini
+    api-key: ${GEMINI_API_KEY}
+    base-url: https://generativelanguage.googleapis.com/v1beta
+    models:
+      - name: gemini-pro
+        vendor-model: gemini-pro
+      - name: gemini-pro-vision
+        vendor-model: gemini-pro-vision
+  qwen:
+    name: qwen
+    type: OpenAI  # Qwen也支持OpenAI兼容接口
+    api-key: ${QWEN_API_KEY}
+    base-url: https://dashscope.aliyuncs.com/api/v1
+    models:
+      - name: qwen-turbo
+        vendor-model: qwen-turbo
+      - name: qwen-plus
+        vendor-model: qwen-plus
+      - name: qwen-max
+        vendor-model: qwen-max
