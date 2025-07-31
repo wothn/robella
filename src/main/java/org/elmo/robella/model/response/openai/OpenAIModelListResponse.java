@@ -1,4 +1,4 @@
-package org.elmo.robella.model.response;
+package org.elmo.robella.model.response.openai;
 
 import lombok.Data;
 import java.util.List;

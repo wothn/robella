@@ -4,11 +4,10 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class OpenAIChatResponse {
+public class OpenAIStreamResponse {
     private String id;
-    private String object;
+    private String object = "chat.completion.chunk";
     private Long created;
     private String model;
-    private List<OpenAIChoice> choices;
-    private OpenAIUsage usage;
+    private List<OpenAIStreamChoice> choices;
 }

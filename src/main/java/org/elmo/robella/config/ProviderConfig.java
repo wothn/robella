@@ -9,7 +9,7 @@ import java.util.Map;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "providers")
+@ConfigurationProperties
 public class ProviderConfig {
     private Map<String, Provider> providers;
 

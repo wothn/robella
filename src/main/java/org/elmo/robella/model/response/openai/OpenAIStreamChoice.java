@@ -1,11 +1,10 @@
 package org.elmo.robella.model.response.openai;
 
 import lombok.Data;
-import org.elmo.robella.model.common.OpenAIMessage;
 
 @Data
-public class OpenAIChoice {
+public class OpenAIStreamChoice {
     private Integer index;
-    private OpenAIMessage message;
+    private OpenAIStreamDelta delta;
     private String finishReason;
 }

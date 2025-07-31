@@ -3,7 +3,7 @@ package org.elmo.robella.service;
 import org.elmo.robella.model.request.OpenAIChatRequest;
 import org.elmo.robella.model.request.UnifiedChatRequest;
 import org.elmo.robella.model.response.UnifiedChatResponse;
-import org.elmo.robella.model.response.OpenAIChatResponse;
+import org.elmo.robella.model.response.openai.OpenAIChatResponse;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,7 +24,7 @@ public interface TransformService {
     Object toVendor(UnifiedChatRequest unifiedRequest, String providerName);
 
     /**
-     * 提供商流事件转OpenAI流事件
+     * 提供商流事件转OpenAI流事件JSON数据（不包含SSE格式）
      */
-    Object toOpenAIStreamEvent(Object vendorStreamEvent);
+    String toOpenAIStreamEvent(Object vendorStreamEvent, String providerName);
 }

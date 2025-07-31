@@ -5,12 +5,11 @@
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/robella.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>logs/robella.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
-            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <maxFileSize>10MB</maxFileSize>
-            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
@@ -22,5 +21,15 @@
         <appender-ref ref="FILE"/>
     </root>
 
+    <!-- 应用日志保持DEBUG级别 -->
     <logger name="org.elmo.robella" level="DEBUG"/>
+    
+    <!-- 关闭Reactor Netty的详细HTTP日志 -->
+    <logger name="reactor.netty.http.client.HttpClientOperations" level="WARN"/>
+    <logger name="reactor.netty.http.client" level="WARN"/>
+    <logger name="reactor.netty" level="WARN"/>
+    
+    <!-- 关闭其他可能产生大量日志的组件 -->
+    <logger name="org.springframework.web.reactive.function.client" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
 </configuration>

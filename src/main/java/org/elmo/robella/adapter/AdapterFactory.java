@@ -1,21 +1,32 @@
 package org.elmo.robella.adapter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.adapter.claude.ClaudeAdapter;
 import org.elmo.robella.adapter.gemini.GeminiAdapter;
-import org.elmo.robella.adapter.openai_compatible.OpenAICompatibleAdapter;
+import org.elmo.robella.adapter.openai.OpenAIAdapter;
 import org.elmo.robella.config.ProviderConfig;
+import org.elmo.robella.config.WebClientProperties;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+@Slf4j
 @Component
 public class AdapterFactory {
     
     private final ProviderConfig providerConfig;
-    private final WebClient.Builder webClientBuilder;
+    private final WebClient defaultWebClient;
+    private final WebClient retryableWebClient;
+    private final WebClientProperties webClientProperties;
     
-    public AdapterFactory(ProviderConfig providerConfig, WebClient.Builder webClientBuilder) {
+    public AdapterFactory(ProviderConfig providerConfig, 
+                         WebClient.Builder webClientBuilder,
+                         @Qualifier("retryableWebClient") WebClient retryableWebClient,
+                         WebClientProperties webClientProperties) {
         this.providerConfig = providerConfig;
-        this.webClientBuilder = webClientBuilder;
+        this.defaultWebClient = webClientBuilder.build();
+        this.retryableWebClient = retryableWebClient;
+        this.webClientProperties = webClientProperties;
     }
     
     public AIProviderAdapter createAdapter(String providerName, ProviderConfig.Provider config) {
@@ -24,18 +35,25 @@ public class AdapterFactory {
             type = providerName; // 默认使用providerName作为type
         }
         
-        switch (type) {
-            case "OpenAI":
-                return new OpenAICompatibleAdapter(config, webClientBuilder.build());
-            case "AzureOpenAI":
-                return new OpenAICompatibleAdapter(config, webClientBuilder.build()); // Azure OpenAI也是OpenAI兼容的
-            case "Anthropic":
-                return new ClaudeAdapter(providerConfig, webClientBuilder);
-            case "Gemini":
-                return new GeminiAdapter(providerConfig, webClientBuilder);
-            default:
-                // 默认使用OpenAI兼容适配器
-                return new OpenAICompatibleAdapter(config, webClientBuilder.build());
-        }
+        log.debug("Creating adapter for provider: {}, type: {}", providerName, type);
+        
+        return switch (type) {
+            case "OpenAI", "AzureOpenAI" -> {
+                log.debug("Creating OpenAI adapter for provider: {}", providerName);
+                yield new OpenAIAdapter(config, defaultWebClient, webClientProperties);
+            }
+            case "Anthropic" -> {
+                log.debug("Creating Claude adapter for provider: {}", providerName);
+                yield new ClaudeAdapter(providerConfig, defaultWebClient, webClientProperties);
+            }
+            case "Gemini" -> {
+                log.debug("Creating Gemini adapter for provider: {}", providerName);
+                yield new GeminiAdapter(providerConfig, defaultWebClient, webClientProperties);
+            }
+            default -> {
+                log.debug("Creating default OpenAI-compatible adapter for provider: {}", providerName);
+                yield new OpenAIAdapter(config, defaultWebClient, webClientProperties);
+            }
+        };
     }
 }
