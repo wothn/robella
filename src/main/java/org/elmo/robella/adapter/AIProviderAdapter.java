@@ -1,6 +1,6 @@
 package org.elmo.robella.adapter;
 
-import org.elmo.robella.model.common.ModelInfo;
+import org.elmo.robella.model.openai.ModelInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

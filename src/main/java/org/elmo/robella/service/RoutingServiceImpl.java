@@ -5,11 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.adapter.AdapterFactory;
 import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
-import org.elmo.robella.model.request.UnifiedChatRequest;
+import org.elmo.robella.model.openai.ChatCompletionRequest;
+import org.elmo.robella.model.openai.ModelInfo;
+import org.elmo.robella.model.openai.ModelListResponse;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @RequiredArgsConstructor
@@ -21,9 +26,50 @@ public class RoutingServiceImpl implements RoutingService {
     
     // 缓存适配器实例
     private final Map<String, AIProviderAdapter> adapterCache = new ConcurrentHashMap<>();
+    
+    // 缓存模型列表，使用 AtomicReference 保证线程安全
+    private final AtomicReference<ModelListResponse> cachedModels = new AtomicReference<>();
+    
+    /**
+     * 初始化时预构建模型列表缓存
+     */
+    @PostConstruct
+    private void initModelCache() {
+        try {
+            ModelListResponse models = buildModelList();
+            cachedModels.set(models);
+            log.info("Model cache initialized with {} models", models.getData().size());
+        } catch (Exception e) {
+            log.error("Failed to initialize model cache", e);
+        }
+    }
+    
+    /**
+     * 构建模型列表（内部方法）
+     */
+    private ModelListResponse buildModelList() {
+        // 获取所有提供商配置
+        Map<String, ProviderConfig.Provider> providers = getProviderConfigMap();
+        
+        // 从配置中收集所有模型
+        ModelListResponse models = new ModelListResponse("list", new ArrayList<>());
+
+        if (providers != null) {
+            for (var provider : providers.values()) {
+                if (provider.getModels() == null) {
+                    continue;
+                }
+                for (var model : provider.getModels()) {
+                    models.getData().add(new ModelInfo(model.getName(), "model", provider.getName()));
+                }
+            }
+        }
+        
+        return models;
+    }
 
     @Override
-    public String decideProvider(UnifiedChatRequest request) {
+    public String decideProvider(ChatCompletionRequest request) {
         // 简单实现：根据模型名称决定提供商
         String model = request.getModel();
         
@@ -82,5 +128,36 @@ public class RoutingServiceImpl implements RoutingService {
         }
         
         throw new IllegalArgumentException("No configuration found for provider: " + providerName);
+    }
+    
+    @Override
+    public ModelListResponse getAvailableModels() {
+        // 从缓存获取模型列表
+        ModelListResponse cached = cachedModels.get();
+        
+        if (cached != null) {
+            log.debug("Returning cached model list with {} models", cached.getData().size());
+            return cached;
+        }
+        
+        // 如果缓存为空，重新构建并缓存
+        log.warn("Model cache is empty, rebuilding...");
+        ModelListResponse models = buildModelList();
+        cachedModels.set(models);
+        
+        return models;
+    }
+    
+    @Override
+    public void refreshModelCache() {
+        log.info("Refreshing model cache...");
+        try {
+            ModelListResponse models = buildModelList();
+            cachedModels.set(models);
+            log.info("Model cache refreshed successfully with {} models", models.getData().size());
+        } catch (Exception e) {
+            log.error("Failed to refresh model cache", e);
+            throw new RuntimeException("Failed to refresh model cache", e);
+        }
     }
 }

@@ -2,7 +2,8 @@ package org.elmo.robella.service;
 
 import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
-import org.elmo.robella.model.request.UnifiedChatRequest;
+import org.elmo.robella.model.openai.ChatCompletionRequest;
+import org.elmo.robella.model.openai.ModelListResponse;
 
 import java.util.Map;
 
@@ -10,7 +11,7 @@ public interface RoutingService {
     /**
      * 根据请求决定目标提供商
      */
-    String decideProvider(UnifiedChatRequest request);
+    String decideProvider(ChatCompletionRequest request);
 
     /**
      * 获取提供商配置
@@ -26,4 +27,14 @@ public interface RoutingService {
      * 获取提供商适配器
      */
     AIProviderAdapter getAdapter(String providerName);
+    
+    /**
+     * 获取可用模型列表（带缓存）
+     */
+    ModelListResponse getAvailableModels();
+    
+    /**
+     * 刷新模型缓存
+     */
+    void refreshModelCache();
 }

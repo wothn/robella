@@ -3,8 +3,8 @@ package org.elmo.robella.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.model.request.OpenAIChatRequest;
-import org.elmo.robella.model.response.openai.OpenAIModelListResponse;
+import org.elmo.robella.model.openai.ChatCompletionRequest;
+import org.elmo.robella.model.openai.ModelListResponse;
 import org.elmo.robella.service.ForwardingService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +20,7 @@ public class OpenAIController {
     private final ForwardingService forwardingService;
 
     @PostMapping(value = "/chat/completions", produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE})
-    public Object chatCompletions(@RequestBody @Valid OpenAIChatRequest request) {
-        log.debug("进入Controller：");
+    public Object chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
         
         if (Boolean.TRUE.equals(request.getStream())) {
             // 流式响应：返回Server-Sent Events
@@ -35,7 +34,7 @@ public class OpenAIController {
     }
 
     @GetMapping("/models")
-    public Mono<ResponseEntity<OpenAIModelListResponse>> listModels() {
+    public Mono<ResponseEntity<ModelListResponse>> listModels() {
         return forwardingService.listModels()
                 .map(response -> ResponseEntity.ok().body(response));
     }

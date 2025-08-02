@@ -1,8 +1,8 @@
 package org.elmo.robella.service;
 
-import org.elmo.robella.model.request.OpenAIChatRequest;
-import org.elmo.robella.model.response.openai.OpenAIChatResponse;
-import org.elmo.robella.model.response.openai.OpenAIModelListResponse;
+import org.elmo.robella.model.openai.ChatCompletionRequest;
+import org.elmo.robella.model.openai.ChatCompletionResponse;
+import org.elmo.robella.model.openai.ModelListResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -12,15 +12,21 @@ public interface ForwardingService {
     /**
      * 非流式聊天完成
      */
-    Mono<OpenAIChatResponse> forwardChatCompletion(OpenAIChatRequest request);
+    Mono<ChatCompletionResponse> forwardChatCompletion(ChatCompletionRequest request);
 
     /**
      * 流式聊天完成
      */
-    Flux<String> streamChatCompletion(OpenAIChatRequest request);
+    Flux<String> streamChatCompletion(ChatCompletionRequest request);
 
     /**
      * 获取模型列表
      */
-    Mono<OpenAIModelListResponse> listModels();
+    Mono<ModelListResponse> listModels();
+    
+    /**
+     * 刷新模型缓存
+     */
+    void refreshModelCache();
+
 }

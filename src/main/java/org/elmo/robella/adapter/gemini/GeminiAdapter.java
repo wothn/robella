@@ -5,7 +5,7 @@ import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.WebClientProperties;
 import org.elmo.robella.exception.ProviderException;
-import org.elmo.robella.model.common.ModelInfo;
+import org.elmo.robella.model.openai.ModelInfo;
 import org.elmo.robella.model.response.GeminiChatResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -112,8 +112,8 @@ public class GeminiAdapter implements AIProviderAdapter {
                 .map(model -> {
                     ModelInfo info = new ModelInfo();
                     info.setId(model.getName());
-                    info.setName(model.getName());
-                    info.setVendor("gemini");
+                    info.setObject("model");
+                    info.setOwnedBy("gemini");
                     return info;
                 })
                 .toList();

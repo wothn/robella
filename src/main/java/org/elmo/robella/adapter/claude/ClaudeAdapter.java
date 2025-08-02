@@ -5,7 +5,7 @@ import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.WebClientProperties;
 import org.elmo.robella.exception.ProviderException;
-import org.elmo.robella.model.common.ModelInfo;
+import org.elmo.robella.model.openai.ModelInfo;
 import org.elmo.robella.model.response.ClaudeChatResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -110,8 +110,8 @@ public class ClaudeAdapter implements AIProviderAdapter {
                 .map(model -> {
                     ModelInfo info = new ModelInfo();
                     info.setId(model.getName());
-                    info.setName(model.getName());
-                    info.setVendor("claude");
+                    info.setObject("model");
+                    info.setOwnedBy("claude");
                     return info;
                 })
                 .toList();

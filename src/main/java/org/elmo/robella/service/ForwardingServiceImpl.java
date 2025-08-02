@@ -4,18 +4,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.exception.ProviderException;
-import org.elmo.robella.model.request.OpenAIChatRequest;
-import org.elmo.robella.model.request.UnifiedChatRequest;
-import org.elmo.robella.model.response.openai.OpenAIChatResponse;
-import org.elmo.robella.model.response.openai.OpenAIModelListResponse;
-import org.elmo.robella.model.response.UnifiedChatResponse;
-import org.elmo.robella.model.response.openai.OpenAIModel;
+import org.elmo.robella.model.openai.ChatCompletionRequest;
+import org.elmo.robella.model.openai.ChatCompletionResponse;
+import org.elmo.robella.model.openai.ModelListResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,42 +20,36 @@ public class ForwardingServiceImpl implements ForwardingService {
     private final RoutingService routingService;
 
     @Override
-    public Mono<OpenAIChatResponse> forwardChatCompletion(OpenAIChatRequest request) {
-        // 转换请求为统一格式
-        UnifiedChatRequest unifiedRequest = transformService.toUnified(request);
-        
+    public Mono<ChatCompletionResponse> forwardChatCompletion(ChatCompletionRequest request) {
         // 决定目标提供商
-        String providerName = routingService.decideProvider(unifiedRequest);
+        String providerName = routingService.decideProvider(request);
         
         // 获取适配器
         AIProviderAdapter adapter = routingService.getAdapter(providerName);
         
         // 转换为提供商特定格式
-        Object vendorRequest = transformService.toVendor(unifiedRequest, providerName);
+        Object vendorRequest = transformService.toVendor(request, providerName);
         
         // 执行调用
         return adapter.chatCompletion(vendorRequest)
-                .map(unifiedResponse -> {
-                    return transformService.toOpenAI((UnifiedChatResponse) unifiedResponse);
+                .map(vendorResponse -> {
+                    return transformService.toOpenAI(vendorResponse, providerName);
                 })
                 .onErrorMap(error -> new ProviderException("Provider call failed: " + error.getMessage(), error));
     }
 
     @Override
-    public Flux<String> streamChatCompletion(OpenAIChatRequest request) {
+    public Flux<String> streamChatCompletion(ChatCompletionRequest request) {
         log.debug("进入Forwarding");
         
-        // 转换请求为统一格式
-        UnifiedChatRequest unifiedRequest = transformService.toUnified(request);
-        
         // 决定目标提供商
-        String providerName = routingService.decideProvider(unifiedRequest);
+        String providerName = routingService.decideProvider(request);
         
         // 获取适配器
         AIProviderAdapter adapter = routingService.getAdapter(providerName);
         
         // 转换为提供商特定格式
-        Object vendorRequest = transformService.toVendor(unifiedRequest, providerName);
+        Object vendorRequest = transformService.toVendor(request, providerName);
         
         // 执行流式调用
         return adapter.streamChatCompletion(vendorRequest)
@@ -84,45 +72,17 @@ public class ForwardingServiceImpl implements ForwardingService {
     }
 
     @Override
-    public Mono<OpenAIModelListResponse> listModels() {
-        // 获取所有提供商配置
-        var providers = routingService.getProviderConfigMap();
-        
-        log.info("Listing models from providers: {}", providers.keySet());
-        
-        // 收集所有提供商的模型
-        List<Mono<List<org.elmo.robella.model.common.ModelInfo>>> modelRequests = 
-            providers.keySet().stream()
-                .map(providerName -> {
-                    log.debug("Fetching models from provider: {}", providerName);
-                    AIProviderAdapter adapter = routingService.getAdapter(providerName);
-                    return adapter.listModels();
-                })
-                .collect(Collectors.toList());
-        
-        // 合并所有模型列表
-        return Mono.zip(modelRequests, responses -> {
-            return java.util.Arrays.stream(responses)
-                    .flatMap(response -> {
-                        @SuppressWarnings("unchecked")
-                        List<org.elmo.robella.model.common.ModelInfo> modelList = 
-                            (List<org.elmo.robella.model.common.ModelInfo>) response;
-                        return modelList.stream();
-                    })
-                    .collect(Collectors.toList());
-        }).map(models -> {
-            OpenAIModelListResponse response = new OpenAIModelListResponse();
-            response.setData(models.stream()
-                    .map(model -> {
-                        OpenAIModel openAIModel =
-                            new OpenAIModel();
-                        openAIModel.setId(model.getId());
-                        openAIModel.setObject("model");
-                        openAIModel.setOwnedBy(model.getVendor() != null ? model.getVendor() : "unknown");
-                        return openAIModel;
-                    })
-                    .collect(Collectors.toList()));
-            return response;
-        });
+    public Mono<ModelListResponse> listModels() {
+        // 委托给 RoutingService 处理模型列表
+        ModelListResponse models = routingService.getAvailableModels();
+        return Mono.just(models);
     }
+    
+    @Override
+    public void refreshModelCache() {
+        // 委托给 RoutingService 处理缓存刷新
+        log.debug("Delegating model cache refresh to RoutingService");
+        routingService.refreshModelCache();
+    }
+
 }

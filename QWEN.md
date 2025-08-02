@@ -71,11 +71,10 @@ OPENAI_API_KEY, CLAUDE_API_KEY, GEMINI_API_KEY, QWEN_API_KEY
 ## 请求流示例
 
 1. **POST /v1/chat/completions** → `OpenAIController.chatCompletions()`
-2. **Transform**：`OpenAIChatRequest` → `UnifiedChatRequest`
-3. **Route**：模型名 → 厂商选择
-4. **Adapt**：`UnifiedChatRequest` → 各厂商格式（Claude、Gemini 等）
-5. **Call**：HTTP 请求实际 AI 厂商
-6. **Transform**：厂商响应 → `OpenAIChatResponse`
+2. **Route**：模型名 → 厂商选择
+3. **Adapt**：`OpenAIChatRequest` → 各厂商格式（Claude、Gemini 等）
+4. **Call**：HTTP 请求实际 AI 厂商
+5. **Transform**：厂商响应 → `OpenAIChatResponse`
 
 ## 关键文件
 - `OpenAIController.java`：入口，流式/非流式分支
