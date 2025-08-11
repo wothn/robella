@@ -161,7 +161,7 @@ public class TransformServiceImpl implements TransformService {
         choice.setIndex(0);
         ChatMessage message = new ChatMessage();
         message.setRole("assistant");
-        message.setContent("Claude response (conversion needed)");
+        message.setContent(List.of(ContentPart.ofText("Claude response (conversion needed)")));
         choice.setMessage(message);
         choice.setFinishReason("stop");
 
@@ -190,7 +190,7 @@ public class TransformServiceImpl implements TransformService {
         choice.setIndex(0);
         ChatMessage message = new ChatMessage();
         message.setRole("assistant");
-        message.setContent("Gemini response (conversion needed)");
+        message.setContent(List.of(ContentPart.ofText("Gemini response (conversion needed)")));
         choice.setMessage(message);
         choice.setFinishReason("stop");
 
@@ -300,10 +300,10 @@ public class TransformServiceImpl implements TransformService {
 
         if (finished) {
             choice.setFinishReason("stop");
-            choice.setDelta(new Delta()); // 空 delta
+            choice.setDelta(new Delta());
         } else {
             Delta delta = new Delta();
-            delta.setContent(content);
+            delta.setContent(List.of(ContentPart.ofText(content)));
             choice.setDelta(delta);
         }
 

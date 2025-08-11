@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * OpenAI 流式响应增量
+ * OpenAI 流式响应增量 (多模态强类型)
  */
 @Data
 @NoArgsConstructor
@@ -21,9 +21,9 @@ public class Delta {
     private String role;
     
     /**
-     * 内容增量
+     * 内容增量：可为空或包含一个或多个新增片段
      */
-    private String content;
+    private List<ContentPart> content;
     
     /**
      * 推理内容增量
