@@ -16,11 +16,15 @@ public class ProviderConfig {
     @Data
     public static class Provider {
         private String name;
-        private String type; // 用于区分适配器类型
+        private String type; // 原始配置中的字符串，向后兼容
         private String apiKey;
         private String baseUrl;
         private String deploymentName; // Azure OpenAI特有字段
         private List<Model> models;
+
+        public ProviderType getProviderType() {
+            return ProviderType.fromString(type);
+        }
     }
 
     @Data

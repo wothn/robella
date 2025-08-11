@@ -3,6 +3,7 @@ package org.elmo.robella.adapter.openai;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
+import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.config.WebClientProperties;
 import org.elmo.robella.exception.ProviderException;
 import org.elmo.robella.model.openai.ChatCompletionRequest;
@@ -95,7 +96,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
 
     @Override
     public Mono<List<ModelInfo>> listModels() {
-        if ("AzureOpenAI".equals(config.getType())) {
+        if (config.getProviderType() == ProviderType.AzureOpenAI) {
             // Azure OpenAI 不支持列出模型，返回配置的模型
             return Mono.just(getConfiguredModels());
         }
@@ -130,7 +131,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
     private String buildChatCompletionUrl() {
         String baseUrl = config.getBaseUrl();
         
-        if ("AzureOpenAI".equals(config.getType()) && config.getDeploymentName() != null) {
+    if (config.getProviderType() == ProviderType.AzureOpenAI && config.getDeploymentName() != null) {
             // Azure OpenAI格式: /deployments/{deployment-name}/chat/completions
             return baseUrl + "/deployments/" + config.getDeploymentName() + 
                    "/chat/completions?api-version=2024-02-15-preview";

@@ -72,29 +72,24 @@ public class RoutingServiceImpl implements RoutingService {
     public String decideProvider(ChatCompletionRequest request) {
         // 简单实现：根据模型名称决定提供商
         String model = request.getModel();
-        
-        // 检查 providers 是否为 null
+        return decideProviderByModel(model);
+    }
+
+    @Override
+    public String decideProviderByModel(String model) {
         Map<String, ProviderConfig.Provider> providers = providerConfig.getProviders();
-        if (providers == null) {
-            // 如果 providers 为 null，默认返回 openai
-            return "openai";
-        }
-        
-        // 检查是否是特定提供商的模型
+        if (providers == null || model == null) return "openai";
         for (ProviderConfig.Provider provider : providers.values()) {
-            // 检查 provider 和其 models 是否为 null
             if (provider != null && provider.getModels() != null) {
                 for (ProviderConfig.Model providerModel : provider.getModels()) {
-                    if (providerModel != null && providerModel.getName().equals(model)) {
+                    if (providerModel != null && model.equals(providerModel.getName())) {
                         log.info("使用provider: {} for model: {}", provider.getName(), model);
                         return provider.getName();
                     }
                 }
             }
         }
-        
-        // 默认返回openai
-        return "openai";
+        return "openai"; // 默认
     }
 
     @Override

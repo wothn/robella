@@ -14,6 +14,11 @@ public interface RoutingService {
     String decideProvider(ChatCompletionRequest request);
 
     /**
+     * 仅根据模型名称决定提供商（无需构造完整请求对象）
+     */
+    String decideProviderByModel(String model);
+
+    /**
      * 获取提供商配置
      */
     ProviderConfig.Provider getProviderConfig(String providerName);

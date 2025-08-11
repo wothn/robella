@@ -147,12 +147,15 @@ class ProviderConfigTest {
                                   "gpt-3.5-turbo".equals(model.getVendorModel())));
         }
         
-        ProviderConfig.Provider deepseek = providers.get("deepseek");
-        if (deepseek != null && deepseek.getModels() != null) {
-            assertTrue(deepseek.getModels().stream()
-                .anyMatch(model -> "deepseek-chat".equals(model.getName()) && 
-                                  "deepseek-chat".equals(model.getVendorModel())));
-        }
+    ProviderConfig.Provider deepseek = providers.get("deepseek");
+    if (deepseek != null && deepseek.getModels() != null) {
+        // 兼容两种命名：历史 (name=deepseek-chat) 与当前 (name=deepseek-v3, vendor=deepseek-chat)
+        assertTrue(deepseek.getModels().stream()
+        .anyMatch(model ->
+            ("deepseek-chat".equals(model.getName()) && "deepseek-chat".equals(model.getVendorModel()))
+             || ("deepseek-v3".equals(model.getName()) && "deepseek-chat".equals(model.getVendorModel()))
+        ));
+    }
         
         ProviderConfig.Provider claude = providers.get("claude");
         if (claude != null && claude.getModels() != null) {
