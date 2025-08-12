@@ -44,6 +44,7 @@ public class ForwardingServiceImpl implements ForwardingService {
 
     @Override
     public Flux<UnifiedStreamChunk> streamUnified(UnifiedChatRequest request, String forcedProvider) {
+        // 是否指定厂商
         String providerName = forcedProvider != null ? forcedProvider : routingService.decideProviderByModel(request.getModel());
         var adapter = routingService.getAdapter(providerName);
         Object vendorReq = transformService.unifiedToVendorRequest(request, providerName);

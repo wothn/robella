@@ -27,6 +27,7 @@ public interface ForwardingService {
      * 非流式接口
      */
     Mono<UnifiedChatResponse> forwardUnified(UnifiedChatRequest request, String forcedProviderTypeOrName);
+
     /**
      * 流式接口
      */

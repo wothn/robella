@@ -9,7 +9,6 @@ import org.elmo.robella.model.openai.ModelListResponse;
 import org.elmo.robella.model.openai.ChatCompletionResponse;
 import org.elmo.robella.service.ForwardingService;
 import org.elmo.robella.service.TransformService;
-import org.elmo.robella.service.OpenAIStreamEncoder;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,13 +23,11 @@ public class OpenAIController {
 
     private final ForwardingService forwardingService;
     private final TransformService transformService;
-    private final OpenAIStreamEncoder openAIStreamEncoder;
 
     @PostMapping(value = "/chat/completions", produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE})
     public Object chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
 
-        // 转 unified
-        // 使用 OpenAI vendor transform 转 unified
+        // 将请求转为内部格式
         UnifiedChatRequest unified = transformService.vendorRequestToUnified(request, ProviderType.OpenAI.getName());
         boolean stream = Boolean.TRUE.equals(request.getStream());
         if (stream) {
@@ -38,8 +35,8 @@ public class OpenAIController {
                     .body(
                             forwardingService.streamUnified(unified, null)
                                     .map(chunk -> {
-                                        String encoded = openAIStreamEncoder.encodeChunk(chunk, request.getModel(), "chatcmpl-unified");
-                                        return encoded != null ? encoded : "";
+                                        Object event = transformService.unifiedStreamChunkToVendor(chunk, ProviderType.OpenAI.getName());
+                                        return event != null ? event : "";
                                     })
                     );
         }
