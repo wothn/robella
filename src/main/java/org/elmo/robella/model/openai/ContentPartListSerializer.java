@@ -13,13 +13,24 @@ import java.util.List;
  * - 其他情况 -> 数组
  */
 public class ContentPartListSerializer extends JsonSerializer<List<ContentPart>> {
+    /**
+     * 序列化ContentPart列表为JSON格式
+     *
+     * @param value 要序列化的ContentPart对象列表
+     * @param gen JSON生成器，用于写入JSON数据
+     * @param serializers 序列化提供者，可用于查找其他序列化器
+     * @throws IOException 当IO操作出现错误时抛出
+     */
     @Override
     public void serialize(List<ContentPart> value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+        // 处理null值情况
         if (value == null) { gen.writeNull(); return; }
+        // 优化单一text类型内容的序列化
         if (value.size() == 1 && value.get(0) != null && "text".equals(value.get(0).getType())) {
             gen.writeString(value.get(0).getText() == null ? "" : value.get(0).getText());
             return;
         }
+        // 处理数组形式的序列化
         gen.writeStartArray();
         for (ContentPart part : value) {
             if (part == null) continue;

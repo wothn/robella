@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.model.anthropic.MessageRequest;
 import org.elmo.robella.model.anthropic.MessageResponse;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
+import org.elmo.robella.model.internal.UnifiedChatMessage;
+import org.elmo.robella.model.internal.UnifiedContentPart;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.service.ForwardingService;
 import org.elmo.robella.service.TransformService;
@@ -51,17 +53,19 @@ public class AnthropicController {
                 .topP(req.getTopP());
         if (req.getMessages() != null) {
             req.getMessages().forEach(m -> {
-                StringBuilder sb = new StringBuilder();
-                if (m.getContent() != null) {
+                UnifiedChatMessage.UnifiedChatMessageBuilder mb = UnifiedChatMessage.builder().role(m.getRole());
+                if (m.getContent()!=null) {
                     m.getContent().forEach(c -> {
-                        if ("text".equals(c.getType()) && c.getText() != null) sb.append(c.getText());
+                        if ("text".equals(c.getType()) && c.getText()!=null) {
+                            mb.content(UnifiedContentPart.text(c.getText()));
+                        }
                     });
                 }
-                b.message(UnifiedChatRequest.Message.builder().role(m.getRole()).content(sb.toString()).build());
+                b.message(mb.build());
             });
         }
         if (req.getSystem() != null) {
-            b.message(UnifiedChatRequest.Message.builder().role("system").content(req.getSystem()).build());
+            b.message(UnifiedChatMessage.builder().role("system").content(UnifiedContentPart.text(req.getSystem())).build());
         }
         return b.build();
     }

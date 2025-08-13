@@ -20,4 +20,10 @@ public class StreamOptions {
      */
     @JsonProperty("include_usage")
     private Boolean includeUsage;
+
+    /**
+     * 是否包含混淆信息
+     */
+    @JsonProperty("include_obfuscation")
+    private Boolean include_obfuscation;
 }

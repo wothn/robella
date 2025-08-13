@@ -12,7 +12,7 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class FunctionToolCall {
+public class FunctionCall {
     
     /**
      * 要调用的function名称

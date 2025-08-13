@@ -83,9 +83,11 @@ public class ChatCompletionRequest {
     
     /**
      * 工具选择控制
+     * 支持字符串形式："none", "auto", "required"
+     * 或对象形式：{"type": "function", "function": {"name": "function_name"}}
      */
     @JsonProperty("tool_choice")
-    private Object toolChoice; // String或ToolChoice对象
+    private ToolChoice toolChoice;
     
     /**
      * 是否返回对数概率
@@ -94,6 +96,8 @@ public class ChatCompletionRequest {
     
     /**
      * 返回top N token的对数概率
+     * 整数，0到20之间，指定在每个token位置返回最可能的token数量，每个token都有相关的对数概率
+     * 如果使用此参数，logprobs必须设置为true
      */
     @JsonProperty("top_logprobs")
     private Integer topLogprobs;
@@ -101,4 +105,57 @@ public class ChatCompletionRequest {
     @JsonProperty("thinking")
     private Thinking thinking;
 
+    /**
+     * 生成补全的token数上限，包括可见的token数和推理token数
+     */
+    @JsonProperty("max_completion_tokens")
+    private Integer maxCompletionTokens;
+
+    /**
+     * 希望模型生成的输出类型
+     */
+    @JsonProperty("modalities")
+    private List<String> modalities;
+
+    /**
+     * 模型生成的输出数量
+     */
+    @JsonProperty("n")
+    private Integer n;
+
+    /**
+     * 是否并行调用工具调用
+     */
+    @JsonProperty("parallel_tool_calls")
+    private Boolean parallelToolCalls;
+
+    /**
+     * 缓存的提示
+     */
+    @JsonProperty("prompt_cache_key")
+    private String promptCacheKey;
+
+    /**
+     * 音频输出的参数
+     */
+    @JsonProperty("audio")
+    private Audio audio;
+
+    /**
+     * 限制推理模型的推理工作量。目前支持的值为 minimal 、 low 、 medium 和 high 。减少推理工作量可以加快响应速度，并减少响应中用于推理的 token 数量。
+     */
+    @JsonProperty("reasoning_effort")
+    private String reasoningEffort;
+
+    /**
+     * 文本输出的参数
+     */
+    @JsonProperty("text")
+    private TextOptions text;
+
+    /**
+     * 额外的厂商特定参数
+     */
+    @JsonProperty("extra_body")
+    private Object extraBody;
 }

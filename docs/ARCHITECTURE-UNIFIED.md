@@ -3,9 +3,9 @@
 ## 1. 目标概述
 在保留 OpenAI 兼容接口 `/v1/chat/completions` 的同时，对外新增 Anthropic 原生接口 `/anthropic/v1/messages`，内部统一使用 `Unified*` 数据模型，形成“多入口 → 统一模型 → 路由/适配 → 厂商调用 → 统一响应 → 多出口格式”的闭环。后续可平滑扩展 Gemini、Qwen 等。
 
-## 2. 当前完成度 (2025-08-11)
+## 2. 当前完成度 (2025-08-13)
 已完成:
-1. 内部统一模型: `UnifiedChatRequest`, `UnifiedChatResponse`, `UnifiedStreamChunk`, `UnifiedError`。
+1. 内部统一模型: `UnifiedChatRequest`, `UnifiedChatResponse`, `UnifiedStreamChunk`, `UnifiedError` (已二次扩展多模态/工具/增量字段)。
 2. `TransformService` 扩展：支持 OpenAI 与 Anthropic 的 Unified 双向转换（请求/响应/流事件）。
 3. `ForwardingService` 新增 `forwardUnified` / `streamUnified`，并在实现中按 provider 直接调用对应适配器（不再经 OpenAI 中转）。
 4. `OpenAIController` 已迁移到 unified 流程，仍保持对外兼容 OpenAI 格式；原 `forwardChatCompletion` / `streamChatCompletion` 暂保留用于兼容/回退。
@@ -76,24 +76,42 @@ OpenAI 流式：Unified 增量封装为单 chunk JSON；结束发送 `[DONE]`。
 - 细粒度配额 / 限流策略（基于 provider + model）;
 - Observability：链路日志 + 统一埋点 + metrics (Prometheus)。
 
-## 10. 统一模型快速参考
+## 10. 统一模型快速参考 (v2 扩展)
 `UnifiedChatRequest`
 ```
-model, messages(role, content), stream, maxTokens, temperature, topP, vendorExtras
+model,
+messages[]: role,id,contents[],toolCalls[],reasoningContent,metadata,vendorExtras
+stream,maxTokens,temperature,topP,topK,minP,frequencyPenalty,presencePenalty,seed,
+stop[],tools[],toolChoice,logprobs,topLogprobs,responseFormat,thinking,
+metadata (trace/user/session),vendorExtras (openai.*,anthropic.*)
 ```
 `UnifiedChatResponse`
 ```
-id, model, content, finishReason, usage(promptTokens, completionTokens, totalTokens), rawVendor
+id,model,content,assistantMessage,messages[],toolCalls[],reasoningContent,
+finishReason,usage{promptTokens,completionTokens,totalTokens,extra{}},
+warnings[],metadata{},rawVendor
 ```
 `UnifiedStreamChunk`
 ```
-contentDelta, finished
+messageId,role,contentDelta,reasoningDelta,contentParts[],toolCallDeltas[],
+usage (仅结束),finished,rawVendor
 ```
 
-## 11. 已知限制
-- 当前暂未对工具调用 /函数调用进行抽象合并。
-- SSE 事件逐条字符串拼接，后续可改 Jackson 序列化与 buffer flush 优化。
-- 没有对超大流拆分进行 backpressure 控制细化（依赖 Reactor 默认）。
+增量工具调用 (`UnifiedToolCallDelta`): id,name,argumentsDelta,argumentsJson,error,errorMessage,finished
+
+多模态内容 (`UnifiedContentPart`):
+```
+type(text|image|audio|video|file|json|tool_result|reasoning|other),text,url,detail,
+format,data,mimeType,json,sizeBytes,width,height,durationSeconds,
+toolCallId,segmentId,segmentIndex,finalSegment,metadata{}
+```
+
+## 11. 已知限制 / 待补强
+- OpenAI ToolCall 现模型差异（function/custom 嵌套）已做适配，但后续考虑重写成统一内部结构再降级输出。
+- Anthropic streaming 仅提取文本 delta，未覆盖 tool_use / thinking（需模型升级后适配）。
+- contentParts 流增量目前 OpenAI 解析仅落文本；图像/音频增量待厂商事件示例后实现。
+- backpressure/大型多模态分片缓存策略未细化（需评估内存与延迟）。
+- 缺少单元/集成测试覆盖新字段序列化与回放。
 
 ---
 如需新增厂商：只需新增 DTO + Transform 分支 + Controller（或统一 ProviderController）+ providers.yml 配置 + AdapterFactory 分支。

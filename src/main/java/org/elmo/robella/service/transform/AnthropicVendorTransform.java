@@ -1,9 +1,7 @@
 package org.elmo.robella.service.transform;
 
 import org.elmo.robella.model.anthropic.*;
-import org.elmo.robella.model.internal.UnifiedChatRequest;
-import org.elmo.robella.model.internal.UnifiedChatResponse;
-import org.elmo.robella.model.internal.UnifiedStreamChunk;
+import org.elmo.robella.model.internal.*;
 import org.elmo.robella.service.VendorTransform;
 import org.elmo.robella.util.JsonUtils;
 
@@ -14,29 +12,38 @@ import java.util.*;
  */
 public class AnthropicVendorTransform implements VendorTransform {
     @Override
-    public String type() { return "Anthropic"; }
+    public String type() {
+        return "Anthropic";
+    }
+
     @Override
     public UnifiedChatRequest vendorRequestToUnified(Object vendorRequest) {
         if (!(vendorRequest instanceof MessageRequest req)) return null;
-        UnifiedChatRequest.UnifiedChatRequestBuilder b = UnifiedChatRequest.builder()
-                .model(req.getModel())
-                .stream(Boolean.TRUE.equals(req.getStream()))
-                .maxTokens(req.getMaxTokens())
-                .temperature(req.getTemperature())
-                .topP(req.getTopP());
+    UnifiedChatRequest.UnifiedChatRequestBuilder b = UnifiedChatRequest.builder()
+        .model(req.getModel())
+        .stream(Boolean.TRUE.equals(req.getStream()))
+        .maxTokens(req.getMaxTokens())
+        .temperature(req.getTemperature())
+        .topP(req.getTopP()); // topK / minP / seed 暂无（Claude有top_k待扩展）
         if (req.getMessages() != null) {
             req.getMessages().forEach(m -> {
-                StringBuilder sb = new StringBuilder();
+                // 修复 builder 类型
+                    var mb = UnifiedChatMessage.builder().role(m.getRole());
                 if (m.getContent() != null) {
                     m.getContent().forEach(c -> {
-                        if ("text".equals(c.getType()) && c.getText() != null) sb.append(c.getText());
+                        if ("text".equals(c.getType()) && c.getText() != null) {
+                            mb.content(UnifiedContentPart.text(c.getText()));
+                        }
                     });
                 }
-                b.message(UnifiedChatRequest.Message.builder().role(m.getRole()).content(sb.toString()).build());
+                b.message(mb.build());
             });
         }
         if (req.getSystem() != null) {
-            b.message(UnifiedChatRequest.Message.builder().role("system").content(req.getSystem()).build());
+            b.message(UnifiedChatMessage.builder()
+                    .role("system")
+                    .content(UnifiedContentPart.text(req.getSystem()))
+                    .build());
         }
         return b.build();
     }
@@ -46,14 +53,15 @@ public class AnthropicVendorTransform implements VendorTransform {
         List<AnthropicMessage> msgs = new ArrayList<>();
         StringBuilder system = new StringBuilder();
         if (unifiedRequest.getMessages() != null) {
-            for (UnifiedChatRequest.Message m : unifiedRequest.getMessages()) {
+            for (UnifiedChatMessage m : unifiedRequest.getMessages()) {
                 if ("system".equalsIgnoreCase(m.getRole())) {
                     if (!system.isEmpty()) system.append("\n\n");
-                    system.append(m.getContent());
+                    system.append(m.aggregatedText());
                 } else {
                     AnthropicMessage am = new AnthropicMessage();
                     am.setRole(mapRole(m.getRole()));
-                    AnthropicContentBlock block = AnthropicContentBlock.builder().type("text").text(m.getContent()).build();
+                    String text = m.aggregatedText();
+                    AnthropicContentBlock block = AnthropicContentBlock.builder().type("text").text(text).build();
                     am.setContent(List.of(block));
                     msgs.add(am);
                 }
@@ -80,11 +88,19 @@ public class AnthropicVendorTransform implements VendorTransform {
     @Override
     public UnifiedChatResponse vendorResponseToUnified(Object vendorResponse) {
         if (!(vendorResponse instanceof MessageResponse mr)) return null;
-        StringBuilder sb = new StringBuilder();
+    StringBuilder sb = new StringBuilder();
+        UnifiedChatMessage assistantMessage = null;
+    List<UnifiedChatMessage> messages = new ArrayList<>();
         if (mr.getContent() != null) {
+            var mb = UnifiedChatMessage.builder().role("assistant");
             for (MessageResponseContentBlock b : mr.getContent()) {
-                if (b != null && "text".equals(b.getType()) && b.getText() != null) sb.append(b.getText());
+                if (b != null && "text".equals(b.getType()) && b.getText() != null) {
+                    sb.append(b.getText());
+                    mb.content(UnifiedContentPart.text(b.getText()));
+                }
             }
+            assistantMessage = mb.build();
+            messages.add(assistantMessage);
         }
         UnifiedChatResponse.Usage usage = null;
         if (mr.getUsage() != null) {
@@ -98,6 +114,8 @@ public class AnthropicVendorTransform implements VendorTransform {
                 .id(mr.getId())
                 .model(mr.getModel())
                 .content(sb.toString())
+                .assistantMessage(assistantMessage)
+                .messages(messages.isEmpty()?null:messages)
                 .finishReason(mr.getStopReason())
                 .usage(usage)
                 .rawVendor(mr)
@@ -143,10 +161,11 @@ public class AnthropicVendorTransform implements VendorTransform {
                 Map<?, ?> map = JsonUtils.fromJson(dataJson, Map.class);
                 if (map != null && map.get("delta") instanceof Map<?, ?> delta) {
                     Object text = delta.get("text");
-                    if (text != null) return new UnifiedStreamChunk(text.toString(), false);
+                    if (text != null)
+                        return UnifiedStreamChunk.builder().contentDelta(text.toString()).finished(false).build();
                 }
             }
-            if ("message_stop".equals(eventType)) return new UnifiedStreamChunk(null, true);
+            if ("message_stop".equals(eventType)) return UnifiedStreamChunk.builder().finished(true).build();
         } catch (Exception ignored) {
         }
         return null;

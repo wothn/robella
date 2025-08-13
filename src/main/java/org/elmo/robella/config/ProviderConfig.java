@@ -20,6 +20,7 @@ public class ProviderConfig {
         private String apiKey;
         private String baseUrl;
         private String deploymentName; // Azure OpenAI特有字段
+    private String apiVersion; // 可选的 API 版本（尤其用于 Azure OpenAI 或自建兼容服务）
         private List<Model> models;
 
         public ProviderType getProviderType() {

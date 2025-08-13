@@ -13,6 +13,7 @@ import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -38,6 +39,7 @@ public class OpenAIController {
                                         Object event = transformService.unifiedStreamChunkToVendor(chunk, ProviderType.OpenAI.getName());
                                         return event != null ? event : "";
                                     })
+                                    .concatWith(Flux.just("[DONE]")) // 流结束时发送 [DONE] 标记
                     );
         }
         return forwardingService.forwardUnified(unified, null)

@@ -8,21 +8,22 @@ import lombok.AllArgsConstructor;
 import java.util.List;
 
 /**
- * OpenAI 对数概率信息
+ * OpenAI Allowed Tools配置
+ * 用于限制模型可以调用的工具范围
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class LogProbs {
+public class AllowedTools {
     
     /**
-     * 消息内容token的对数概率信息列表
+     * 模式：auto - 允许模型从所有工具中选择，required - 必须调用其中一个工具
      */
-    private List<TokenLogProb> content;
+    private String mode;
     
     /**
-     * 消息拒绝token的对数概率信息列表
+     * 允许的工具列表
      */
-    private List<TokenLogProb> refusal;
+    private List<Tool> tools;
 }

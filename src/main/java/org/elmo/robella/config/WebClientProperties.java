@@ -31,6 +31,8 @@ public class WebClientProperties {
         private Duration connect = Duration.ofSeconds(10);
         private Duration read = Duration.ofSeconds(60);
         private Duration write = Duration.ofSeconds(30);
+    // 流式读超时倍数（基于 read）
+    private double streamReadMultiplier = 5.0;
     }
 
     @Data

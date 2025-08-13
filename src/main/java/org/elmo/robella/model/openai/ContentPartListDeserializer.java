@@ -17,19 +17,30 @@ import java.util.List;
  * - 数组 -> 列表
  */
 public class ContentPartListDeserializer extends JsonDeserializer<List<ContentPart>> {
+    /**
+     * 反序列化JsonNode为ContentPart列表
+     * 
+     * @param p Json解析器
+     * @param ctxt 反序列化上下文
+     * @return ContentPart对象列表
+     * @throws IOException 当IO操作出现错误时抛出
+     */
     @Override
     public List<ContentPart> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         JsonNode node = p.getCodec().readTree(p);
         if (node == null || node.isNull()) return null;
         List<ContentPart> parts = new ArrayList<>();
+        // 处理文本节点情况
         if (node.isTextual()) {
             parts.add(ContentPart.ofText(node.asText()));
             return parts;
         }
+        // 处理对象节点情况
         if (node.isObject()) {
             parts.add(parseObject(node, p.getCodec()));
             return parts;
         }
+        // 处理数组节点情况
         if (node.isArray()) {
             for (JsonNode n : node) {
                 if (n.isTextual()) {
@@ -43,6 +54,13 @@ public class ContentPartListDeserializer extends JsonDeserializer<List<ContentPa
         return parts;
     }
 
+    /**
+     * 解析JSON对象节点为ContentPart对象
+     * 
+     * @param n JSON对象节点
+     * @param codec ObjectMapper实例，用于类型转换
+     * @return 解析后的ContentPart对象
+     */
     private ContentPart parseObject(JsonNode n, Object codec) {
         String type = n.path("type").asText();
         ObjectMapper mapper = (ObjectMapper) codec;

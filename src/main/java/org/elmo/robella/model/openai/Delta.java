@@ -1,7 +1,11 @@
 package org.elmo.robella.model.openai;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -13,6 +17,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Delta {
     
     /**
@@ -23,6 +28,8 @@ public class Delta {
     /**
      * 内容增量：可为空或包含一个或多个新增片段
      */
+    @JsonDeserialize(using = ContentPartListDeserializer.class)
+    @JsonSerialize(using = ContentPartListSerializer.class)
     private List<ContentPart> content;
     
     /**
@@ -36,4 +43,12 @@ public class Delta {
      */
     @JsonProperty("tool_calls")
     private List<ToolCall> toolCalls;
+
+    /**
+     * 已弃用：单个函数调用（向后兼容）
+     * 使用 tool_calls 替代
+     */
+    @JsonProperty("function_call")
+    @Deprecated
+    private FunctionCall functionCall;
 }

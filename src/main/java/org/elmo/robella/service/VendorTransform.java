@@ -19,16 +19,16 @@ public interface VendorTransform {
     /** 返回该转换器支持的 ProviderType 名称（枚举 name）。 */
     String type();
 
-    // 1
+    // 厂商请求 -> Unified
     UnifiedChatRequest vendorRequestToUnified(Object vendorRequest);
-    // 2
+    // Unified -> 厂商请求
     Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest);
-    // 3
+    // 厂商响应 -> Unified
     UnifiedChatResponse vendorResponseToUnified(Object vendorResponse);
-    // 4
+    // Unified -> 厂商响应
     Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse);
-    // 5
+    // 厂商流事件 -> Unified
     UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent);
-    // 6
+    // Unified -> 厂商流事件
     Object unifiedStreamChunkToVendor(UnifiedStreamChunk chunk);
 }

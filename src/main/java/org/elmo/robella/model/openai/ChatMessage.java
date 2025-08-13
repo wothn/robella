@@ -1,5 +1,6 @@
 package org.elmo.robella.model.openai;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -21,6 +22,7 @@ import java.util.Objects;
 @AllArgsConstructor
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatMessage {
     
     /**
@@ -55,6 +57,21 @@ public class ChatMessage {
     private String reasoningContent;
     
     /**
+     * 拒绝消息（当模型拒绝回答时）
+     */
+    private String refusal;
+    
+    /**
+     * 音频输出数据（当请求音频输出时）
+     */
+    private AudioData audio;
+    
+    /**
+     * 消息注释列表（如URL引用等）
+     */
+    private List<MessageAnnotation> annotations;
+    
+    /**
      * Tool调用ID（仅tool消息）
      */
     @JsonProperty("tool_call_id")
@@ -66,31 +83,12 @@ public class ChatMessage {
     @JsonProperty("tool_calls")
     private List<ToolCall> toolCalls;
 
-    // --- 工具方法 ---
-    public static ChatMessage text(String role, String text) {
-        return ChatMessage.builder().role(role).content(List.of(ContentPart.ofText(text))).build();
-    }
-    public ChatMessage addText(String text) {
-        if (content == null) content = new ArrayList<>();
-        content.add(ContentPart.ofText(text));
-        return this;
-    }
-    public ChatMessage addImage(String url, String detail) {
-        if (content == null) content = new ArrayList<>();
-        content.add(ContentPart.ofImage(url, detail));
-        return this;
-    }
-    public ChatMessage addAudio(String base64, String format) {
-        if (content == null) content = new ArrayList<>();
-        content.add(ContentPart.ofAudio(base64, format));
-        return this;
-    }
-    public boolean isSingleText() {
-        return content != null && content.size() == 1 && "text".equals(content.get(0).getType());
-    }
-    public String firstTextOrNull() {
-        if (content == null) return null;
-        return content.stream().filter(p -> Objects.equals(p.getType(), "text"))
-                .map(ContentPart::getText).filter(Objects::nonNull).findFirst().orElse(null);
-    }
+    /**
+     * 已弃用：单个函数调用（向后兼容）
+     * 使用 tool_calls 替代
+     */
+    @JsonProperty("function_call")
+    @Deprecated
+    private FunctionCall functionCall;
+
 }

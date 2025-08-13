@@ -152,8 +152,5 @@ ENV/
 *.tmp
 *.temp
 
-# Provider configuration
-src/main/resources/providers.yml
-
 # Application configuration
 src/main/resources/application.yml
