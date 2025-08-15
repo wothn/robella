@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * OpenAI Tool调用
- * 支持 function 和 custom 两种类型
+ * 根据官方文档的标准结构定义，支持 function 和 custom 两种类型
  */
 @Data
 @NoArgsConstructor
@@ -18,15 +18,30 @@ import lombok.NoArgsConstructor;
 public class ToolCall {
     
     /**
-     * Function调用信息（当 type="function" 时）
+     * 工具调用的ID
      */
-    private FunctionToolCall function;
+    private String id;
     
     /**
-     * 自定义工具调用信息（当 type="custom" 时）
+     * 工具类型，支持 "function" 和 "custom"
      */
-    private CustomToolCall custom;
+    private String type;
     
+    /**
+     * 工具调用的索引（在流式响应中使用）
+     */
+    private Integer index;
+    
+    /**
+     * Function调用信息（当 type="function" 时）
+     */
+    private Function function;
+    
+    /**
+     * Custom工具调用信息（当 type="custom" 时）
+     */
+    private Custom custom;
+
     /**
      * Function工具调用的详细信息
      */
@@ -35,62 +50,22 @@ public class ToolCall {
     @AllArgsConstructor
     @Builder
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public static class FunctionToolCall {
-
-        private Function function;
-        
-        /**
-         * 要调用的function名称
-         */
-        private String id;
-        
-        /**
-         * 要调用的function的参数，JSON格式字符串
-         */
-        private String type;
-    }
-    
-    /**
-     * 自定义工具调用的详细信息
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public static class CustomToolCall {
-
-        private Custom custom;
-        
-        /**
-         * 自定义工具的名称
-         */
-        private String id;
-        
-        /**
-         * 自定义工具的输入参数（JSON字符串格式）
-         */
-        private String type;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class Function {
 
         /**
-         * 传递给函数的参数
-         */
-        private String augument;
-
-        /**
-         * 要调用的函数的名称。
+         * 要调用的函数的名称
          */
         private String name;
-    }
 
+        /**
+         * 传递给函数的参数，JSON格式字符串
+         */
+        private String arguments;
+    }
+    
+    /**
+     * Custom工具调用的详细信息
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -99,13 +74,13 @@ public class ToolCall {
     public static class Custom {
 
         /**
-         * 传递给函数的参数
-         */
-        private String input;
-
-        /**
-         * 要调用的函数的名称。
+         * 自定义工具的名称
          */
         private String name;
+
+        /**
+         * 传递给自定义工具的输入参数
+         */
+        private String input;
     }
 }

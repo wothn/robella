@@ -1,11 +1,14 @@
 package org.elmo.robella.model.openai;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * OpenAI 聊天完成请求
@@ -13,6 +16,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Builder
+@AllArgsConstructor
 public class ChatCompletionRequest {
     
     /**
@@ -35,6 +40,7 @@ public class ChatCompletionRequest {
      * 最大token数，1到8192之间
      */
     @JsonProperty("max_tokens")
+    @JsonAlias("max_completion_tokens")
     private Integer maxTokens;
     
     /**
@@ -42,7 +48,12 @@ public class ChatCompletionRequest {
      */
     @JsonProperty("presence_penalty")
     private Double presencePenalty;
-    
+
+    /**
+     * 预测参数
+     */
+    @JsonProperty("prediction")
+    private Prediction prediction;
     /**
      * 响应格式
      */
@@ -50,9 +61,11 @@ public class ChatCompletionRequest {
     private ResponseFormat responseFormat;
     
     /**
-     * 停止序列
+     * 停止序列（统一使用数组表示；仍兼容单字符串输入）
+     * 通过 @JsonFormat(ACCEPT_SINGLE_VALUE_AS_ARRAY) 允许客户端发送 "stop":"###" 这种单值形式
      */
-    private Object stop; // String或String[]
+    @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+    private List<String> stop;
     
     /**
      * 是否流式输出
@@ -102,15 +115,6 @@ public class ChatCompletionRequest {
     @JsonProperty("top_logprobs")
     private Integer topLogprobs;
 
-    @JsonProperty("thinking")
-    private Thinking thinking;
-
-    /**
-     * 生成补全的token数上限，包括可见的token数和推理token数
-     */
-    @JsonProperty("max_completion_tokens")
-    private Integer maxCompletionTokens;
-
     /**
      * 希望模型生成的输出类型
      */
@@ -142,10 +146,28 @@ public class ChatCompletionRequest {
     private Audio audio;
 
     /**
-     * 限制推理模型的推理工作量。目前支持的值为 minimal 、 low 、 medium 和 high 。减少推理工作量可以加快响应速度，并减少响应中用于推理的 token 数量。
+     * OpenAI O系列推理努力程度。目前支持的值为 minimal 、 low 、 medium 和 high。
      */
     @JsonProperty("reasoning_effort")
     private String reasoningEffort;
+
+    /**
+     * 智谱系列思考参数
+     */
+    @JsonProperty("thinking")
+    private Thinking thinking;
+
+    /**
+     * Qwen系列思考参数
+     */
+    @JsonProperty("enable_thinking")
+    private Boolean enableThinking;
+
+    /**
+     * Qwen系列思考预算
+     */
+    @JsonProperty("thinking_budget")
+    private Integer thinkingBudget;
 
     /**
      * 文本输出的参数
@@ -154,8 +176,94 @@ public class ChatCompletionRequest {
     private TextOptions text;
 
     /**
+     * 网络搜索选项
+     * 此工具搜索网络以获取相关结果用于回复
+     */
+    @JsonProperty("web_search_options")
+    private WebSearchOptions webSearchOptions;
+
+    /**
      * 额外的厂商特定参数
      */
     @JsonProperty("extra_body")
     private Object extraBody;
+
+
+    private Map<String, Object> undefined = new HashMap<>();
+
+    @JsonAnySetter
+    public void addUndefined(String key, Object value) {
+        undefined.put(key, value);
+    }
+
+    @JsonAnyGetter
+    public Map<String, Object> getUndefined() {
+        return undefined;
+    }
+
+    /**
+     * 网络搜索选项
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class WebSearchOptions {
+        /**
+         * 搜索上下文大小，默认值：medium，可选值为 low、medium 或 high
+         */
+        @JsonProperty("search_context_size")
+        private String searchContextSize;
+
+        /**
+         * 搜索的近似位置参数
+         */
+        @JsonProperty("user_location")
+        private UserLocation userLocation;
+    }
+
+    /**
+     * 用户位置信息
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class UserLocation {
+        /**
+         * 搜索的近似位置参数
+         */
+        private Approximate approximate;
+    }
+
+    /**
+     * 近似位置参数
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Approximate {
+        /**
+         * 用户城市的自由文本输入
+         */
+        private String city;
+
+        /**
+         * 用户的两字母 ISO 国家代码
+         */
+        private String country;
+
+        /**
+         * 用户地区的自由文本输入
+         */
+        private String region;
+
+        /**
+         * 用户的 IANA 时区
+         */
+        private String timezone;
+
+        /**
+         * 位置近似类型，始终为 approximate
+         */
+        private String type;
+    }
 }

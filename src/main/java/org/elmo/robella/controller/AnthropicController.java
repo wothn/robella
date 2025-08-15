@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.model.anthropic.MessageRequest;
 import org.elmo.robella.model.anthropic.MessageResponse;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
-import org.elmo.robella.model.internal.UnifiedChatMessage;
-import org.elmo.robella.model.internal.UnifiedContentPart;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.service.ForwardingService;
 import org.elmo.robella.service.TransformService;

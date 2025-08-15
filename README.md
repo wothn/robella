@@ -1,10 +1,12 @@
 # Robella - OpenAI API兼容转发平台
 
-Robella是一个OpenAI API兼容的转发平台，可以统一接入多家AI服务商（OpenAI、Claude、Gemini、通义千问等），提供标准化的API接口和灵活的路由策略。
+Robella是一AI API的转发平台，可以统一接入多家AI服务商（OpenAI、Claude、Gemini、通义千问等），提供标准化的API接口和灵活的路由策略。
 
 ## 功能特性
 
-- OpenAI API格式兼容
+- OpenAI API端点
+- Anthropic API端点
+- Gemini API端点
 - 多AI服务商转发支持
 - 流式传输处理
 - 动态路由配置

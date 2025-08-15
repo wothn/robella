@@ -14,17 +14,11 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Choice {
-    
-    /**
-     * 完成索引
-     */
-    private Integer index;
-    
-    /**
-     * 完成原因
-     */
+
+    private Integer index;            // 选项在选项列表中的索引。
+
     @JsonProperty("finish_reason")
-    private String finishReason;
+    private String finishReason;     // 模型停止生成标记的原因。
     
     /**
      * 生成的消息

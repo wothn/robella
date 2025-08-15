@@ -44,11 +44,4 @@ public class Delta {
     @JsonProperty("tool_calls")
     private List<ToolCall> toolCalls;
 
-    /**
-     * 已弃用：单个函数调用（向后兼容）
-     * 使用 tool_calls 替代
-     */
-    @JsonProperty("function_call")
-    @Deprecated
-    private FunctionCall functionCall;
 }
