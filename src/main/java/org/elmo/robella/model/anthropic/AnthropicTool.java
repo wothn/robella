@@ -1,23 +1,36 @@
 package org.elmo.robella.model.anthropic;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.util.Map;
 
 /**
- * 工具描述（如果后续要支持 tool_choice / tool 调用，可扩展）。
+ * Anthropic 工具定义基类
  */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class AnthropicTool {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = AnthropicCustomTool.class, name = "custom"),
+    @JsonSubTypes.Type(value = AnthropicComputerTool.class, name = "computer_20241022"),
+    @JsonSubTypes.Type(value = AnthropicBashTool.class, name = "bash_20241022"),
+    @JsonSubTypes.Type(value = AnthropicTextEditorTool.class, name = "text_editor_20241022")
+})
+public abstract class AnthropicTool {
+    
+    /**
+     * 工具类型
+     */
+    private String type;
+    
+    /**
+     * 工具名称
+     */
     private String name;
-    private String description;
-    private Map<String, Object> inputSchema; // JSON Schema
+    
+    /**
+     * 缓存控制
+     */
+    @JsonProperty("cache_control")
+    private AnthropicCacheControl cacheControl;
 }

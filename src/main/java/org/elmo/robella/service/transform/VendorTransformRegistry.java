@@ -18,8 +18,8 @@ public class VendorTransformRegistry {
     public VendorTransformRegistry() {
         // 手动注册；若后续改为通过 Spring 注入 List<VendorTransform>，可切换构造签名
         List<VendorTransform> transforms = List.of(
-                new OpenAIVendorTransform(),
-                new AnthropicVendorTransform()
+                new OpenAITransform(),
+                new AnthropicTransform()
         );
         this.registry = transforms.stream().collect(Collectors.toMap(VendorTransform::type, Function.identity()));
     }

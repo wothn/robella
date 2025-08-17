@@ -56,29 +56,11 @@ public class ForwardingServiceImpl implements ForwardingService {
         UnifiedChatRequest effective = mapToVendorModel(request, providerName);
         if (effective.getStream() == null || !effective.getStream()) {
             effective = effective.toBuilder().stream(true).build();
-            if (log.isTraceEnabled()) {
-                log.trace("Force enabled stream=true for unified request");
-            }
         }
         // 转换为适配器特定格式
         Object vendorReq = transformService.unifiedToVendorRequest(effective, providerName);
         return adapter.streamChatCompletion(vendorReq)
                 .map(event -> transformService.vendorStreamEventToUnified(event, providerName))
-                .doOnNext(ch -> {
-                    if (ch == null) {
-                        if (log.isTraceEnabled())
-                            log.trace("Stream chunk null after transform (provider={})", providerName);
-                    } else if (log.isTraceEnabled()) {
-                        log.trace("Stream chunk before filter: finished={} contentDelta='{}' reasoningDelta='{}' toolCalls={} usagePresent={} hasPayload={}",
-                                ch.isFinished(),
-                                truncate(ch.getContentDelta()),
-                                truncate(ch.getReasoningDelta()),
-                                ch.getToolCallDeltas() == null ? 0 : ch.getToolCallDeltas().size(),
-                                ch.getUsage() != null,
-                                ch.hasPayload());
-                    }
-                })
-                .filter(ch -> ch != null && ch.hasPayload())
                 .doOnComplete(() -> {
                     if (log.isDebugEnabled())
                         log.debug("Streaming unified response completed: provider={}", providerName);

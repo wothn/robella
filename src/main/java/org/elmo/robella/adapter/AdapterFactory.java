@@ -1,7 +1,6 @@
 package org.elmo.robella.adapter;
 
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.anthropic.AnthropicAdapter;
 import org.elmo.robella.adapter.openai.OpenAIAdapter;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.ProviderType;
@@ -35,7 +34,8 @@ public class AdapterFactory {
             }
             case Anthropic -> {
                 log.debug("Creating Anthropic adapter for provider: {}", providerName);
-                yield new AnthropicAdapter(providerConfig, defaultWebClient, webClientProperties);
+                // TODO: 实现 AnthropicAdapter
+                throw new UnsupportedOperationException("Anthropic adapter not implemented yet");
             }
         };
     }

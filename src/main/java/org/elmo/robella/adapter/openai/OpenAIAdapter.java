@@ -5,9 +5,13 @@ import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.config.WebClientProperties;
+import org.elmo.robella.exception.AuthenticationException;
 import org.elmo.robella.exception.ProviderException;
+import org.elmo.robella.exception.QuotaExceededException;
+import org.elmo.robella.exception.RateLimitException;
 import org.elmo.robella.model.openai.ChatCompletionRequest;
 import org.elmo.robella.model.openai.ChatCompletionResponse;
+import org.elmo.robella.model.openai.ChatCompletionChunk;
 import org.elmo.robella.model.openai.ModelInfo;
 import org.elmo.robella.util.JsonUtils;
 import org.springframework.http.HttpHeaders;
@@ -23,30 +27,29 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import reactor.util.retry.Retry;
 
 @Slf4j
 public class OpenAIAdapter implements AIProviderAdapter {
+
+    private static final String SSE_DATA_PREFIX = "data: ";
+    private static final String SSE_DONE_MARKER = "[DONE]";
+    private static final Pattern SSE_LINE_PATTERN = Pattern.compile("(?:^|\\n)data: (.*)(?:\\n|$)");
+
     private final ProviderConfig.Provider config;
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
 
     public OpenAIAdapter(ProviderConfig.Provider config, WebClient webClient, WebClientProperties webClientProperties) {
         this.config = config;
-        this.webClient = configureWebClient(webClient);
-        this.webClientProperties = webClientProperties;
-    }
-
-    /**
-     * 配置特定于OpenAI的WebClient
-     */
-    private WebClient configureWebClient(WebClient baseWebClient) {
-        return baseWebClient.mutate()
+        this.webClient = webClient.mutate()
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + config.getApiKey())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader(HttpHeaders.USER_AGENT, "Robella")
                 .build();
+        this.webClientProperties = webClientProperties;
     }
 
     @Override
@@ -56,11 +59,11 @@ public class OpenAIAdapter implements AIProviderAdapter {
         }
 
         // 构建URL
-        String url = buildChatCompletionUrl();
+        String url = buildChatCompletionsUrl();
 
         // 发送请求
         if (log.isDebugEnabled()) {
-            log.debug("[OpenAIAdapter] chatCompletion start provider={} model={} stream=false", getProviderName(), openaiRequest.getModel());
+            log.debug("[OpenAIAdapter] chatCompletion start provider={} model={} stream=false", config.getName(), openaiRequest.getModel());
         }
 
         return webClient.post()
@@ -68,7 +71,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
                 .bodyValue(openaiRequest)
                 .retrieve()
                 .bodyToMono(String.class)  // 先获取为字符串
-                .map(responseStr -> {
+                .mapNotNull(responseStr -> {
                     try {
                         // 手动反序列化JSON字符串为OpenAIChatResponse对象
                         return JsonUtils.fromJson(responseStr, ChatCompletionResponse.class);
@@ -81,31 +84,22 @@ public class OpenAIAdapter implements AIProviderAdapter {
                 .retryWhen(Retry.backoff(webClientProperties.getRetry().getMaxAttempts(), webClientProperties.getRetry().getInitialDelay())
                         .maxBackoff(webClientProperties.getRetry().getMaxDelay())
                         .filter(this::isRetryable))
-                .onErrorMap(WebClientResponseException.class, this::handleWebClientError)
-                .onErrorMap(ex -> !(ex instanceof ProviderException), ex -> new ProviderException(
-                        "OpenAI API call failed: " + ex.getMessage(), ex))
+                .onErrorMap(ex -> mapToProviderException(ex, "OpenAI API call"))
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
-                        log.debug("[OpenAIAdapter] chatCompletion success provider={} model={}", getProviderName(), openaiRequest.getModel());
+                        log.debug("[OpenAIAdapter] chatCompletion success provider={} model={}", config.getName(), openaiRequest.getModel());
                 })
-                .doOnError(err -> log.debug("[OpenAIAdapter] chatCompletion error provider={} model={} msg={}", getProviderName(), openaiRequest.getModel(), err.toString()));
+                .doOnError(err -> log.debug("[OpenAIAdapter] chatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
     }
 
     @Override
-    public Flux<String> streamChatCompletion(Object request) {
-        if (!(request instanceof ChatCompletionRequest originalReq)) {
+    public Flux<ChatCompletionChunk> streamChatCompletion(Object request) {
+        if (!(request instanceof ChatCompletionRequest openaiRequest)) {
             return Flux.error(new ProviderException("Invalid request type for OpenAIAdapter: " + (request == null ? "null" : request.getClass().getName())));
         }
-        // 克隆请求对象，避免调用方复用实例被副作用修改
-        ChatCompletionRequest openaiRequest = JsonUtils.fromJson(JsonUtils.toJson(originalReq), ChatCompletionRequest.class);
-        if (openaiRequest == null) {
-            return Flux.error(new ProviderException("Failed to clone ChatCompletionRequest"));
-        }
-        
-        // 强制开启流式模式，确保上游返回 SSE 格式
-        openaiRequest.setStream(true);
 
-        String url = buildChatCompletionUrl();
+        // 构建URL
+        String url = buildChatCompletionsUrl();
 
         // 流式请求通常需要更长的超时时间，使用读超时的5倍
         double multiplier = webClientProperties.getTimeout().getStreamReadMultiplier();
@@ -113,7 +107,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
         Duration streamTimeout = Duration.ofMillis((long) (webClientProperties.getTimeout().getRead().toMillis() * multiplier));
 
         if (log.isDebugEnabled()) {
-            log.debug("[OpenAIAdapter] streamChatCompletion start provider={} model={} stream=true", getProviderName(), openaiRequest.getModel());
+            log.debug("[OpenAIAdapter] streamChatCompletion start provider={} model={} stream=true", config.getName(), openaiRequest.getModel());
         }
 
         return webClient.post()
@@ -124,22 +118,24 @@ public class OpenAIAdapter implements AIProviderAdapter {
                 .bodyToFlux(String.class)
                 .doOnNext(raw -> {
                     if (log.isTraceEnabled()) {
-                        log.trace("[OpenAIAdapter] raw stream fragment: {}", abbreviate(raw, 200));
+                        log.trace("[OpenAIAdapter] raw stream fragment: {}", raw != null && raw.length() > 200 ? raw.substring(0, 200) + "..." : raw);
                     }
                 })
-                .flatMap(this::parseSseRaw) // 统一解析
+                .flatMap(raw -> {
+                    List<ChatCompletionChunk> parsed = parseStreamRaw(raw);
+                    return parsed.isEmpty() ? Flux.empty() : Flux.fromIterable(parsed);
+                })
                 .timeout(streamTimeout)
-                .onErrorMap(WebClientResponseException.class, this::handleWebClientError)
-                .onErrorMap(ex -> !(ex instanceof ProviderException), ex -> new ProviderException(
-                        "OpenAI streaming API call failed: " + ex.getMessage(), ex))
-                .doOnError(err -> log.debug("[OpenAIAdapter] streamChatCompletion error provider={} model={} msg={}", getProviderName(), openaiRequest.getModel(), err.toString()));
+                .onErrorMap(WebClientResponseException.class, this::handleApiError)
+                .onErrorMap(ex -> mapToProviderException(ex, "OpenAI streaming API call"))
+                .doOnError(err -> log.debug("[OpenAIAdapter] streamChatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
     }
 
     @Override
     public Mono<List<ModelInfo>> listModels() {
         if (config.getProviderType() == ProviderType.AzureOpenAI) {
             // Azure OpenAI 不支持列出模型，返回配置的模型
-            return Mono.just(getConfiguredModels());
+            return Mono.just(getConfiguredModelInfos());
         }
 
         String url = config.getBaseUrl() + "/models";
@@ -148,11 +144,39 @@ public class OpenAIAdapter implements AIProviderAdapter {
                 .uri(url)
                 .retrieve()
                 .bodyToMono(String.class)
-                .map(responseStr -> parseModelList(responseStr))
+                .map(responseStr -> {
+                    if (responseStr == null || responseStr.isEmpty()) {
+                        return getConfiguredModelInfos();
+                    }
+
+                    try {
+                        // OpenAI 模型列表结构: { "data": [ {"id":"gpt-4o", "owned_by":"openai"}, ... ] }
+                        var node = JsonUtils.fromJson(responseStr, com.fasterxml.jackson.databind.JsonNode.class);
+                        if (node == null || !node.has("data")) {
+                            return getConfiguredModelInfos();
+                        }
+
+                        var data = node.get("data");
+                        List<ModelInfo> list = new java.util.ArrayList<>();
+                        data.forEach(n -> {
+                            if (n.has("id")) {
+                                list.add(new ModelInfo(n.get("id").asText(), "model", n.has("owned_by") ? n.get("owned_by").asText() : config.getName()));
+                            }
+                        });
+
+                        if (list.isEmpty()) {
+                            return getConfiguredModelInfos();
+                        }
+                        return list;
+                    } catch (Exception e) {
+                        log.debug("Failed to parse model list JSON: {}", e.getMessage());
+                        return getConfiguredModelInfos();
+                    }
+                })
                 .timeout(webClientProperties.getTimeout().getRead()) // 使用配置的超时
                 .onErrorResume(Exception.class, e -> {
                     log.warn("Failed to list models, returning configured models: {}", e.getMessage());
-                    return Mono.just(getConfiguredModels());
+                    return Mono.just(getConfiguredModelInfos());
                 });
     }
 
@@ -161,52 +185,65 @@ public class OpenAIAdapter implements AIProviderAdapter {
         return config.getName();
     }
 
+    // ===================== 私有辅助方法 =====================
+
     /**
-     * 构建聊天完成API的URL
+     * 统一的错误处理方法，将WebClientResponseException和其他异常转换为ProviderException
+     * @param operationType 操作类型，用于生成错误消息
+     * @return 错误映射函数
      */
-    private String buildChatCompletionUrl() {
+    private ProviderException mapToProviderException(Throwable ex, String operationType) {
+        if (ex instanceof WebClientResponseException webEx) {
+            String body = webEx.getResponseBodyAsString();
+            String errorMessage = String.format("OpenAI API error: %d %s%s",
+                    webEx.getStatusCode().value(),
+                    webEx.getStatusText(),
+                    body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
+            return new ProviderException(errorMessage, ex);
+        }
+        
+        if (ex instanceof ProviderException providerEx) {
+            return providerEx;
+        }
+        
+        return new ProviderException(operationType + " failed: " + ex.getMessage(), ex);
+    }
+
+    private String buildChatCompletionsUrl() {
         String baseUrl = config.getBaseUrl();
-
         if (config.getProviderType() == ProviderType.AzureOpenAI && config.getDeploymentName() != null) {
-            // Azure OpenAI格式: /deployments/{deployment-name}/chat/completions
             String apiVersion = config.getApiVersion() != null ? config.getApiVersion() : "2024-02-15-preview";
-            return baseUrl + "/deployments/" + config.getDeploymentName() +
-                    "/chat/completions?api-version=" + apiVersion;
-        } else {
-            // 标准OpenAI格式: /chat/completions
-            return baseUrl + "/chat/completions";
+            return baseUrl + "/deployments/" + config.getDeploymentName() + "/chat/completions?api-version=" + apiVersion;
         }
+        return baseUrl + "/chat/completions";
     }
 
-    /**
-     * 获取配置文件中定义的模型列表
-     */
-    private List<ModelInfo> getConfiguredModels() {
-        if (config.getModels() == null) {
-            return Collections.emptyList();
-        }
-
-        return config.getModels().stream()
-                .map(model -> {
-                    ModelInfo info = new ModelInfo();
-                    info.setId(model.getName());
-                    info.setObject("model");
-                    info.setOwnedBy(getProviderName());
-                    return info;
-                })
-                .toList();
-    }
-
-    /**
-     * 处理WebClient异常
-     */
-    private ProviderException handleWebClientError(WebClientResponseException ex) {
+    private ProviderException handleApiError(WebClientResponseException ex) {
         String body = ex.getResponseBodyAsString();
-        String errorMessage = String.format("OpenAI API error: %d %s%s",
-                ex.getStatusCode().value(),
+        int status = ex.getStatusCode().value();
+
+        String errorMessage = String.format("API error: %d %s%s",
+                status,
                 ex.getStatusText(),
-                (body == null || body.isEmpty()) ? "" : " - " + abbreviate(body, 200));
-        return new ProviderException(errorMessage, ex);
+                body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
+
+        return switch (status) {
+            case 401 -> new AuthenticationException("Invalid API key or authentication failed", ex);
+            case 402 -> new AuthenticationException("Access forbidden - check permissions", ex);
+            case 429 -> {
+                if (body.contains("quota")) {
+                    yield new QuotaExceededException("API quota exceeded", ex);
+                } else {
+                    yield new RateLimitException("Rate limit exceeded", ex);
+                }
+            }
+            case 400 -> new ProviderException("Bad request: " +
+                    (!body.isEmpty() ? body : "Invalid request parameters"), ex);
+            case 404 -> new ProviderException("Model or endpoint not found", ex);
+            case 422 -> new ProviderException("Unprocessable entity: " +
+                    (!body.isEmpty() ? body : "Invalid request format"), ex);
+            default -> new ProviderException(errorMessage, ex);
+        };
     }
 
     private boolean isRetryable(Throwable t) {
@@ -214,100 +251,83 @@ public class OpenAIAdapter implements AIProviderAdapter {
             Throwable cause = pe.getCause();
             if (cause instanceof WebClientResponseException wex) {
                 int status = wex.getStatusCode().value();
-                return status >= 500 || status == 429; // 服务器错误与限流可重试
+                return status >= 500 || status == 429;
             }
-            if (cause instanceof IOException || cause instanceof TimeoutException) return true;
-        } else if (t instanceof WebClientResponseException wex) {
+            return (cause instanceof IOException || cause instanceof TimeoutException);
+        }
+        if (t instanceof WebClientResponseException wex) {
             int status = wex.getStatusCode().value();
             return status >= 500 || status == 429;
-        } else if (t instanceof IOException || t instanceof TimeoutException) {
-            return true;
         }
-        return false;
+        return (t instanceof IOException || t instanceof TimeoutException);
     }
 
-    private String abbreviate(String str, int max) {
-        if (str == null || str.length() <= max) return str;
-        return str.substring(0, max) + "...";
+
+
+    private List<ModelInfo> getConfiguredModelInfos() {
+        if (config.getModels() == null) return Collections.emptyList();
+        return config.getModels().stream().map(m -> {
+            ModelInfo info = new ModelInfo();
+            info.setId(m.getName());
+            info.setObject("model");
+            info.setOwnedBy(config.getName());
+            return info;
+        }).toList();
     }
 
     /**
-     * 解析 OpenAI /v1/models 响应
+     * 解析流数据
+     * 兼容两种格式：直接JSON和SSE格式
+     * @param raw 流数据片段
+     * @return 解析后的数据块
      */
-    private List<ModelInfo> parseModelList(String json) {
-        if (json == null || json.isEmpty()) return getConfiguredModels();
-        try {
-            // OpenAI 模型列表结构: { "data": [ {"id":"gpt-4o", "owned_by":"openai"}, ... ] }
-            var node = JsonUtils.fromJson(json, com.fasterxml.jackson.databind.JsonNode.class);
-            if (node == null || !node.has("data")) return getConfiguredModels();
-            var data = node.get("data");
-            List<ModelInfo> list = new java.util.ArrayList<>();
-            data.forEach(n -> {
-                if (n.has("id")) {
-                    list.add(new ModelInfo(n.get("id").asText(), "model", n.has("owned_by") ? n.get("owned_by").asText() : getProviderName()));
-                }
-            });
-            if (list.isEmpty()) return getConfiguredModels();
-            return list;
-        } catch (Exception e) {
-            log.debug("Failed to parse model list JSON: {}", e.getMessage());
-            return getConfiguredModels();
+    private List<ChatCompletionChunk> parseStreamRaw(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return Collections.emptyList();
         }
-    }
 
-    /**
-     * 解析 SSE 原始块，提取 data: 行；[DONE] 单独作为事件；返回纯 data 内容。
-     * 
-     * @param raw 包含SSE格式数据的原始字符串
-     * @return 包含解析后的SSE数据行的Flux流，每个元素是data部分的内容或[DONE]标记
-     */
-    private Flux<String> parseSseRaw(String raw) {
-        if (raw == null || raw.isEmpty()) return Flux.empty();
-        
-        // 回退处理：如果收到的是单个JSON响应而不是SSE格式，直接返回
         String trimmed = raw.trim();
-        if (trimmed.startsWith("{") && trimmed.contains("\"choices\"")) {
+
+        // 检查结束标记
+        if (SSE_DONE_MARKER.equals(trimmed)) {
             if (log.isTraceEnabled()) {
-                log.trace("[OpenAIAdapter] Detected non-SSE JSON response, using fallback");
+                log.trace("[OpenAIAdapter] Received stream completion marker");
             }
-            return Flux.just(trimmed);
+            return Collections.emptyList();
         }
-        
-        // 按事件块分割
-        String[] blocks = raw.split("\r?\n\r?\n");
-        return Flux.fromArray(blocks)
-                .flatMap(this::parseEventBlock);
-    }
-    
-    /**
-     * 解析单个 SSE 事件块
-     */
-    private Flux<String> parseEventBlock(String block) {
-        if (block == null || block.trim().isEmpty()) return Flux.empty();
-        
-        String[] lines = block.split("\r?\n");
-        List<String> dataLines = new ArrayList<>();
-        boolean foundDone = false;
-        
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (trimmed.isEmpty() || trimmed.startsWith(":")) continue; // 忽略空行和注释行
-            
-            if (trimmed.startsWith("data:")) {
-                String content = trimmed.substring(5).trim();
-                if ("[DONE]".equals(content)) {
-                    foundDone = true;
-                    // 继续处理其他data行，最后再发送DONE
-                } else if (!content.isEmpty()) {
-                    dataLines.add(content);
+
+        List<ChatCompletionChunk> chunks = new ArrayList<>();
+        String jsonData;
+
+        // 判断是否为SSE格式
+        if (trimmed.startsWith(SSE_DATA_PREFIX)) {
+            jsonData = trimmed.substring(SSE_DATA_PREFIX.length()).trim();
+            if (SSE_DONE_MARKER.equals(jsonData)) {
+                return Collections.emptyList();
+            }
+        } else {
+            // 直接是JSON格式
+            jsonData = trimmed;
+        }
+
+        // 尝试解析JSON
+        try {
+            ChatCompletionChunk chunk = JsonUtils.fromJson(jsonData, ChatCompletionChunk.class);
+            if (chunk != null) {
+                chunks.add(chunk);
+                if (log.isTraceEnabled()) {
+                    log.trace("[OpenAIAdapter] Received stream chunk: {}", chunk);
                 }
             }
+        } catch (Exception e) {
+            if (log.isTraceEnabled()) {
+                log.trace("[OpenAIAdapter] Failed to parse stream chunk: {} - Data: {}",
+                        e.getMessage(), jsonData.length() > 100 ? jsonData.substring(0, 100) + "..." : jsonData);
+            }
         }
-        
-        // 先发送数据行，再发送DONE标记
-        Flux<String> dataFlux = dataLines.isEmpty() ? Flux.empty() : Flux.fromIterable(dataLines);
-        Flux<String> doneFlux = foundDone ? Flux.just("[DONE]") : Flux.empty();
-        
-        return Flux.concat(dataFlux, doneFlux);
+
+        return chunks;
     }
+
+
 }
