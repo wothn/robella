@@ -11,6 +11,8 @@ import org.elmo.robella.util.ConfigUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Objects;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -55,12 +57,16 @@ public class ForwardingServiceImpl implements ForwardingService {
         // 获取实际模型名，并确保流式标志为true
         UnifiedChatRequest effective = mapToVendorModel(request, providerName);
         if (effective.getStream() == null || !effective.getStream()) {
-            effective = effective.toBuilder().stream(true).build();
+            // 创建一个新的请求对象，复制所有字段并设置 stream 为 true
+            UnifiedChatRequest streamRequest = copyUnifiedChatRequest(effective);
+            streamRequest.setStream(true);
+            effective = streamRequest;
         }
         // 转换为适配器特定格式
         Object vendorReq = transformService.unifiedToVendorRequest(effective, providerName);
         return adapter.streamChatCompletion(vendorReq)
                 .map(event -> transformService.vendorStreamEventToUnified(event, providerName))
+                .filter(Objects::nonNull) // 过滤掉转换后为null的事件
                 .doOnComplete(() -> {
                     if (log.isDebugEnabled())
                         log.debug("Streaming unified response completed: provider={}", providerName);
@@ -68,12 +74,56 @@ public class ForwardingServiceImpl implements ForwardingService {
     }
 
     // ---- helpers ----
+    
+    /**
+     * 深度复制 UnifiedChatRequest 对象
+     */
+    private UnifiedChatRequest copyUnifiedChatRequest(UnifiedChatRequest original) {
+        if (original == null) {
+            return null;
+        }
+        
+        UnifiedChatRequest copy = new UnifiedChatRequest();
+        copy.setModel(original.getModel());
+        copy.setMessages(original.getMessages());
+        copy.setMaxTokens(original.getMaxTokens());
+        copy.setTemperature(original.getTemperature());
+        copy.setTopP(original.getTopP());
+        copy.setTopK(original.getTopK());
+        copy.setStop(original.getStop());
+        copy.setStream(original.getStream());
+        copy.setStreamOptions(original.getStreamOptions());
+        copy.setTools(original.getTools());
+        copy.setToolChoice(original.getToolChoice());
+        copy.setFrequencyPenalty(original.getFrequencyPenalty());
+        copy.setPresencePenalty(original.getPresencePenalty());
+        copy.setLogprobs(original.getLogprobs());
+        copy.setTopLogprobs(original.getTopLogprobs());
+        copy.setN(original.getN());
+        copy.setResponseFormat(original.getResponseFormat());
+        copy.setParallelToolCalls(original.getParallelToolCalls());
+        copy.setModalities(original.getModalities());
+        copy.setPrediction(original.getPrediction());
+        copy.setAudio(original.getAudio());
+        copy.setPromptCacheKey(original.getPromptCacheKey());
+        copy.setTextOptions(original.getTextOptions());
+        copy.setThinkingOptions(original.getThinkingOptions());
+        copy.setVendorExtras(original.getVendorExtras());
+        copy.setUndefined(original.getUndefined());
+        copy.setTempFields(original.getTempFields());
+        
+        return copy;
+    }
+    
     private UnifiedChatRequest mapToVendorModel(UnifiedChatRequest original, String providerName) {
         if (original == null || original.getModel() == null) return original;
         try {
             String vendorModel = configUtils.getModelMapping(providerName, original.getModel());
             if (vendorModel != null && !vendorModel.isEmpty() && !vendorModel.equals(original.getModel())) {
-                return original.toBuilder().model(vendorModel).build();
+                // 创建一个新的请求对象，复制所有字段并设置新的模型
+                UnifiedChatRequest newRequest = copyUnifiedChatRequest(original);
+                newRequest.setModel(vendorModel);
+                return newRequest;
             }
             return original;
         } catch (Exception e) {

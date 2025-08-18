@@ -6,21 +6,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * OpenAI 聊天消息 (多模态强类型实现)
  */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatMessage {
@@ -35,10 +28,9 @@ public class ChatMessage {
      * 支持：纯字符串 / 数组（带 type 字段的对象）
      */
     @JsonProperty("content")
-    @JsonDeserialize(using = ContentPartListDeserializer.class)
-    @JsonSerialize(using = ContentPartListSerializer.class)
-    @Builder.Default
-    private List<ContentPart> content = new ArrayList<>();
+    @JsonDeserialize(using = OpenAIContentListDeserializer.class)
+    @JsonSerialize(using = OpenAIContentListSerializer.class)
+    private List<OpenAIContent> content = new ArrayList<>();
     
     /**
      * 参与者名称（可选）

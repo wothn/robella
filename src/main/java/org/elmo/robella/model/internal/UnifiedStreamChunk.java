@@ -9,7 +9,6 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class UnifiedStreamChunk {
     private String id;                        // 当前增量所属消息 ID（若厂商提供）
     private Long created;
@@ -29,7 +28,8 @@ public class UnifiedStreamChunk {
     public boolean hasPayload() {
         return isFinished() || (contentDelta!=null && !contentDelta.isEmpty()) ||
                 (reasoningDelta!=null && !reasoningDelta.isEmpty()) ||
-                (toolCallDeltas!=null && !toolCallDeltas.isEmpty()) || usage!=null;
+                (toolCallDeltas!=null && !toolCallDeltas.isEmpty()) || usage!=null ||
+                (choices!=null && !choices.isEmpty());
     }
 
 

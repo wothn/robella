@@ -10,13 +10,15 @@ import org.elmo.robella.service.VendorTransform;
 import org.elmo.robella.util.AnthropicTransformUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
+
 
 /**
  * Anthropic Messages API 转换实现
  */
 @Slf4j
 public class AnthropicTransform implements VendorTransform {
-    
+
     @Override
     public String type() {
         return ProviderType.Anthropic.getName();
@@ -29,36 +31,47 @@ public class AnthropicTransform implements VendorTransform {
         }
 
         // 转换基础字段
-        UnifiedChatRequest.UnifiedChatRequestBuilder builder = AnthropicTransformUtils.convertBaseToUnified(req);
+        UnifiedChatRequest request = AnthropicTransformUtils.convertBaseToUnified(req);
+
+        List<OpenAIMessage> allMessages = new ArrayList<>();
+
+        // 处理系统消息
+        if (req.getSystem() != null) {
+            OpenAIMessage systemMessage = new OpenAIMessage();
+            systemMessage.setRole("system");
+            OpenAITextContent openAIContent = new OpenAITextContent();
+            openAIContent.setType("text");
+            openAIContent.setText(req.getSystem());
+            systemMessage.setContent(new ArrayList<>());
+            systemMessage.getContent().add(openAIContent);
+            allMessages.add(systemMessage);
+        }
 
         // 转换消息列表
         if (req.getMessages() != null) {
-            List<ChatMessage> unifiedMessages = AnthropicTransformUtils.convertAnthropicMessagesToOpenAI(req.getMessages());
-            builder.messages(unifiedMessages);
+            List<OpenAIMessage> unifiedMessages = AnthropicTransformUtils.convertAnthropicMessagesToOpenAI(req.getMessages());
+            allMessages.addAll(unifiedMessages);
         }
+
+        request.setMessages(allMessages);
 
         // 转换工具列表
         if (req.getTools() != null && !req.getTools().isEmpty()) {
             List<Tool> unifiedTools = AnthropicTransformUtils.convertAnthropicToolsToOpenAI(req.getTools());
-            builder.tools(unifiedTools);
+            request.setTools(unifiedTools);
         }
 
         // 转换工具选择
         if (req.getToolChoice() != null) {
-            // 暂时简化处理，直接设置为字符串
-            Object unifiedToolChoice = AnthropicTransformUtils.convertAnthropicToolChoiceToOpenAI(req.getToolChoice());
-            if (unifiedToolChoice instanceof String) {
-                ToolChoice toolChoice = new ToolChoice();
-                // TODO: 需要根据 ToolChoice 的实际构造方法来设置
-                builder.toolChoice(toolChoice);
-            }
+            ToolChoice unifiedToolChoice = AnthropicTransformUtils.convertAnthropicToolChoiceToOpenAI(req.getToolChoice());
+            request.setToolChoice(unifiedToolChoice);
         }
 
         // 处理思考参数
         if (req.getThinking() != null) {
-            UnifiedChatRequest.ThinkingOptions thinkingOptions = convertAnthropicThinkingToUnified(req.getThinking());
+            UnifiedChatRequest.ThinkingOptions thinkingOptions = AnthropicTransformUtils.convertAnthropicThinkingToUnified(req.getThinking());
             if (thinkingOptions != null) {
-                builder.thinkingOptions(thinkingOptions);
+                request.setThinkingOptions(thinkingOptions);
             }
         }
 
@@ -67,10 +80,10 @@ public class AnthropicTransform implements VendorTransform {
             Map<String, Object> metadata = new HashMap<>();
             // 将 AnthropicMetadata 转换为通用的 Map
             metadata.put("anthropic.metadata", req.getMetadata());
-            builder.metadata(metadata);
+            request.setVendorExtras(metadata);
         }
 
-        return builder.build();
+        return request;
     }
 
     @Override
@@ -78,9 +91,7 @@ public class AnthropicTransform implements VendorTransform {
         AnthropicChatRequest request = AnthropicTransformUtils.convertUnifiedToBase(unifiedRequest);
 
         // 处理系统消息
-        if (unifiedRequest.getSystemMessage() != null) {
-            request.setSystem(unifiedRequest.getSystemMessage());
-        } else if (unifiedRequest.getMessages() != null) {
+        if (unifiedRequest.getMessages() != null && !unifiedRequest.getMessages().isEmpty()) {
             // 从消息列表中提取系统消息
             String systemMessage = AnthropicTransformUtils.extractSystemMessage(unifiedRequest.getMessages());
             if (systemMessage != null) {
@@ -88,9 +99,12 @@ public class AnthropicTransform implements VendorTransform {
             }
         }
 
-        // 转换消息列表（过滤掉系统消息）
-        if (unifiedRequest.getMessages() != null) {
-            List<ChatMessage> filteredMessages = AnthropicTransformUtils.filterOutSystemMessages(unifiedRequest.getMessages());
+        // 转换消息列表
+        if (unifiedRequest.getMessages() != null && !unifiedRequest.getMessages().isEmpty()) {
+            // 过滤系统消息
+            List<OpenAIMessage> filteredMessages = unifiedRequest.getMessages().stream()
+                    .filter(m -> !"system".equals(m.getRole()))
+                    .collect(Collectors.toList());
             List<AnthropicMessage> anthropicMessages = AnthropicTransformUtils.convertOpenAIMessagesToAnthropic(filteredMessages);
             request.setMessages(anthropicMessages);
         }
@@ -109,15 +123,15 @@ public class AnthropicTransform implements VendorTransform {
 
         // 处理思考参数
         if (unifiedRequest.getThinkingOptions() != null) {
-            AnthropicThinking thinking = convertUnifiedThinkingToAnthropic(unifiedRequest.getThinkingOptions());
+            AnthropicThinking thinking = AnthropicTransformUtils.convertUnifiedThinkingToAnthropic(unifiedRequest.getThinkingOptions());
             if (thinking != null) {
                 request.setThinking(thinking);
             }
         }
 
         // 处理元数据
-        if (unifiedRequest.getMetadata() != null) {
-            Object anthropicMetadata = unifiedRequest.getMetadata().get("anthropic.metadata");
+        if (unifiedRequest.getVendorExtras() != null) {
+            Object anthropicMetadata = unifiedRequest.getVendorExtras().get("anthropic.metadata");
             if (anthropicMetadata instanceof AnthropicMetadata) {
                 request.setMetadata((AnthropicMetadata) anthropicMetadata);
             }
@@ -132,24 +146,24 @@ public class AnthropicTransform implements VendorTransform {
             return null;
         }
 
-        UnifiedChatResponse.UnifiedChatResponseBuilder builder = UnifiedChatResponse.builder()
-                .id(resp.getId())
-                .model(resp.getModel())
-                .object("chat.completion"); // Anthropic 返回 "message"，但统一为 OpenAI 格式
+        UnifiedChatResponse response = new UnifiedChatResponse();
+        response.setId(resp.getId());
+        response.setModel(resp.getModel());
+        response.setObject("chat.completion"); // Anthropic 返回 "message"，但统一为 OpenAI 格式
 
         // 转换 Usage
         if (resp.getUsage() != null) {
             Usage usage = AnthropicTransformUtils.convertAnthropicUsageToOpenAI(resp.getUsage());
-            builder.usage(usage);
+            response.setUsage(usage);
         }
 
         // 转换 Choice
         if (resp.getContent() != null) {
-            List<Choice> choices = convertAnthropicContentToChoices(resp);
-            builder.choices(choices);
+            List<Choice> choices = AnthropicTransformUtils.convertAnthropicContentToChoices(resp);
+            response.setChoices(choices);
         }
 
-        return builder.build();
+        return response;
     }
 
     @Override
@@ -172,9 +186,9 @@ public class AnthropicTransform implements VendorTransform {
 
         // 转换 Choice 到 Content
         if (unifiedResponse.getChoices() != null && !unifiedResponse.getChoices().isEmpty()) {
-            List<AnthropicContent> content = convertChoicesToAnthropicContent(unifiedResponse.getChoices());
+            List<AnthropicContent> content = AnthropicTransformUtils.convertChoicesToAnthropicContent(unifiedResponse.getChoices());
             response.setContent(content);
-            
+
             // 设置停止原因
             Choice firstChoice = unifiedResponse.getChoices().get(0);
             if (firstChoice.getFinishReason() != null) {
@@ -187,23 +201,56 @@ public class AnthropicTransform implements VendorTransform {
 
     @Override
     public UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent) {
-        if (vendorEvent == null || !(vendorEvent instanceof AnthropicStreamEvent event)) {
+        if (!(vendorEvent instanceof AnthropicStreamEvent event)) {
             return null;
         }
-
-        // 根据不同的事件类型进行转换
-        if (event instanceof AnthropicMessageStartEvent messageStart) {
-            return convertMessageStartToUnified(messageStart);
-        } else if (event instanceof AnthropicContentBlockDeltaEvent deltaEvent) {
-            return convertContentBlockDeltaToUnified(deltaEvent);
-        } else if (event instanceof AnthropicMessageDeltaEvent messageDelta) {
-            return convertMessageDeltaToUnified(messageDelta);
-        } else if (event instanceof AnthropicMessageStopEvent) {
-            return convertMessageStopToUnified();
+        
+        // 处理各种事件类型
+        if (event instanceof AnthropicMessageStartEvent) {
+            // 开始事件：目前 unified 不需要额外信息，返回一个空的非 finished chunk
+            return AnthropicTransformUtils.convertMessageStartToUnified();
         }
-
-        // 对于其他类型的事件，暂时返回 null
-        return null;
+        
+        if (event instanceof AnthropicContentBlockDeltaEvent deltaEvent) {
+            return AnthropicTransformUtils.convertContentBlockDeltaToUnified(deltaEvent);
+        }
+        
+        if (event instanceof AnthropicContentBlockStartEvent startEvent) {
+            return AnthropicTransformUtils.convertContentBlockStartToUnified(startEvent);
+        }
+        
+        if (event instanceof AnthropicMessageDeltaEvent messageDelta) {
+            return AnthropicTransformUtils.convertMessageDeltaToUnified(messageDelta);
+        }
+        
+        if (event instanceof AnthropicMessageStopEvent) {
+            return AnthropicTransformUtils.convertMessageStopToUnified();
+        }
+        
+        if (event instanceof AnthropicContentBlockStopEvent) {
+            // content_block_stop 对统一层无增量内容，返回一个空的非 finished chunk 让过滤器处理
+            return new UnifiedStreamChunk();
+        }
+        
+        if (event instanceof AnthropicPingEvent) {
+            // ping 事件仅用于保活，对上层业务无意义，返回一个空的非 finished chunk
+            log.trace("Received ping event");
+            return new UnifiedStreamChunk();
+        }
+        
+        if (event instanceof AnthropicErrorEvent errorEvent) {
+            // 错误事件记录日志并返回一个空的非 finished chunk，让上层处理异常
+            if (errorEvent.getError() != null) {
+                log.error("Received error event: type={}, message={}", 
+                    errorEvent.getError().getType(), 
+                    errorEvent.getError().getMessage());
+            }
+            return new UnifiedStreamChunk();
+        }
+        
+        log.warn("Unknown Anthropic stream event type: {}", event.getClass().getSimpleName());
+        // 对于未识别事件，返回一个空的非 finished chunk
+        return new UnifiedStreamChunk();
     }
 
     @Override
@@ -211,182 +258,98 @@ public class AnthropicTransform implements VendorTransform {
         if (chunk == null) {
             return null;
         }
-
-        // TODO: 根据需要实现 UnifiedStreamChunk 到 AnthropicStreamEvent 的转换
-        // 这个方向的转换相对复杂，因为需要根据 chunk 的内容决定生成哪种类型的 Anthropic 事件
-        log.warn("unifiedStreamChunkToVendor not implemented for Anthropic");
-        return null;
-    }
-
-    // === 私有辅助方法 ===
-
-    /**
-     * 转换 Anthropic Thinking 到 Unified ThinkingOptions
-     */
-    private UnifiedChatRequest.ThinkingOptions convertAnthropicThinkingToUnified(AnthropicThinking anthropicThinking) {
-        if (anthropicThinking == null) {
-            return null;
+        
+        // 处理结束事件
+        if (chunk.isFinished()) {
+            AnthropicMessageStopEvent stop = new AnthropicMessageStopEvent();
+            stop.setType("message_stop");
+            return stop;
         }
 
-        // TODO: 根据 AnthropicThinking 的具体结构进行转换
-        // 这里需要根据实际的 AnthropicThinking 类结构来实现
-        return null;
-    }
-
-    /**
-     * 转换 Unified ThinkingOptions 到 Anthropic Thinking
-     */
-    private AnthropicThinking convertUnifiedThinkingToAnthropic(UnifiedChatRequest.ThinkingOptions thinkingOptions) {
-        if (thinkingOptions == null) {
-            return null;
+        // 处理内容增量 -> content_block_delta (text_delta)
+        if (chunk.getContentDelta() != null && !chunk.getContentDelta().isEmpty()) {
+            AnthropicContentBlockDeltaEvent deltaEvent = new AnthropicContentBlockDeltaEvent();
+            deltaEvent.setType("content_block_delta");
+            deltaEvent.setIndex(0); // 暂不支持多 block，统一使用 0
+            
+            AnthropicDelta delta = new AnthropicDelta();
+            delta.setType("text_delta");
+            delta.setText(chunk.getContentDelta());
+            deltaEvent.setDelta(delta);
+            return deltaEvent;
         }
 
-        // TODO: 根据 ThinkingOptions 的结构转换为 AnthropicThinking
-        // 这里需要根据实际的 AnthropicThinking 类结构来实现
-        return null;
-    }
-
-    /**
-     * 将 Anthropic 响应内容转换为 OpenAI Choice 列表
-     */
-    private List<Choice> convertAnthropicContentToChoices(AnthropicChatResponse response) {
-        List<Choice> choices = new ArrayList<>();
-        
-        Choice choice = new Choice();
-        choice.setIndex(0);
-        choice.setFinishReason(response.getStopReason());
-        
-        // 创建 assistant 消息
-        ChatMessage message = ChatMessage.builder()
-                .role("assistant")
-                .build();
-        
-        // 转换内容
-        if (response.getContent() != null && !response.getContent().isEmpty()) {
-            List<ContentPart> contentParts = new ArrayList<>();
-            for (AnthropicContent content : response.getContent()) {
-                if (content instanceof AnthropicTextContent textContent) {
-                    ContentPart part = ContentPart.builder()
-                            .type("text")
-                            .text(textContent.getText())
-                            .build();
-                    contentParts.add(part);
-                }
-                // TODO: 处理其他类型的内容
-            }
-            message.setContent(contentParts);
+        // 处理推理增量 -> content_block_delta (thinking_delta)
+        if (chunk.getReasoningDelta() != null && !chunk.getReasoningDelta().isEmpty()) {
+            AnthropicContentBlockDeltaEvent deltaEvent = new AnthropicContentBlockDeltaEvent();
+            deltaEvent.setType("content_block_delta");
+            deltaEvent.setIndex(0); // 暂不支持多 block，统一使用 0
+            
+            AnthropicDelta delta = new AnthropicDelta();
+            delta.setType("thinking_delta");
+            delta.setThinking(chunk.getReasoningDelta());
+            deltaEvent.setDelta(delta);
+            return deltaEvent;
         }
-        
-        choice.setMessage(message);
-        choices.add(choice);
-        
-        return choices;
-    }
 
-    /**
-     * 将 OpenAI Choice 列表转换为 Anthropic 内容
-     */
-    private List<AnthropicContent> convertChoicesToAnthropicContent(List<Choice> choices) {
-        List<AnthropicContent> contentList = new ArrayList<>();
-        
-        if (choices != null && !choices.isEmpty()) {
-            Choice firstChoice = choices.get(0);
-            if (firstChoice.getMessage() != null && firstChoice.getMessage().getContent() != null) {
-                for (ContentPart part : firstChoice.getMessage().getContent()) {
-                    if ("text".equals(part.getType()) && part.getText() != null) {
-                        AnthropicTextContent textContent = new AnthropicTextContent();
-                        textContent.setType("text");
-                        textContent.setText(part.getText());
-                        contentList.add(textContent);
-                    }
-                    // TODO: 处理其他类型的内容
-                }
+        // 处理工具调用增量 -> content_block_delta (input_json_delta)
+        if (chunk.getToolCallDeltas() != null && !chunk.getToolCallDeltas().isEmpty()) {
+            Object toolCallObj = chunk.getToolCallDeltas().get(0);
+            if (toolCallObj instanceof ToolCall toolCall && 
+                toolCall.getFunction() != null && toolCall.getFunction().getArguments() != null) {
+                AnthropicContentBlockDeltaEvent deltaEvent = new AnthropicContentBlockDeltaEvent();
+                deltaEvent.setType("content_block_delta");
+                deltaEvent.setIndex(0); // 暂不支持多 block，统一使用 0
+                
+                AnthropicDelta delta = new AnthropicDelta();
+                delta.setType("input_json_delta");
+                delta.setPartialJson(toolCall.getFunction().getArguments());
+                deltaEvent.setDelta(delta);
+                return deltaEvent;
             }
         }
-        
-        return contentList;
-    }
 
-    /**
-     * 转换 MessageStart 事件
-     */
-    private UnifiedStreamChunk convertMessageStartToUnified(AnthropicMessageStartEvent messageStart) {
-        return UnifiedStreamChunk.builder()
-                .object("chat.completion.chunk")
-                .finished(false)
-                .build();
-    }
-
-    /**
-     * 转换 ContentBlockDelta 事件
-     */
-    private UnifiedStreamChunk convertContentBlockDeltaToUnified(AnthropicContentBlockDeltaEvent deltaEvent) {
-        if (deltaEvent.getDelta() == null) {
-            return null;
-        }
-
-        String content = null;
-        if (deltaEvent.getDelta().getText() != null) {
-            content = deltaEvent.getDelta().getText();
-        }
-
-        if (content != null) {
-            // 创建一个 Choice 对象，其中 delta 包含文本增量
-            Choice choice = new Choice();
-            choice.setIndex(deltaEvent.getIndex() != null ? deltaEvent.getIndex() : 0);
+        // 处理消息级别的更新 -> message_delta
+        if (chunk.getUsage() != null || 
+            (chunk.getChoices() != null && !chunk.getChoices().isEmpty() && 
+             chunk.getChoices().get(0).getFinishReason() != null)) {
             
-            // 创建 delta 对象
-            Delta delta = new Delta();
-            delta.setRole(null); // 在增量中通常不重复角色
+            AnthropicMessageDeltaEvent messageDelta = new AnthropicMessageDeltaEvent();
+            messageDelta.setType("message_delta");
             
-            // 创建文本内容部分
-            ContentPart textPart = ContentPart.builder()
-                    .type("text")
-                    .text(content)
-                    .build();
-            delta.setContent(List.of(textPart));
-            choice.setDelta(delta);
+            AnthropicDelta delta = new AnthropicDelta();
             
-            return UnifiedStreamChunk.builder()
-                    .object("chat.completion.chunk")
-                    .choices(List.of(choice))
-                    .contentDelta(content)
-                    .finished(false)
-                    .build();
+            // 设置使用量
+            if (chunk.getUsage() != null) {
+                delta.setUsage(AnthropicTransformUtils.convertOpenAIUsageToAnthropic(chunk.getUsage()));
+            }
+            
+            // 设置停止原因
+            if (chunk.getChoices() != null && !chunk.getChoices().isEmpty()) {
+                Choice choice = chunk.getChoices().get(0);
+                if (choice.getFinishReason() != null) {
+                    // 将 OpenAI finish_reason 转换为 Anthropic stop_reason
+                    String stopReason = convertFinishReasonToStopReason(choice.getFinishReason());
+                    delta.setStopReason(stopReason);
+                }
+            }
+            
+            messageDelta.setDelta(delta);
+            return messageDelta;
         }
 
         return null;
     }
-
+    
     /**
-     * 转换 MessageDelta 事件
+     * 将 OpenAI finish_reason 转换为 Anthropic stop_reason
      */
-    private UnifiedStreamChunk convertMessageDeltaToUnified(AnthropicMessageDeltaEvent messageDelta) {
-        // MessageDelta 通常包含 usage 信息
-        UnifiedStreamChunk.UnifiedStreamChunkBuilder builder = UnifiedStreamChunk.builder()
-                .object("chat.completion.chunk")
-                .finished(false);
-
-        if (messageDelta.getDelta() != null && messageDelta.getDelta().getUsage() != null) {
-            Usage usage = AnthropicTransformUtils.convertAnthropicUsageToOpenAI(messageDelta.getDelta().getUsage());
-            builder.usage(usage);
-        }
-
-        return builder.build();
-    }
-
-    /**
-     * 转换 MessageStop 事件
-     */
-    private UnifiedStreamChunk convertMessageStopToUnified() {
-        Choice choice = new Choice();
-        choice.setIndex(0);
-        choice.setFinishReason("stop");
-        
-        return UnifiedStreamChunk.builder()
-                .object("chat.completion.chunk")
-                .choices(List.of(choice))
-                .finished(true)
-                .build();
+    private String convertFinishReasonToStopReason(String finishReason) {
+        return switch (finishReason) {
+            case "stop" -> "end_turn";
+            case "length" -> "max_tokens";
+            case "tool_calls" -> "tool_use";
+            default -> "end_turn";
+        };
     }
 }

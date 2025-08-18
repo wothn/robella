@@ -8,9 +8,6 @@ import lombok.*;
  * 多模态内容片段：text | image_url | input_audio
  */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ContentPart {
 
@@ -35,19 +32,4 @@ public class ContentPart {
      */
     @JsonProperty("input_audio")
     private InputAudio inputAudio;
-
-    // --- 静态工厂方法 ---
-    public static ContentPart ofText(String text) {
-        return ContentPart.builder().type("text").text(text).build();
-    }
-    public static ContentPart ofImage(String url, String detail) {
-        return ContentPart.builder().type("image_url")
-                .imageUrl(ImageUrl.builder().url(url).detail(detail).build())
-                .build();
-    }
-    public static ContentPart ofAudio(String base64, String format) {
-        return ContentPart.builder().type("input_audio")
-                .inputAudio(InputAudio.builder().data(base64).format(format).build())
-                .build();
-    }
 }
