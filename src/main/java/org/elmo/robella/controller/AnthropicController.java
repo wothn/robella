@@ -63,7 +63,6 @@ public class AnthropicController {
                                     .doOnNext(event -> log.trace("发送流式事件: {}", event))
                                     .doOnComplete(() -> log.debug("流式响应完成"))
                                     .doOnError(error -> log.error("流式响应错误", error))
-                                    .concatWith(Flux.just("[DONE]")) // 流结束时发送 [DONE] 标记
                     );
         } else {
             // 非流式响应
