@@ -4,8 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.config.ProviderType;
-import org.elmo.robella.model.anthropic.AnthropicChatRequest;
-import org.elmo.robella.model.anthropic.AnthropicChatResponse;
+import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
+import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.service.ForwardingService;
 import org.elmo.robella.service.TransformService;
@@ -53,14 +53,14 @@ public class AnthropicController {
                     .contentType(MediaType.TEXT_EVENT_STREAM)
                     .body(
                             forwardingService.streamUnified(unified, null)
-                                    .map(chunk -> {
-                                        // 将统一流式片段转换回 Anthropic 格式（无论后端provider是什么）
+                                    .mapNotNull(chunk -> {
                                         Object event = transformService.unifiedStreamChunkToEndpoint(
                                                 chunk, ProviderType.Anthropic.getName());
-                                        return event != null ? event : "";
+                                        return event != null ? event.toString() : null;
                                     })
-                                    .filter(event -> !"".equals(event)) // 过滤空事件
-                                    .doOnNext(event -> log.trace("发送流式事件: {}", event))
+                                    .filter(event -> event != null && !event.isEmpty()) // 过滤空事件
+                                    .doOnNext(event -> log.trace("发送流式事件: {}", 
+                                            event.length() > 200 ? event.substring(0, 200) + "..." : event))
                                     .doOnComplete(() -> log.debug("流式响应完成"))
                                     .doOnError(error -> log.error("流式响应错误", error))
                     );
@@ -70,7 +70,7 @@ public class AnthropicController {
             return forwardingService.forwardUnified(unified, null)
                     .map(unifiedResponse -> {
                         // 将统一响应转换回 Anthropic 格式（无论后端provider是什么）
-                        AnthropicChatResponse response = (AnthropicChatResponse) transformService
+                        AnthropicMessage response = (AnthropicMessage) transformService
                                 .unifiedToEndpointResponse(unifiedResponse, ProviderType.Anthropic.getName());
                         log.debug("返回 Anthropic 响应: id={}, model={}", 
                                  response.getId(), response.getModel());

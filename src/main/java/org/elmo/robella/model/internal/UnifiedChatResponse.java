@@ -1,13 +1,13 @@
 package org.elmo.robella.model.internal;
 
 import lombok.*;
-import org.elmo.robella.model.openai.*;
+import org.elmo.robella.model.openai.core.Choice;
+import org.elmo.robella.model.openai.core.Usage;
 
 import java.util.List;
 import java.util.Map;
 
 @Data
-@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class UnifiedChatResponse {

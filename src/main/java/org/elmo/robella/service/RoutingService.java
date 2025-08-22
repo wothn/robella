@@ -2,8 +2,8 @@ package org.elmo.robella.service;
 
 import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
-import org.elmo.robella.model.openai.ChatCompletionRequest;
-import org.elmo.robella.model.openai.ModelListResponse;
+import org.elmo.robella.model.openai.core.ChatCompletionRequest;
+import org.elmo.robella.model.openai.model.ModelListResponse;
 
 import java.util.Map;
 

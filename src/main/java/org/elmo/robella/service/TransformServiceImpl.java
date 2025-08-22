@@ -22,39 +22,59 @@ public class TransformServiceImpl implements TransformService {
     public VendorTransform getVendorTransform(String providerType) {
         return registry.get(providerType == null ? "OpenAI" : providerType);
     }
+    
     private String providerTypeByName(String providerName) {
         if (providerName == null) return "OpenAI";
         var p = providerConfig.getProviders().get(providerName);
         return p != null ? p.getType() : "OpenAI";
     }
+    
+    
     // ===== 通用 =====
     @Override
-    public Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerName) {
-        return getVendorTransform(providerTypeByName(providerName)).unifiedToVendorRequest(unified);
+    public Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType) {
+        return getVendorTransform(providerType).unifiedToVendorRequest(unified);
     }
 
     @Override
-    public UnifiedChatResponse vendorResponseToUnified(Object vendorResp, String providerName) {
-        return getVendorTransform(providerTypeByName(providerName)).vendorResponseToUnified(vendorResp);
+    public Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType, String thinkingField) {
+        return getVendorTransform(providerType).unifiedToVendorRequest(unified, thinkingField);
+    }
+
+    @Override
+    public UnifiedChatResponse vendorResponseToUnified(Object vendorResp, String providerType) {
+        return getVendorTransform(providerType).vendorResponseToUnified(vendorResp);
     }
 
     @Override
     public UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent, String providerName) {
-        return getVendorTransform(providerTypeByName(providerName)).vendorStreamEventToUnified(vendorEvent);
+        String providerType = providerTypeByName(providerName);
+        return getVendorTransform(providerType).vendorStreamEventToUnified(vendorEvent);
     }
-
+    
+    // ===== 新增接口方法以支持端点格式与提供商分离 =====
+    
+    /**
+     * 根据端点格式转换请求到统一格式（与实际调用的provider无关）
+     */
     @Override
-    public Object unifiedStreamChunkToVendor(UnifiedStreamChunk chunk, String providerName) {
-        return getVendorTransform(providerTypeByName(providerName)).unifiedStreamChunkToVendor(chunk);
+    public UnifiedChatRequest endpointRequestToUnified(Object vendorRequest, String endpointType) {
+        return getVendorTransform(endpointType).vendorRequestToUnified(vendorRequest);
     }
-
+    
+    /**
+     * 根据端点格式从统一格式转换响应（与实际调用的provider无关）
+     */
     @Override
-    public UnifiedChatRequest vendorRequestToUnified(Object vendorRequest, String providerName) {
-        return getVendorTransform(providerTypeByName(providerName)).vendorRequestToUnified(vendorRequest);
+    public Object unifiedToEndpointResponse(UnifiedChatResponse unifiedResponse, String endpointType) {
+        return getVendorTransform(endpointType).unifiedToVendorResponse(unifiedResponse);
     }
-
+    
+    /**
+     * 根据端点格式从统一流片段转换为端点格式（与实际调用的provider无关）
+     */
     @Override
-    public Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse, String providerName) {
-        return getVendorTransform(providerTypeByName(providerName)).unifiedToVendorResponse(unifiedResponse);
+    public Object unifiedStreamChunkToEndpoint(UnifiedStreamChunk chunk, String endpointType) {
+        return getVendorTransform(endpointType).unifiedStreamChunkToVendor(chunk);
     }
 }

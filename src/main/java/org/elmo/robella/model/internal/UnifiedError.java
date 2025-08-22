@@ -4,7 +4,6 @@ import lombok.Builder;
 import lombok.Data;
 
 @Data
-@Builder
 public class UnifiedError {
     private String code;        // 统一错误码
     private String message;     // 描述

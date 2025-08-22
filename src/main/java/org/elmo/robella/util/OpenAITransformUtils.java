@@ -2,6 +2,8 @@ package org.elmo.robella.util;
 
 import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.openai.*;
+import org.elmo.robella.model.openai.core.ChatCompletionRequest;
+import org.elmo.robella.model.openai.core.Thinking;
 
 import java.util.*;
 
@@ -13,62 +15,68 @@ public class OpenAITransformUtils {
     /**
      * 将基础请求转换为统一格式，并将简单字段先赋值
      * @param req OpenAI 基础请求
-     * @return 统一格式的聊天请求构建器
+     * @param unifiedRequest 目标统一格式的聊天请求对象
      */
-    public static UnifiedChatRequest.UnifiedChatRequestBuilder convertBaseToUnified(ChatCompletionRequest req) {
-        return UnifiedChatRequest.builder()
-                .audio(req.getAudio())
-                .frequencyPenalty(req.getFrequencyPenalty())
-                .logprobs(req.getLogprobs())
-                .model(req.getModel())
-                .maxTokens(req.getMaxTokens())
-                .modalities(req.getModalities())
-                .n(req.getN())
-                .parallelToolCalls(req.getParallelToolCalls())
-                .prediction(req.getPrediction())
-                .promptCacheKey(req.getPromptCacheKey())
-                .presencePenalty(req.getPresencePenalty())
-                .responseFormat(req.getResponseFormat())
-                .stream(req.getStream())
-                .streamOptions(req.getStreamOptions())
-                .stop(req.getStop())
-                .temperature(req.getTemperature())
-                .topP(req.getTopP())
-                .topLogprobs(req.getTopLogprobs())
-                .textOptions(req.getText());
+    public static void convertBaseToUnified(ChatCompletionRequest req, UnifiedChatRequest unifiedRequest) {
+        unifiedRequest.setAudio(req.getAudio());
+        unifiedRequest.setFrequencyPenalty(req.getFrequencyPenalty());
+        unifiedRequest.setLogprobs(req.getLogprobs());
+        unifiedRequest.setModel(req.getModel());
+        unifiedRequest.setMaxTokens(req.getMaxTokens());
+        unifiedRequest.setModalities(req.getModalities());
+        unifiedRequest.setN(req.getN());
+        unifiedRequest.setParallelToolCalls(req.getParallelToolCalls());
+        unifiedRequest.setPrediction(req.getPrediction());
+        unifiedRequest.setPromptCacheKey(req.getPromptCacheKey());
+        unifiedRequest.setPresencePenalty(req.getPresencePenalty());
+        unifiedRequest.setResponseFormat(req.getResponseFormat());
+        unifiedRequest.setStream(req.getStream());
+        unifiedRequest.setStreamOptions(req.getStreamOptions());
+        unifiedRequest.setStop(req.getStop());
+        unifiedRequest.setTemperature(req.getTemperature());
+        unifiedRequest.setTopP(req.getTopP());
+        unifiedRequest.setTopLogprobs(req.getTopLogprobs());
+        unifiedRequest.setTextOptions(req.getText());
     }
 
-    public static ChatCompletionRequest.ChatCompletionRequestBuilder convertUnifiedToBase(UnifiedChatRequest req) {
-        return ChatCompletionRequest.builder()
-                .model(req.getModel())
-                .frequencyPenalty(req.getFrequencyPenalty())
-                .maxTokens(req.getMaxTokens())
-                .presencePenalty(req.getPresencePenalty())
-                .prediction(req.getPrediction())
-                .responseFormat(req.getResponseFormat())
-                .stop(req.getStop())
-                .stream(req.getStream())
-                .streamOptions(req.getStreamOptions())
-                .temperature(req.getTemperature())
-                .topP(req.getTopP())
-                .logprobs(req.getLogprobs())
-                .topLogprobs(req.getTopLogprobs())
-                .modalities(req.getModalities())
-                .n(req.getN())
-                .parallelToolCalls(req.getParallelToolCalls())
-                .promptCacheKey(req.getPromptCacheKey())
-                .audio(req.getAudio());
+    public static void convertUnifiedToBase(UnifiedChatRequest req, ChatCompletionRequest chatRequest) {
+        chatRequest.setModel(req.getModel());
+        chatRequest.setFrequencyPenalty(req.getFrequencyPenalty());
+        chatRequest.setMaxTokens(req.getMaxTokens());
+        chatRequest.setPresencePenalty(req.getPresencePenalty());
+        chatRequest.setPrediction(req.getPrediction());
+        chatRequest.setResponseFormat(req.getResponseFormat());
+        chatRequest.setStop(req.getStop());
+        chatRequest.setStream(req.getStream());
+        chatRequest.setStreamOptions(req.getStreamOptions());
+        chatRequest.setTemperature(req.getTemperature());
+        chatRequest.setTopP(req.getTopP());
+        chatRequest.setLogprobs(req.getLogprobs());
+        chatRequest.setTopLogprobs(req.getTopLogprobs());
+        chatRequest.setModalities(req.getModalities());
+        chatRequest.setN(req.getN());
+        chatRequest.setParallelToolCalls(req.getParallelToolCalls());
+        chatRequest.setPromptCacheKey(req.getPromptCacheKey());
+        chatRequest.setAudio(req.getAudio());
     }
 
 
-    public static UnifiedChatRequest.ThinkingOptions convertThinkingToUnified(ChatCompletionRequest req, Map<String, Object> tempFields) {
-        UnifiedChatRequest.ThinkingOptions thinkingOptions = new UnifiedChatRequest.ThinkingOptions();
+    public static void convertThinkingToUnified(ChatCompletionRequest req, UnifiedChatRequest unifiedRequest) {
+        // 确保 unifiedRequest 有必要的字段
+        if (unifiedRequest.getTempFields() == null) {
+            unifiedRequest.setTempFields(new HashMap<>());
+        }
+        if (unifiedRequest.getThinkingOptions() == null) {
+            unifiedRequest.setThinkingOptions(new ThinkingOptions());
+        }
+        
+        ThinkingOptions thinkingOptions = unifiedRequest.getThinkingOptions();
+        Map<String, Object> tempFields = unifiedRequest.getTempFields();
         
         // 智谱系列映射
         if(req.getThinking() != null) {
             thinkingOptions.setType(req.getThinking().getType());
-            tempFields.put("originalThinkingField", "thinking");
-            return thinkingOptions;
+            tempFields.put("thinking", "thinking");
         }
         // Qwen系列映射
         else if (req.getEnableThinking() != null && req.getEnableThinking()) {
@@ -76,35 +84,31 @@ public class OpenAITransformUtils {
             if(req.getThinkingBudget() != null) {
                 thinkingOptions.setThinkingBudget(req.getThinkingBudget());
             }
-            tempFields.put("originalThinkingField", "enableThinking");
-            return thinkingOptions;
+            tempFields.put("thinking", "enableThinking");
         }
         // OpenAI系列映射
         else if (req.getReasoningEffort() != null) {
             thinkingOptions.setReasoningEffort(req.getReasoningEffort());
-            tempFields.put("originalThinkingField", "reasoningEffort");
-            return thinkingOptions;
+            tempFields.put("thinking", "reasoningEffort");
         }
-        
-        // 没有思考选项时返回 null
-        return null;
+        // 没有思考选项时不做任何操作
     }
 
-    public static void convertThinkingToChat(UnifiedChatRequest req, ChatCompletionRequest.ChatCompletionRequestBuilder builder) {
-        if (req.getTempFields() != null && req.getTempFields().containsKey("originalThinkingField")) {
-            String originalField = (String) req.getTempFields().get("originalThinkingField");
-            
+    public static void convertThinkingToChat(UnifiedChatRequest req, ChatCompletionRequest chatRequest) {
+        if (req.getTempFields() != null && req.getTempFields().containsKey("thinking")) {
+            String originalField = (String) req.getTempFields().get("thinking");
+
             if ("thinking".equals(originalField)) {
                 Thinking thinking = new Thinking();
                 thinking.setType(req.getThinkingOptions().getType());
-                builder.thinking(thinking);
+                chatRequest.setThinking(thinking);
             } else if ("enableThinking".equals(originalField)) {
-                builder.enableThinking(true);
+                chatRequest.setEnableThinking(true);
                 if (req.getThinkingOptions().getThinkingBudget() != null) {
-                    builder.thinkingBudget(req.getThinkingOptions().getThinkingBudget());
+                    chatRequest.setThinkingBudget(req.getThinkingOptions().getThinkingBudget());
                 }
             } else if ("reasoningEffort".equals(originalField)) {
-                builder.reasoningEffort(req.getThinkingOptions().getReasoningEffort());
+                chatRequest.setReasoningEffort(req.getThinkingOptions().getReasoningEffort());
             }
         }
     }

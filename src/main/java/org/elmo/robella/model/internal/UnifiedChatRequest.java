@@ -3,9 +3,12 @@ package org.elmo.robella.model.internal;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import org.elmo.robella.model.openai.*;
+import org.elmo.robella.model.openai.audio.OpenAIAudio;
+import org.elmo.robella.model.openai.core.*;
+import org.elmo.robella.model.openai.tool.Tool;
+import org.elmo.robella.model.openai.tool.ToolChoice;
 
 import java.util.*;
 
@@ -13,13 +16,12 @@ import java.util.*;
  * 扩展后的统一聊天请求：支持多模态、工具调用、结构化控制参数。
  */
 @Data
-@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class UnifiedChatRequest {
 
     private String model;                        // 逻辑模型名
-    private List<ChatMessage> messages;          // 对话历史
+    private List<OpenAIMessage> messages;          // 对话历史
     private Boolean stream;                      // 是否流式
     private StreamOptions streamOptions;         // 流式参数
     private Integer maxTokens;                   // 最大生成 tokens
@@ -37,17 +39,15 @@ public class UnifiedChatRequest {
     private Integer topLogprobs;                 // top logprobs
     private ResponseFormat responseFormat;       // 响应格式（预留，可为 JSON schema）
     private Boolean parallelToolCalls;           // 是否并行调用工具（OpenAI 特有）
-    private String systemMessage;                // 系统消息（Anthropic 专用字段）
     private Object cacheControl;                 // 缓存控制（Anthropic 缓存机制）
     private List<String> modalities;             // 希望模型生成的输出类型（OpenAI multimodal）
     private Integer n;                           // 模型生成的输出数量（OpenAI）
     private String promptCacheKey;               // 缓存的提示（OpenAI prompt caching）
-    private Audio audio;                         // 音频输出参数（OpenAI audio output）
+    private OpenAIAudio audio;                         // 音频输出参数（OpenAI audio output）
     private TextOptions textOptions;             // 文本输出参数（OpenAI text options）
     private Prediction prediction;
     private ThinkingOptions thinkingOptions;
     private Map<String, Object> vendorExtras;    // 厂商特定参数
-    private Map<String, Object> metadata;        // 通用元数据（traceId / user / session 等）
 
 
     @JsonIgnore
@@ -81,14 +81,7 @@ public class UnifiedChatRequest {
         return this.tempFields != null ? this.tempFields.get(key) : null;
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ThinkingOptions {
-        private String type;
-        private String reasoningEffort;
-        private Integer thinkingBudget;
-    }
+    
 
 
 }

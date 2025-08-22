@@ -78,6 +78,8 @@ build/
 # VS Code
 .vscode/
 
+.roo/
+
 # Logs
 logs
 *.log

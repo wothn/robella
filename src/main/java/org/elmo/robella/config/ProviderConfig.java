@@ -20,7 +20,7 @@ public class ProviderConfig {
         private String apiKey;
         private String baseUrl;
         private String deploymentName; // Azure OpenAI特有字段
-    private String apiVersion; // 可选的 API 版本（尤其用于 Azure OpenAI 或自建兼容服务）
+        private String apiVersion; // 可选的 API 版本（尤其用于 Azure OpenAI 或自建兼容服务）
         private List<Model> models;
 
         public ProviderType getProviderType() {
@@ -32,5 +32,6 @@ public class ProviderConfig {
     public static class Model {
         private String name;
         private String vendorModel;
+        private String thinkingField; // 思考字段配置，如 "thinking"
     }
 }

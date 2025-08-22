@@ -25,4 +25,16 @@ public class ConfigUtils {
         }
         return modelName; // 默认返回原始模型名
     }
+
+    public String getThinkingField(String providerName, String modelName) {
+        ProviderConfig.Provider provider = getProvider(providerName);
+        if (provider != null) {
+            for (ProviderConfig.Model model : provider.getModels()) {
+                if (model.getName().equals(modelName)) {
+                    return model.getThinkingField(); // 返回配置的thinkingField，可能为null
+                }
+            }
+        }
+        return null; // 默认返回null
+    }
 }

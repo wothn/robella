@@ -1,11 +1,9 @@
 package org.elmo.robella.service;
 
-import org.elmo.robella.model.openai.ChatCompletionRequest;
-import org.elmo.robella.model.openai.ChatCompletionResponse;
-import org.elmo.robella.model.openai.ModelListResponse;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
+import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

@@ -5,9 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.adapter.AdapterFactory;
 import org.elmo.robella.adapter.AIProviderAdapter;
 import org.elmo.robella.config.ProviderConfig;
-import org.elmo.robella.model.openai.ChatCompletionRequest;
-import org.elmo.robella.model.openai.ModelInfo;
-import org.elmo.robella.model.openai.ModelListResponse;
+import org.elmo.robella.model.openai.core.ChatCompletionRequest;
+import org.elmo.robella.model.openai.model.ModelInfo;
+import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;

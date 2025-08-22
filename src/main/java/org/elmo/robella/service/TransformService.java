@@ -14,12 +14,26 @@ public interface TransformService {
     VendorTransform getVendorTransform(String providerType);
 
     // ========== 通用：供 ForwardingService 调用 ==========
-    Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerName);
-    UnifiedChatRequest vendorRequestToUnified(Object vendorRequest, String providerName);
+    Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType);
+    Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType, String thinkingField);
     UnifiedChatResponse vendorResponseToUnified(Object vendorResp, String providerName);
-    Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse, String providerName);
     UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent, String providerName);
-    Object unifiedStreamChunkToVendor(UnifiedStreamChunk chunk, String providerName);
+    
+    // ========== 端点格式转换：支持端点格式与提供商分离 ==========
+    /**
+     * 根据端点格式转换请求到统一格式（与实际调用的provider无关）
+     */
+    UnifiedChatRequest endpointRequestToUnified(Object vendorRequest, String endpointType);
+    
+    /**
+     * 根据端点格式从统一格式转换响应（与实际调用的provider无关）
+     */
+    Object unifiedToEndpointResponse(UnifiedChatResponse unifiedResponse, String endpointType);
+    
+    /**
+     * 根据端点格式从统一流片段转换为端点格式（与实际调用的provider无关）
+     */
+    Object unifiedStreamChunkToEndpoint(UnifiedStreamChunk chunk, String endpointType);
 
 
 }
