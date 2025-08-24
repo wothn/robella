@@ -1,32 +1,25 @@
 package org.elmo.robella.service.transform;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.model.internal.*;
 import org.elmo.robella.service.VendorTransform;
+import org.elmo.robella.util.ConfigUtils;
 
 import org.elmo.robella.model.anthropic.core.*;
-import org.elmo.robella.model.anthropic.tool.*;
-import org.elmo.robella.model.openai.core.OpenAIMessage;
-import org.elmo.robella.model.openai.core.Usage;
-import org.elmo.robella.model.openai.content.*;
-import org.elmo.robella.model.openai.content.ImageUrl;
-import org.elmo.robella.model.openai.tool.*;
 import org.elmo.robella.util.AnthropicTransformUtils;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 
 /**
  * Anthropic Messages API 转换实现
  */
 @Slf4j
+@RequiredArgsConstructor
 public class AnthropicTransform implements VendorTransform {
+    
+    private final ConfigUtils configUtils;
 
 
     @Override
@@ -52,19 +45,41 @@ public class AnthropicTransform implements VendorTransform {
         // 设置思考字段
         AnthropicTransformUtils.convertThinkingToUnified(req, unifiedRequest);
 
+        // 设置配置思考字段
+        unifiedRequest.getTempFields().put("config_thinking", configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel()));
 
-        return null;
+        // 转换messages
+        AnthropicTransformUtils.convertMessagesToUnified(req, unifiedRequest);
+
+        // 处理系统消息（Anthropic的system字段转换为OpenAI格式的系统消息）
+        AnthropicTransformUtils.convertSystemToUnified(req, unifiedRequest);
+
+        return unifiedRequest;
     }
 
     @Override
     public Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
-        return null;
-    }
+        AnthropicChatRequest anthropicRequest = new AnthropicChatRequest();
+        
+        // 设置基础字段
+        AnthropicTransformUtils.convertBaseToAnthropic(unifiedRequest, anthropicRequest);
 
-    @Override
-    public Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest, String thinkingField) {
-        // 调用原始方法，thinkingField参数在Anthropic转换中暂不需要特殊处理
-        return unifiedToVendorRequest(unifiedRequest);
+        // 设置tools
+        AnthropicTransformUtils.convertToolsToAnthropic(unifiedRequest, anthropicRequest);
+
+        // 设置tool_choice
+        AnthropicTransformUtils.convertToolChoiceToAnthropic(unifiedRequest, anthropicRequest);
+
+        // 设置思考字段
+        AnthropicTransformUtils.convertThinkingToAnthropic(unifiedRequest, anthropicRequest);
+
+        // 转换messages
+        AnthropicTransformUtils.convertMessagesToAnthropic(unifiedRequest, anthropicRequest);
+
+        // 处理系统消息（从OpenAI格式的系统消息转换为Anthropic的system字段）
+        AnthropicTransformUtils.convertSystemToAnthropic(unifiedRequest, anthropicRequest);
+
+        return anthropicRequest;
     }
 
 
