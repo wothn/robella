@@ -30,22 +30,21 @@ public class AnthropicController {
 
     /**
      * Anthropic Messages API 端点
-     * 
+     *
      * @param request Anthropic 格式的聊天请求
      * @return 流式或非流式响应
      */
-    @PostMapping(value = "/messages", 
-                 produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
-                 consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/messages",
+            produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Object createMessage(@RequestBody @Valid AnthropicChatRequest request) {
-        log.debug("收到 Anthropic Messages API 请求: model={}, stream={}", 
-                 request.getModel(), request.getStream());
+        log.debug("收到 Anthropic Messages API 请求: model={}, stream={}",
+                request.getModel(), request.getStream());
 
         // 将 Anthropic 请求转换为内部统一格式（使用端点格式）
         UnifiedChatRequest unified = transformService.endpointRequestToUnified(request, ProviderType.Anthropic.getName());
-        
         boolean stream = Boolean.TRUE.equals(request.getStream());
-        
+
         if (stream) {
             // 流式响应
             log.debug("处理流式请求");
@@ -54,13 +53,13 @@ public class AnthropicController {
                     .body(
                             forwardingService.streamUnified(unified, null)
                                     .mapNotNull(chunk -> {
-                                        Object event = transformService.unifiedStreamChunkToEndpoint(
+                                        String event = transformService.unifiedStreamChunkToEndpoint(
                                                 chunk, ProviderType.Anthropic.getName());
                                         // 对于 Anthropic 端点，事件已经是完整的 SSE 格式字符串
-                                        return event != null ? event.toString() : null;
+                                        return event != null ? event : null;
                                     })
                                     .filter(event -> event != null && !event.isEmpty()) // 过滤空事件
-                                    .doOnNext(event -> log.trace("发送流式事件: {}", 
+                                    .doOnNext(event -> log.trace("发送流式事件: {}",
                                             event.length() > 200 ? event.substring(0, 200) + "..." : event))
                                     .doOnComplete(() -> log.debug("流式响应完成"))
                                     .doOnError(error -> log.error("流式响应错误", error))
@@ -73,8 +72,8 @@ public class AnthropicController {
                         // 将统一响应转换回 Anthropic 格式（无论后端provider是什么）
                         AnthropicMessage response = (AnthropicMessage) transformService
                                 .unifiedToEndpointResponse(unifiedResponse, ProviderType.Anthropic.getName());
-                        log.debug("返回 Anthropic 响应: id={}, model={}", 
-                                 response.getId(), response.getModel());
+                        log.debug("返回 Anthropic 响应: id={}, model={}",
+                                response.getId(), response.getModel());
                         return ResponseEntity.ok(response);
                     })
                     .doOnError(error -> log.error("处理 Anthropic 请求失败", error));

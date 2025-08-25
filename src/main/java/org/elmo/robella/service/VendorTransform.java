@@ -30,5 +30,5 @@ public interface VendorTransform {
     // 厂商流事件 -> Unified
     UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent);
     // Unified -> 厂商流事件
-    Object unifiedStreamChunkToVendor(UnifiedStreamChunk chunk);
+    String unifiedStreamChunkToVendor(UnifiedStreamChunk chunk);
 }

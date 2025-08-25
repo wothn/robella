@@ -100,8 +100,8 @@ public class AnthropicTransform implements VendorTransform {
     }
 
     @Override
-    public Object unifiedStreamChunkToVendor(UnifiedStreamChunk chunk) {
-
+    public String unifiedStreamChunkToVendor(UnifiedStreamChunk chunk) {
+        // TODO: 实现 Anthropic 流事件转换
         return null;
     }
     

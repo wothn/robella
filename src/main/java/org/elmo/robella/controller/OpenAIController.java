@@ -36,8 +36,8 @@ public class OpenAIController {
             Flux<String> sseFlux = forwardingService.streamUnified(unified, null)
                     .mapNotNull(chunk -> {
                         // 转换为端点流式片段
-                        Object event = transformService.unifiedStreamChunkToEndpoint(chunk, ProviderType.OpenAI.getName());
-                        return event != null ? event.toString() : "";
+                        String event = transformService.unifiedStreamChunkToEndpoint(chunk, ProviderType.OpenAI.getName());
+                        return event != null ? event : "";
                     })
                     .concatWith(Flux.just("[DONE]"));
             return Mono.just(ResponseEntity.ok().contentType(MediaType.TEXT_EVENT_STREAM)

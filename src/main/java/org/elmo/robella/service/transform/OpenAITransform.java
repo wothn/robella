@@ -10,6 +10,7 @@ import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.VendorTransform;
 import org.elmo.robella.util.ConfigUtils;
+import org.elmo.robella.util.JsonUtils;
 import org.elmo.robella.util.OpenAITransformUtils;
 
 import java.util.*;
@@ -187,7 +188,7 @@ public class OpenAITransform implements VendorTransform {
     }
 
     @Override
-    public Object unifiedStreamChunkToVendor(UnifiedStreamChunk chunk) {
+    public String unifiedStreamChunkToVendor(UnifiedStreamChunk chunk) {
         if (chunk == null) {
             return null;
         }
@@ -209,6 +210,6 @@ public class OpenAITransform implements VendorTransform {
             chatCompletionChunk.setUsage(chunk.getUsage());
         }
 
-        return chatCompletionChunk;
+        return JsonUtils.toJson(chatCompletionChunk);
     }
 }
