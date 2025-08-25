@@ -8,7 +8,6 @@ import org.elmo.robella.exception.AuthenticationException;
 import org.elmo.robella.exception.ProviderException;
 import org.elmo.robella.exception.QuotaExceededException;
 import org.elmo.robella.exception.RateLimitException;
-import org.elmo.robella.model.anthropic.*;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
@@ -28,7 +27,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-import reactor.util.retry.Retry;
 
 /**
  * Anthropic Messages API 适配器
@@ -37,16 +35,16 @@ import reactor.util.retry.Retry;
 public class AnthropicAdapter implements AIProviderAdapter {
 
     private static final String SSE_DATA_PREFIX = "data: ";
+    private static final String SSE_EVENT_PREFIX = "event: ";
 
     private final ProviderConfig.Provider config;
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
-    // 固定的版本号(常用稳定版本); 可后续从配置扩展
     private static final String ANTHROPIC_VERSION = "2023-06-01";
 
     public AnthropicAdapter(ProviderConfig.Provider config,
-                             WebClient baseClient,
-                             WebClientProperties webClientProperties) {
+            WebClient baseClient,
+            WebClientProperties webClientProperties) {
         this.config = config;
         this.webClient = baseClient.mutate()
                 .defaultHeader("x-api-key", config.getApiKey())
@@ -60,14 +58,16 @@ public class AnthropicAdapter implements AIProviderAdapter {
     @Override
     public Mono<AnthropicMessage> chatCompletion(Object request) {
         if (!(request instanceof AnthropicChatRequest anthropicRequest)) {
-            return Mono.error(new ProviderException("Invalid request type for AnthropicAdapter: " + (request == null ? "null" : request.getClass().getName())));
+            return Mono.error(new ProviderException("Invalid request type for AnthropicAdapter: "
+                    + (request == null ? "null" : request.getClass().getName())));
         }
 
         // URL 末尾统一 /v1/messages
         String url = buildMessagesUrl();
 
         if (log.isDebugEnabled()) {
-            log.debug("[AnthropicAdapter] chatCompletion start provider={} model={} stream=false", config.getName(), anthropicRequest.getModel());
+            log.debug("[AnthropicAdapter] chatCompletion start provider={} model={} stream=false", config.getName(),
+                    anthropicRequest.getModel());
         }
 
         return webClient.post()
@@ -83,21 +83,21 @@ public class AnthropicAdapter implements AIProviderAdapter {
                     }
                 })
                 .timeout(webClientProperties.getTimeout().getRead())
-                .retryWhen(Retry.backoff(webClientProperties.getRetry().getMaxAttempts(), webClientProperties.getRetry().getInitialDelay())
-                        .maxBackoff(webClientProperties.getRetry().getMaxDelay())
-                        .filter(this::isRetryable))
                 .onErrorMap(ex -> mapToProviderException(ex, "Anthropic API call"))
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
-                        log.debug("[AnthropicAdapter] chatCompletion success provider={} model={}", config.getName(), anthropicRequest.getModel());
+                        log.debug("[AnthropicAdapter] chatCompletion success provider={} model={}", config.getName(),
+                                anthropicRequest.getModel());
                 })
-                .doOnError(err -> log.debug("[AnthropicAdapter] chatCompletion error provider={} model={} msg={}", config.getName(), anthropicRequest.getModel(), err.toString()));
+                .doOnError(err -> log.debug("[AnthropicAdapter] chatCompletion error provider={} model={} msg={}",
+                        config.getName(), anthropicRequest.getModel(), err.toString()));
     }
 
     @Override
     public Flux<AnthropicStreamEvent> streamChatCompletion(Object request) {
         if (!(request instanceof AnthropicChatRequest anthropicRequest)) {
-            return Flux.error(new ProviderException("Invalid request type for AnthropicAdapter: " + (request == null ? "null" : request.getClass().getName())));
+            return Flux.error(new ProviderException("Invalid request type for AnthropicAdapter: "
+                    + (request == null ? "null" : request.getClass().getName())));
         }
 
         // 强制流式开关
@@ -108,11 +108,14 @@ public class AnthropicAdapter implements AIProviderAdapter {
         String url = buildMessagesUrl();
 
         double multiplier = webClientProperties.getTimeout().getStreamReadMultiplier();
-        if (multiplier <= 0) multiplier = 5.0;
-        Duration streamTimeout = Duration.ofMillis((long) (webClientProperties.getTimeout().getRead().toMillis() * multiplier));
+        if (multiplier <= 0)
+            multiplier = 5.0;
+        Duration streamTimeout = Duration
+                .ofMillis((long) (webClientProperties.getTimeout().getRead().toMillis() * multiplier));
 
         if (log.isDebugEnabled()) {
-            log.debug("[AnthropicAdapter] streamChatCompletion start provider={} model={} stream=true", config.getName(), anthropicRequest.getModel());
+            log.debug("[AnthropicAdapter] streamChatCompletion start provider={} model={} stream=true",
+                    config.getName(), anthropicRequest.getModel());
         }
 
         return webClient.post()
@@ -123,7 +126,8 @@ public class AnthropicAdapter implements AIProviderAdapter {
                 .bodyToFlux(String.class)
                 .flatMap(raw -> {
                     if (log.isTraceEnabled()) {
-                        log.trace("[AnthropicAdapter] raw stream fragment: {}", raw != null && raw.length() > 200 ? raw.substring(0, 200) + "..." : raw);
+                        log.trace("[AnthropicAdapter] raw stream fragment: {}",
+                                raw != null && raw.length() > 200 ? raw.substring(0, 200) + "..." : raw);
                     }
                     List<AnthropicStreamEvent> events = parseStreamRaw(raw);
                     return events.isEmpty() ? Flux.empty() : Flux.fromIterable(events);
@@ -131,7 +135,8 @@ public class AnthropicAdapter implements AIProviderAdapter {
                 .timeout(streamTimeout)
                 .onErrorMap(WebClientResponseException.class, this::handleApiError)
                 .onErrorMap(ex -> mapToProviderException(ex, "Anthropic streaming API call"))
-                .doOnError(err -> log.debug("[AnthropicAdapter] streamChatCompletion error provider={} model={} msg={}", config.getName(), anthropicRequest.getModel(), err.toString()));
+                .doOnError(err -> log.debug("[AnthropicAdapter] streamChatCompletion error provider={} model={} msg={}",
+                        config.getName(), anthropicRequest.getModel(), err.toString()));
     }
 
     @Override
@@ -145,18 +150,22 @@ public class AnthropicAdapter implements AIProviderAdapter {
         return config.getName();
     }
 
-    // ==== helpers ====
+    // ==== 辅助方法 ====
 
     private String buildMessagesUrl() {
         String base = config.getBaseUrl();
-        if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-        if (base.endsWith("/v1/messages")) return base; // already full
-        if (base.endsWith("/v1")) return base + "/messages";
+        if (base.endsWith("/"))
+            base = base.substring(0, base.length() - 1);
+        if (base.endsWith("/v1/messages"))
+            return base; // 已经是完整路径
+        if (base.endsWith("/v1"))
+            return base + "/messages";
         return base + "/v1/messages";
     }
 
     private List<ModelInfo> getConfiguredModelInfos() {
-        if (config.getModels() == null) return Collections.emptyList();
+        if (config.getModels() == null)
+            return Collections.emptyList();
         return config.getModels().stream().map(m -> {
             ModelInfo info = new ModelInfo();
             info.setId(m.getName());
@@ -167,65 +176,100 @@ public class AnthropicAdapter implements AIProviderAdapter {
     }
 
     private List<AnthropicStreamEvent> parseStreamRaw(String raw) {
-        if (raw == null || raw.isEmpty()) return Collections.emptyList();
+        if (raw == null || raw.isEmpty())
+            return Collections.emptyList();
         List<AnthropicStreamEvent> events = new ArrayList<>();
+
+        String currentEventType = null;
+        String currentData = null;
+
         String[] lines = raw.split("\n");
         for (String line : lines) {
             String trimmed = line.trim();
-            if (trimmed.isEmpty()) continue;
-            if (!trimmed.startsWith(SSE_DATA_PREFIX)) continue;
-            String json = trimmed.substring(SSE_DATA_PREFIX.length()).trim();
-            try {
-                AnthropicStreamEvent event = JsonUtils.fromJson(json, AnthropicStreamEvent.class);
-                if (event != null) events.add(event);
-            } catch (Exception e) {
-                if (log.isTraceEnabled()) {
-                    log.trace("[AnthropicAdapter] Failed to parse stream event: {} data={}", e.getMessage(), json.length() > 120 ? json.substring(0, 120) + "..." : json);
+            if (trimmed.isEmpty()) {
+                // 空行表示事件结束，如果同时有 event 和 data 则处理它
+                if (currentEventType != null && currentData != null) {
+                    processEvent(events, currentEventType, currentData);
                 }
+                currentEventType = null;
+                currentData = null;
+                continue;
+            }
+
+            if (trimmed.startsWith(SSE_EVENT_PREFIX)) {
+                currentEventType = trimmed.substring(SSE_EVENT_PREFIX.length()).trim();
+            } else if (trimmed.startsWith(SSE_DATA_PREFIX)) {
+                currentData = trimmed.substring(SSE_DATA_PREFIX.length()).trim();
+            }
+
+            // 如果同时获得了事件类型和数据，则处理该事件
+            if (currentEventType != null && currentData != null) {
+                processEvent(events, currentEventType, currentData);
+                currentEventType = null;
+                currentData = null;
             }
         }
+
+        // 在结束时处理任何剩余的事件
+        if (currentEventType != null && currentData != null) {
+            processEvent(events, currentEventType, currentData);
+        }
+
         return events;
+    }
+
+    private void processEvent(List<AnthropicStreamEvent> events, String eventType, String jsonData) {
+        try {
+            AnthropicStreamEvent event = JsonUtils.fromJson(jsonData, AnthropicStreamEvent.class);
+            if (event != null) {
+                // 确保事件类型与 JSON 中的 type 字段匹配
+                if (event.getType() == null || !event.getType().equals(eventType)) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("[AnthropicAdapter] Event type mismatch: SSE event={}, JSON type={}",
+                                eventType, event.getType());
+                    }
+                }
+                events.add(event);
+            }
+        } catch (Exception e) {
+            if (log.isTraceEnabled()) {
+                log.trace("[AnthropicAdapter] Failed to parse stream event: {} eventType={} data={}",
+                        e.getMessage(), eventType,
+                        jsonData.length() > 120 ? jsonData.substring(0, 120) + "..." : jsonData);
+            }
+        }
     }
 
     private ProviderException mapToProviderException(Throwable ex, String operation) {
         if (ex instanceof WebClientResponseException webEx) {
             return handleApiError(webEx);
         }
-        if (ex instanceof ProviderException pe) return pe;
+        if (ex instanceof ProviderException pe)
+            return pe;
         return new ProviderException(operation + " failed: " + ex.getMessage(), ex);
     }
 
     private ProviderException handleApiError(WebClientResponseException ex) {
         String body = ex.getResponseBodyAsString();
         int status = ex.getStatusCode().value();
-        String errorMessage = String.format("Anthropic API error: %d %s%s", status, ex.getStatusText(), body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
+        String errorMessage = String.format("Anthropic API error: %d %s%s", status, ex.getStatusText(),
+                body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
         return switch (status) {
             case 401 -> new AuthenticationException("Invalid API key or authentication failed", ex);
             case 402 -> new AuthenticationException("Access forbidden - check permissions", ex);
             case 429 -> {
-                if (body.contains("quota")) yield new QuotaExceededException("API quota exceeded", ex);
-                else yield new RateLimitException("Rate limit exceeded", ex);
+                if (body.contains("quota"))
+                    yield new QuotaExceededException("API quota exceeded", ex);
+                else
+                    yield new RateLimitException("Rate limit exceeded", ex);
             }
-            case 400 -> new ProviderException("Bad request: " + (!body.isEmpty() ? body : "Invalid request parameters"), ex);
+            case 400 ->
+                new ProviderException("Bad request: " + (!body.isEmpty() ? body : "Invalid request parameters"), ex);
             case 404 -> new ProviderException("Endpoint not found", ex);
-            case 422 -> new ProviderException("Unprocessable entity: " + (!body.isEmpty() ? body : "Invalid request format"), ex);
+            case 422 -> new ProviderException(
+                    "Unprocessable entity: " + (!body.isEmpty() ? body : "Invalid request format"), ex);
             default -> new ProviderException(errorMessage, ex);
         };
     }
 
-    private boolean isRetryable(Throwable t) {
-        if (t instanceof ProviderException pe) {
-            Throwable cause = pe.getCause();
-            if (cause instanceof WebClientResponseException wex) {
-                int status = wex.getStatusCode().value();
-                return status >= 500 || status == 429;
-            }
-            return (cause instanceof IOException || cause instanceof TimeoutException);
-        }
-        if (t instanceof WebClientResponseException wex) {
-            int status = wex.getStatusCode().value();
-            return status >= 500 || status == 429;
-        }
-        return (t instanceof IOException || t instanceof TimeoutException);
-    }
 }

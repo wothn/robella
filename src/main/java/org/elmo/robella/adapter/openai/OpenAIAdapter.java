@@ -29,7 +29,6 @@ import java.util.concurrent.TimeoutException;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-import reactor.util.retry.Retry;
 
 @Slf4j
 public class OpenAIAdapter implements AIProviderAdapter {
@@ -80,10 +79,6 @@ public class OpenAIAdapter implements AIProviderAdapter {
                     }
                 })
                 .timeout(webClientProperties.getTimeout().getRead())  // 使用配置的读超时
-                // 仅对非流式请求添加重试（流式重试可能造成重复 token）
-                .retryWhen(Retry.backoff(webClientProperties.getRetry().getMaxAttempts(), webClientProperties.getRetry().getInitialDelay())
-                        .maxBackoff(webClientProperties.getRetry().getMaxDelay())
-                        .filter(this::isRetryable))
                 .onErrorMap(ex -> mapToProviderException(ex, "OpenAI API call"))
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
@@ -246,21 +241,6 @@ public class OpenAIAdapter implements AIProviderAdapter {
         };
     }
 
-    private boolean isRetryable(Throwable t) {
-        if (t instanceof ProviderException pe) {
-            Throwable cause = pe.getCause();
-            if (cause instanceof WebClientResponseException wex) {
-                int status = wex.getStatusCode().value();
-                return status >= 500 || status == 429;
-            }
-            return (cause instanceof IOException || cause instanceof TimeoutException);
-        }
-        if (t instanceof WebClientResponseException wex) {
-            int status = wex.getStatusCode().value();
-            return status >= 500 || status == 429;
-        }
-        return (t instanceof IOException || t instanceof TimeoutException);
-    }
 
 
 
