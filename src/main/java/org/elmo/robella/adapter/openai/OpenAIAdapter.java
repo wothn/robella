@@ -33,9 +33,7 @@ import java.util.regex.Pattern;
 @Slf4j
 public class OpenAIAdapter implements AIProviderAdapter {
 
-    private static final String SSE_DATA_PREFIX = "data: ";
     private static final String SSE_DONE_MARKER = "[DONE]";
-    private static final Pattern SSE_LINE_PATTERN = Pattern.compile("(?:^|\\n)data: (.*)(?:\\n|$)");
 
     private final ProviderConfig.Provider config;
     private final WebClient webClient;
@@ -117,8 +115,8 @@ public class OpenAIAdapter implements AIProviderAdapter {
                     }
                 })
                 .flatMap(raw -> {
-                    List<ChatCompletionChunk> parsed = parseStreamRaw(raw);
-                    return parsed.isEmpty() ? Flux.empty() : Flux.fromIterable(parsed);
+                    ChatCompletionChunk parsed = parseStreamRaw(raw);
+                    return parsed != null ? Flux.just(parsed) : Flux.empty();
                 })
                 .timeout(streamTimeout)
                 .onErrorMap(WebClientResponseException.class, this::handleApiError)
@@ -184,6 +182,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
 
     /**
      * 统一的错误处理方法，将WebClientResponseException和其他异常转换为ProviderException
+     *
      * @param operationType 操作类型，用于生成错误消息
      * @return 错误映射函数
      */
@@ -196,11 +195,11 @@ public class OpenAIAdapter implements AIProviderAdapter {
                     body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
             return new ProviderException(errorMessage, ex);
         }
-        
+
         if (ex instanceof ProviderException providerEx) {
             return providerEx;
         }
-        
+
         return new ProviderException(operationType + " failed: " + ex.getMessage(), ex);
     }
 
@@ -242,8 +241,6 @@ public class OpenAIAdapter implements AIProviderAdapter {
     }
 
 
-
-
     private List<ModelInfo> getConfiguredModelInfos() {
         if (config.getModels() == null) return Collections.emptyList();
         return config.getModels().stream().map(m -> {
@@ -257,13 +254,14 @@ public class OpenAIAdapter implements AIProviderAdapter {
 
     /**
      * 解析流数据
-     * 兼容两种格式：直接JSON和SSE格式
+     * 直接处理JSON格式，不处理SSE前缀
+     *
      * @param raw 流数据片段
      * @return 解析后的数据块
      */
-    private List<ChatCompletionChunk> parseStreamRaw(String raw) {
+    private ChatCompletionChunk parseStreamRaw(String raw) {
         if (raw == null || raw.isEmpty()) {
-            return Collections.emptyList();
+            return null;
         }
 
         String trimmed = raw.trim();
@@ -273,31 +271,19 @@ public class OpenAIAdapter implements AIProviderAdapter {
             if (log.isTraceEnabled()) {
                 log.trace("[OpenAIAdapter] Received stream completion marker");
             }
-            return Collections.emptyList();
+            return null;
         }
 
-        List<ChatCompletionChunk> chunks = new ArrayList<>();
-        String jsonData;
-
-        // 判断是否为SSE格式
-        if (trimmed.startsWith(SSE_DATA_PREFIX)) {
-            jsonData = trimmed.substring(SSE_DATA_PREFIX.length()).trim();
-            if (SSE_DONE_MARKER.equals(jsonData)) {
-                return Collections.emptyList();
-            }
-        } else {
-            // 直接是JSON格式
-            jsonData = trimmed;
-        }
+        String jsonData = trimmed; // 直接使用原始数据，不再处理SSE前缀
 
         // 尝试解析JSON
         try {
             ChatCompletionChunk chunk = JsonUtils.fromJson(jsonData, ChatCompletionChunk.class);
             if (chunk != null) {
-                chunks.add(chunk);
                 if (log.isTraceEnabled()) {
                     log.trace("[OpenAIAdapter] Received stream chunk: {}", chunk);
                 }
+                return chunk;
             }
         } catch (Exception e) {
             if (log.isTraceEnabled()) {
@@ -306,7 +292,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
             }
         }
 
-        return chunks;
+        return null;
     }
 
 
