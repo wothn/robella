@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.elmo.robella.model.anthropic.AnthropicToolResultContentDeserializer;
-import org.elmo.robella.model.anthropic.AnthropicToolResultContentSerializer;
+import org.elmo.robella.model.anthropic.serializer.AnthropicToolResultContentDeserializer;
+import org.elmo.robella.model.anthropic.serializer.AnthropicToolResultContentSerializer;
 
 import java.util.ArrayList;
 import java.util.List;

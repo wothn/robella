@@ -191,11 +191,6 @@ public class AnthropicTransformUtils {
             // This should be handled at the message level, not content level
             // Return null here and handle in convertMessagesToUnified
             return null;
-        } else if (anthropicContent instanceof AnthropicDocumentContent) {
-            // Document content is specific to Anthropic and doesn't have a direct OpenAI
-            // equivalent
-            return null;
-        }
 
         return null;
     }

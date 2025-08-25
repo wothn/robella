@@ -56,6 +56,7 @@ public class AnthropicController {
                                     .mapNotNull(chunk -> {
                                         Object event = transformService.unifiedStreamChunkToEndpoint(
                                                 chunk, ProviderType.Anthropic.getName());
+                                        // 对于 Anthropic 端点，事件已经是完整的 SSE 格式字符串
                                         return event != null ? event.toString() : null;
                                     })
                                     .filter(event -> event != null && !event.isEmpty()) // 过滤空事件

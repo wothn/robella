@@ -10,7 +10,7 @@ import lombok.Data;
 public class AnthropicImageSource {
     
     /**
-     * 源类型，目前只支持 "base64"
+     * 源类型，"base64"，"url"
      */
     private String type;
     
@@ -24,4 +24,9 @@ public class AnthropicImageSource {
      * base64 编码的图片数据
      */
     private String data;
+
+    /**
+     * 图片 URL
+     */
+    private String url;
 }

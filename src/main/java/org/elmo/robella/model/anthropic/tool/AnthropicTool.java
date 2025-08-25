@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Data;
-import org.elmo.robella.model.anthropic.core.AnthropicCacheControl;
 
 /**
  * Anthropic 工具定义基类
@@ -29,9 +28,4 @@ public abstract class AnthropicTool {
      */
     private String name;
     
-    /**
-     * 缓存控制
-     */
-    @JsonProperty("cache_control")
-    private AnthropicCacheControl cacheControl;
 }

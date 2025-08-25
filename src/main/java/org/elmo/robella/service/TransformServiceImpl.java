@@ -32,17 +32,19 @@ public class TransformServiceImpl implements TransformService {
     
     // ===== 通用 =====
     @Override
-    public Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType) {
+    public Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerName) {
+        String providerType = providerTypeByName(providerName);
+        
+        // 设置 providerName 到 unified 对象中
+        unified.setProviderName(providerName);
+        
+        // 调用具体的转换器（模型映射已在ForwardingService中处理）
         return getVendorTransform(providerType).unifiedToVendorRequest(unified);
     }
 
     @Override
-    public Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType, String thinkingField) {
-        return getVendorTransform(providerType).unifiedToVendorRequest(unified, thinkingField);
-    }
-
-    @Override
-    public UnifiedChatResponse vendorResponseToUnified(Object vendorResp, String providerType) {
+    public UnifiedChatResponse vendorResponseToUnified(Object vendorResp, String providerName) {
+        String providerType = providerTypeByName(providerName);
         return getVendorTransform(providerType).vendorResponseToUnified(vendorResp);
     }
 

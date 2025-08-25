@@ -30,10 +30,12 @@ public class OpenAIController {
 
         // 将请求转为内部格式（使用端点格式，而非provider类型）
         UnifiedChatRequest unified = transformService.endpointRequestToUnified(request, ProviderType.OpenAI.getName());
+
         boolean stream = Boolean.TRUE.equals(request.getStream());
         if (stream) {
             Flux<String> sseFlux = forwardingService.streamUnified(unified, null)
                     .mapNotNull(chunk -> {
+                        // 转换为端点流式片段
                         Object event = transformService.unifiedStreamChunkToEndpoint(chunk, ProviderType.OpenAI.getName());
                         return event != null ? event.toString() : "";
                     })

@@ -14,8 +14,7 @@ public interface TransformService {
     VendorTransform getVendorTransform(String providerType);
 
     // ========== 通用：供 ForwardingService 调用 ==========
-    Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType);
-    Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerType, String thinkingField);
+    Object unifiedToVendorRequest(UnifiedChatRequest unified, String providerName);
     UnifiedChatResponse vendorResponseToUnified(Object vendorResp, String providerName);
     UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent, String providerName);
     

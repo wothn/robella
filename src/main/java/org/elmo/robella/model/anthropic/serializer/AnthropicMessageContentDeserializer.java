@@ -5,7 +5,11 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.elmo.robella.model.anthropic.content.*;
+import org.elmo.robella.model.anthropic.content.AnthropicContent;
+import org.elmo.robella.model.anthropic.content.AnthropicImageContent;
+import org.elmo.robella.model.anthropic.content.AnthropicTextContent;
+import org.elmo.robella.model.anthropic.content.AnthropicToolResultContent;
+import org.elmo.robella.model.anthropic.content.AnthropicToolUseContent;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -71,7 +75,6 @@ public class AnthropicMessageContentDeserializer extends JsonDeserializer<List<A
             case "image" -> mapper.treeToValue(node, AnthropicImageContent.class);
             case "tool_use" -> mapper.treeToValue(node, AnthropicToolUseContent.class);
             case "tool_result" -> mapper.treeToValue(node, AnthropicToolResultContent.class);
-            case "document" -> mapper.treeToValue(node, AnthropicDocumentContent.class);
             default -> null;
         };
     }

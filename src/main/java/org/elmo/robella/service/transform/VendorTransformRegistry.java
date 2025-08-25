@@ -1,6 +1,7 @@
 package org.elmo.robella.service.transform;
 
 import org.elmo.robella.service.VendorTransform;
+import org.elmo.robella.util.ConfigUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -15,11 +16,11 @@ import java.util.stream.Collectors;
 public class VendorTransformRegistry {
     private final Map<String, VendorTransform> registry;
 
-    public VendorTransformRegistry() {
+    public VendorTransformRegistry(ConfigUtils configUtils) {
         // 手动注册；若后续改为通过 Spring 注入 List<VendorTransform>，可切换构造签名
         List<VendorTransform> transforms = List.of(
-                new OpenAITransform(),
-                new AnthropicTransform()
+                new OpenAITransform(configUtils),
+                new AnthropicTransform(configUtils)
         );
         this.registry = transforms.stream().collect(Collectors.toMap(VendorTransform::type, Function.identity()));
     }

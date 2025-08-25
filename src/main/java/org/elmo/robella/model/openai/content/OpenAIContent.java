@@ -12,8 +12,7 @@ import lombok.Data;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = OpenAITextContent.class, name = "text"),
     @JsonSubTypes.Type(value = OpenAIImageContent.class, name = "image_url"),
-    @JsonSubTypes.Type(value = OpenAIAudioContent.class, name = "input_audio"),
-    @JsonSubTypes.Type(value = OpenAIFileContent.class, name = "file")
+    @JsonSubTypes.Type(value = OpenAIAudioContent.class, name = "input_audio")
 })
 public abstract class OpenAIContent {
     

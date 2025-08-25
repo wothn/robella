@@ -23,8 +23,6 @@ public interface VendorTransform {
     UnifiedChatRequest vendorRequestToUnified(Object vendorRequest);
     // Unified -> 厂商请求
     Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest);
-    // Unified -> 厂商请求（带thinkingField配置）
-    Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest, String thinkingField);
     // 厂商响应 -> Unified
     UnifiedChatResponse vendorResponseToUnified(Object vendorResponse);
     // Unified -> 厂商响应

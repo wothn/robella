@@ -1,11 +1,9 @@
 package org.elmo.robella.util;
 
 import org.elmo.robella.model.internal.*;
-import org.elmo.robella.model.openai.*;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.Thinking;
 
-import java.util.*;
 
 /**
  * OpenAI 转换工具类，提供常用的转换方法
@@ -14,7 +12,8 @@ public class OpenAITransformUtils {
 
     /**
      * 将基础请求转换为统一格式，并将简单字段先赋值
-     * @param req OpenAI 基础请求
+     *
+     * @param req            OpenAI 基础请求
      * @param unifiedRequest 目标统一格式的聊天请求对象
      */
     public static void convertBaseToUnified(ChatCompletionRequest req, UnifiedChatRequest unifiedRequest) {
@@ -62,36 +61,28 @@ public class OpenAITransformUtils {
 
 
     public static void convertThinkingToUnified(ChatCompletionRequest req, UnifiedChatRequest unifiedRequest) {
-        // 确保 unifiedRequest 有必要的字段
-        if (unifiedRequest.getTempFields() == null) {
-            unifiedRequest.setTempFields(new HashMap<>());
-        }
-        if (unifiedRequest.getThinkingOptions() == null) {
-            unifiedRequest.setThinkingOptions(new ThinkingOptions());
-        }
-        
+
         ThinkingOptions thinkingOptions = unifiedRequest.getThinkingOptions();
-        Map<String, Object> tempFields = unifiedRequest.getTempFields();
-        
+
         // 智谱系列映射
-        if(req.getThinking() != null) {
+        if (req.getThinking() != null) {
             thinkingOptions.setType(req.getThinking().getType());
-            tempFields.put("thinking", "thinking");
+            unifiedRequest.getTempFields().put("req_thinking", "thinking");
         }
         // Qwen系列映射
         else if (req.getEnableThinking() != null && req.getEnableThinking()) {
             thinkingOptions.setType("enable");
-            if(req.getThinkingBudget() != null) {
+            if (req.getThinkingBudget() != null) {
                 thinkingOptions.setThinkingBudget(req.getThinkingBudget());
             }
-            tempFields.put("thinking", "enableThinking");
+            unifiedRequest.getTempFields().put("req_thinking", "enableThinking");
         }
         // OpenAI系列映射
         else if (req.getReasoningEffort() != null) {
             thinkingOptions.setReasoningEffort(req.getReasoningEffort());
-            tempFields.put("thinking", "reasoningEffort");
+            unifiedRequest.getTempFields().put("req_thinking", "reasoningEffort");
         }
-        // 没有思考选项时不做任何操作
+
     }
 
     public static void convertThinkingToChat(UnifiedChatRequest req, ChatCompletionRequest chatRequest) {
@@ -112,7 +103,4 @@ public class OpenAITransformUtils {
             }
         }
     }
-
-
-
 }

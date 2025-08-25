@@ -53,6 +53,7 @@ public class AnthropicMessage {
     
     /**
      * 停止生成的原因（仅在响应中出现）
+     * end_turn 正常结束 max_tokens 达到最大tokens限制 stop_sequence 遇到预设的停止序列 tool_use 需要调用工具
      */
     @JsonProperty("stop_reason")
     private String stopReason;

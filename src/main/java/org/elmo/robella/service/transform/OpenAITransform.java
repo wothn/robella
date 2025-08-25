@@ -1,5 +1,6 @@
 package org.elmo.robella.service.transform;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elmo.robella.config.ProviderType;
@@ -8,6 +9,7 @@ import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.VendorTransform;
+import org.elmo.robella.util.ConfigUtils;
 import org.elmo.robella.util.OpenAITransformUtils;
 
 import java.util.*;
@@ -16,7 +18,10 @@ import java.util.*;
  * OpenAI 及 OpenAI 兼容（DeepSeek、ModelScope、AIHubMix、Azure OpenAI）转换实现。
  */
 @Slf4j
+@RequiredArgsConstructor
 public class OpenAITransform implements VendorTransform {
+    
+    private final ConfigUtils configUtils;
     @Override
     public String type() {
         return ProviderType.OpenAI.getName();
@@ -45,7 +50,11 @@ public class OpenAITransform implements VendorTransform {
         // 转换工具选择
         unifiedRequest.setToolChoice(req.getToolChoice());
 
-        // 思考参数映射 - 现在直接在 unifiedRequest 中处理
+        // 获取配置的thinkingField
+        String thinkingField = configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel());
+        unifiedRequest.getTempFields().put("config_thinking", thinkingField);
+
+        // 思考参数映射
         OpenAITransformUtils.convertThinkingToUnified(req, unifiedRequest);
 
         // 处理厂商特定参数
@@ -87,7 +96,7 @@ public class OpenAITransform implements VendorTransform {
 
         // 思考参数映射
         if (unifiedRequest.getThinkingOptions() != null) {
-            OpenAITransformUtils.convertThinkingToChat(unifiedRequest, chatRequest);
+            OpenAITransformUtils.convertThinkingToChat(unifiedRequest,  chatRequest);
         }
 
         // 处理厂商特定参数
@@ -104,13 +113,6 @@ public class OpenAITransform implements VendorTransform {
         }
 
         return chatRequest;
-    }
-
-    @Override
-    public Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest, String thinkingField) {
-        // 调用原始方法，thinkingField参数在OpenAI转换中暂不需要特殊处理
-        // 可以在这里添加thinkingField相关的逻辑
-        return unifiedToVendorRequest(unifiedRequest);
     }
 
     @Override
