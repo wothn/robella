@@ -53,8 +53,7 @@ public class AnthropicController {
                     .body(
                             forwardingService.streamUnified(unified, null)
                                     .mapNotNull(chunk -> {
-                                        String event = transformService.unifiedStreamChunkToEndpoint(
-                                                chunk, ProviderType.Anthropic.getName());
+                                        String event = transformService.unifiedStreamChunkToEndpoint(chunk, ProviderType.Anthropic.getName());
                                         // 对于 Anthropic 端点，事件已经是完整的 SSE 格式字符串
                                         return event != null ? event : null;
                                     })

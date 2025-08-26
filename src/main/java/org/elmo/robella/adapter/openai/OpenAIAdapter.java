@@ -22,12 +22,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
-import java.io.IOException;
-import java.util.regex.Pattern;
 
 
 @Slf4j
@@ -108,7 +104,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
                 .header(HttpHeaders.ACCEPT, "text/event-stream")
                 .bodyValue(openaiRequest)
                 .retrieve()
-                .bodyToFlux(String.class)
+                .bodyToFlux(String.class) // String 类型会只处理data内容
                 .doOnNext(raw -> {
                     if (log.isTraceEnabled()) {
                         log.trace("[OpenAIAdapter] raw stream fragment: {}", raw != null && raw.length() > 200 ? raw.substring(0, 200) + "..." : raw);
@@ -130,9 +126,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
             // Azure OpenAI 不支持列出模型，返回配置的模型
             return Mono.just(getConfiguredModelInfos());
         }
-
         String url = config.getBaseUrl() + "/models";
-
         return webClient.get()
                 .uri(url)
                 .retrieve()
@@ -273,12 +267,9 @@ public class OpenAIAdapter implements AIProviderAdapter {
             }
             return null;
         }
-
-        String jsonData = trimmed; // 直接使用原始数据，不再处理SSE前缀
-
         // 尝试解析JSON
         try {
-            ChatCompletionChunk chunk = JsonUtils.fromJson(jsonData, ChatCompletionChunk.class);
+            ChatCompletionChunk chunk = JsonUtils.fromJson(trimmed, ChatCompletionChunk.class);
             if (chunk != null) {
                 if (log.isTraceEnabled()) {
                     log.trace("[OpenAIAdapter] Received stream chunk: {}", chunk);
@@ -288,7 +279,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
         } catch (Exception e) {
             if (log.isTraceEnabled()) {
                 log.trace("[OpenAIAdapter] Failed to parse stream chunk: {} - Data: {}",
-                        e.getMessage(), jsonData.length() > 100 ? jsonData.substring(0, 100) + "..." : jsonData);
+                        e.getMessage(), trimmed.length() > 100 ? trimmed.substring(0, 100) + "..." : trimmed);
             }
         }
 

@@ -32,7 +32,7 @@ public interface TransformService {
     /**
      * 根据端点格式从统一流片段转换为端点格式（与实际调用的provider无关）
      */
-    Object unifiedStreamChunkToEndpoint(UnifiedStreamChunk chunk, String endpointType);
+    String unifiedStreamChunkToEndpoint(UnifiedStreamChunk chunk, String endpointType);
 
 
 }

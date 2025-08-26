@@ -186,9 +186,6 @@ public class AnthropicAdapter implements AIProviderAdapter {
             String trimmed = line.trim();
             if (trimmed.isEmpty()) {
                 // 空行表示事件结束，如果同时有 event 和 data 则处理它
-                if (currentEventType != null && currentData != null) {
-                    processEvent(events, currentEventType, currentData);
-                }
                 currentEventType = null;
                 currentData = null;
                 continue;

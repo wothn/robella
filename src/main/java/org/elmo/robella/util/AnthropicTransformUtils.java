@@ -94,15 +94,15 @@ public class AnthropicTransformUtils {
         if (req.getSystem() != null && !req.getSystem().trim().isEmpty()) {
             OpenAIMessage systemMessage = new OpenAIMessage();
             systemMessage.setRole("system");
-            
+
             OpenAITextContent textContent = new OpenAITextContent();
             textContent.setType("text");
             textContent.setText(req.getSystem());
-            
+
             List<OpenAIContent> contents = new ArrayList<>();
             contents.add(textContent);
             systemMessage.setContent(contents);
-            
+
             // 将系统消息插入到消息列表的开头
             List<OpenAIMessage> messages = unifiedRequest.getMessages();
             if (messages == null) {
@@ -116,18 +116,36 @@ public class AnthropicTransformUtils {
     public static void convertMessagesToUnified(AnthropicChatRequest req, UnifiedChatRequest unifiedRequest) {
         List<AnthropicMessage> messages = req.getMessages();
         List<OpenAIMessage> unifiedMessages = new ArrayList<>();
-        
+
         for (AnthropicMessage message : messages) {
+            // 转换内容
+            List<OpenAIContent> openAIContents = new ArrayList<>();
+            List<ToolCall> toolCalls = new ArrayList<>();
+
+            // 检查是否包含ToolResultContent，如果包含则只处理这些内容
+            boolean hasToolResultContent = false;
+            for (AnthropicContent anthropicContent : message.getContent()) {
+                if (anthropicContent instanceof AnthropicToolResultContent toolResultContent) {
+                    // ToolResultContent 应该转换为单独的 tool 角色消息
+                    // 而不是作为当前消息的内容部分
+                    OpenAIMessage toolMessage = convertToolResultToToolMessage(toolResultContent);
+                    unifiedMessages.add(toolMessage);
+                    hasToolResultContent = true;
+                }
+            }
+
+            // 如果消息只包含ToolResultContent，则不需要为原始消息创建OpenAIMessage
+            if (hasToolResultContent && message.getContent().size() == 1) {
+                continue;
+            }
+
             OpenAIMessage openAIMessage = new OpenAIMessage();
 
             // 转换角色，Anthropic只支持user和assistant角色
             String role = message.getRole();
             openAIMessage.setRole(role);
 
-            // 转换内容
-            List<OpenAIContent> openAIContents = new ArrayList<>();
-            List<ToolCall> toolCalls = new ArrayList<>();
-            
+            // 转换内容（排除已处理的ToolResultContent）
             for (AnthropicContent anthropicContent : message.getContent()) {
                 if (anthropicContent instanceof AnthropicToolUseContent toolUseContent) {
                     // toolUseContent 转换为 ToolCall
@@ -135,13 +153,9 @@ public class AnthropicTransformUtils {
                     if (toolCall != null) {
                         toolCalls.add(toolCall);
                     }
-                } else if (anthropicContent instanceof AnthropicToolResultContent toolResultContent) {
-                    // ToolResultContent 应该转换为单独的 tool 角色消息
-                    // 而不是作为当前消息的内容部分
-                    OpenAIMessage toolMessage = convertToolResultToToolMessage(toolResultContent);
-                    if (toolMessage != null) {
-                        unifiedMessages.add(toolMessage);
-                    }
+                } else if (anthropicContent instanceof AnthropicToolResultContent) {
+                    // 已经处理过，跳过
+                    continue;
                 } else if (anthropicContent instanceof AnthropicThinkingContent thinkingContent) {
                     // Anthropic思考内容转换为OpenAI的reasoningContent字段
                     // 仅对assistant角色的消息设置reasoningContent
@@ -187,10 +201,11 @@ public class AnthropicTransformUtils {
                 return openAIImageContent;
             }
         } else if (anthropicContent instanceof AnthropicThinkingContent thinkingContent) {
-            // Convert Anthropic thinking content to OpenAI reasoning content
-            // This should be handled at the message level, not content level
-            // Return null here and handle in convertMessagesToUnified
+            // 将 Anthropic 的思考内容转换为 OpenAI 的推理内容
+            // 这应该在消息级别处理，而不是内容级别
+            // 在此处返回 null，并在 convertMessagesToUnified 中处理
             return null;
+        }
 
         return null;
     }
@@ -199,10 +214,10 @@ public class AnthropicTransformUtils {
         ToolCall toolCall = new ToolCall();
         toolCall.setId(toolUseContent.getId());
         toolCall.setType("function");
-        
+
         ToolCall.Function function = new ToolCall.Function();
         function.setName(toolUseContent.getName());
-        
+
         // 将input map转换为JSON字符串
         if (toolUseContent.getInput() != null) {
             try {
@@ -213,7 +228,7 @@ public class AnthropicTransformUtils {
                 return null;
             }
         }
-        
+
         toolCall.setFunction(function);
         return toolCall;
     }
@@ -222,7 +237,7 @@ public class AnthropicTransformUtils {
         OpenAIMessage toolMessage = new OpenAIMessage();
         toolMessage.setRole("tool");
         toolMessage.setToolCallId(toolResultContent.getToolUseId());
-        
+
         // 转换工具结果内容
         List<OpenAIContent> toolResultContents = new ArrayList<>();
         for (AnthropicContent content : toolResultContent.getContent()) {
@@ -232,7 +247,7 @@ public class AnthropicTransformUtils {
             }
         }
         toolMessage.setContent(toolResultContents);
-        
+
         return toolMessage;
     }
 
@@ -267,7 +282,7 @@ public class AnthropicTransformUtils {
         ToolChoice toolChoice = unifiedRequest.getToolChoice();
         if (toolChoice != null) {
             AnthropicToolChoice anthropicToolChoice = new AnthropicToolChoice();
-            
+
             if (toolChoice == ToolChoice.AUTO) {
                 anthropicToolChoice.setType("auto");
             } else if (toolChoice == ToolChoice.REQUIRED) {
@@ -281,7 +296,7 @@ public class AnthropicTransformUtils {
                 // 默认值
                 anthropicToolChoice.setType("auto");
             }
-            
+
             anthropicRequest.setToolChoice(anthropicToolChoice);
         }
     }
@@ -317,20 +332,20 @@ public class AnthropicTransformUtils {
     public static void convertMessagesToAnthropic(UnifiedChatRequest unifiedRequest, AnthropicChatRequest anthropicRequest) {
         List<OpenAIMessage> openAIMessages = unifiedRequest.getMessages();
         List<AnthropicMessage> anthropicMessages = new ArrayList<>();
-        
+
         // 跳过系统消息（将在convertSystemToAnthropic中处理）
         int startIndex = 0;
-        if (openAIMessages != null && !openAIMessages.isEmpty() && 
-            "system".equals(openAIMessages.get(0).getRole())) {
+        if (openAIMessages != null && !openAIMessages.isEmpty() &&
+                "system".equals(openAIMessages.get(0).getRole())) {
             startIndex = 1;
         }
-        
+
         for (int i = startIndex; i < openAIMessages.size(); i++) {
             OpenAIMessage openAIMessage = openAIMessages.get(i);
-            
+
             // 转换角色
             String role = openAIMessage.getRole();
-            
+
             if ("tool".equals(role)) {
                 // 工具消息需要转换为Anthropic的ToolResultContent
                 AnthropicMessage toolResultMessage = convertToolMessageToAnthropic(openAIMessage);
@@ -339,7 +354,7 @@ public class AnthropicTransformUtils {
                 }
                 continue;
             }
-            
+
             AnthropicMessage anthropicMessage = new AnthropicMessage();
             if ("user".equals(role) || "assistant".equals(role)) {
                 anthropicMessage.setRole(role);
@@ -347,7 +362,7 @@ public class AnthropicTransformUtils {
                 // 其他角色转换为user
                 anthropicMessage.setRole("user");
             }
-            
+
             // 转换内容
             List<AnthropicContent> anthropicContents = new ArrayList<>();
 
@@ -357,7 +372,7 @@ public class AnthropicTransformUtils {
                 thinkingContent.setThinking(openAIMessage.getReasoningContent());
                 anthropicContents.add(thinkingContent);
             }
-            
+
             // 处理文本和图像内容
             if (openAIMessage.getContent() != null) {
                 for (OpenAIContent openAIContent : openAIMessage.getContent()) {
@@ -367,7 +382,7 @@ public class AnthropicTransformUtils {
                     }
                 }
             }
-            
+
             // 处理工具调用
             if (openAIMessage.getToolCalls() != null) {
                 for (ToolCall toolCall : openAIMessage.getToolCalls()) {
@@ -377,11 +392,11 @@ public class AnthropicTransformUtils {
                     }
                 }
             }
-            
+
             anthropicMessage.setContent(anthropicContents);
             anthropicMessages.add(anthropicMessage);
         }
-        
+
         anthropicRequest.setMessages(anthropicMessages);
     }
 
@@ -395,7 +410,6 @@ public class AnthropicTransformUtils {
             if (imageContent.getImageUrl() != null) {
                 AnthropicImageContent anthropicImageContent = new AnthropicImageContent();
                 anthropicImageContent.setType("image");
-                
                 AnthropicImageSource source = new AnthropicImageSource();
                 String url = imageContent.getImageUrl().getUrl();
                 if (url.startsWith("data:")) {
@@ -412,7 +426,7 @@ public class AnthropicTransformUtils {
                     source.setType("url");
                     source.setUrl(url);
                 }
-                
+
                 anthropicImageContent.setSource(source);
                 return anthropicImageContent;
             }
@@ -426,21 +440,22 @@ public class AnthropicTransformUtils {
             toolUseContent.setType("tool_use");
             toolUseContent.setId(toolCall.getId());
             toolUseContent.setName(toolCall.getFunction().getName());
-            
+
             // 解析JSON参数为Map
             if (toolCall.getFunction().getArguments() != null) {
                 try {
                     ObjectMapper objectMapper = new ObjectMapper();
                     Map<String, Object> input = objectMapper.readValue(
-                        toolCall.getFunction().getArguments(), 
-                        new TypeReference<Map<String, Object>>() {}
+                            toolCall.getFunction().getArguments(),
+                            new TypeReference<Map<String, Object>>() {
+                            }
                     );
                     toolUseContent.setInput(input);
                 } catch (JsonProcessingException e) {
                     log.warn("Failed to parse tool arguments JSON: {}", e.getMessage());
                 }
             }
-            
+
             return toolUseContent;
         }
         return null;
@@ -450,17 +465,17 @@ public class AnthropicTransformUtils {
         if (toolMessage.getToolCallId() == null) {
             return null;
         }
-        
+
         AnthropicMessage anthropicMessage = new AnthropicMessage();
         anthropicMessage.setRole("user"); // Anthropic中工具结果作为user消息
-        
+
         List<AnthropicContent> anthropicContents = new ArrayList<>();
-        
+
         // 创建ToolResultContent
         AnthropicToolResultContent toolResultContent = new AnthropicToolResultContent();
         toolResultContent.setType("tool_result");
         toolResultContent.setToolUseId(toolMessage.getToolCallId());
-        
+
         // 转换工具结果内容
         if (toolMessage.getContent() != null) {
             List<AnthropicContent> resultContents = new ArrayList<>();
@@ -472,10 +487,10 @@ public class AnthropicTransformUtils {
             }
             toolResultContent.setContent(resultContents);
         }
-        
+
         anthropicContents.add(toolResultContent);
         anthropicMessage.setContent(anthropicContents);
-        
+
         return anthropicMessage;
     }
 }

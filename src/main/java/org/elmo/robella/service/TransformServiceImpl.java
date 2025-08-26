@@ -76,7 +76,7 @@ public class TransformServiceImpl implements TransformService {
      * 根据端点格式从统一流片段转换为端点格式（与实际调用的provider无关）
      */
     @Override
-    public Object unifiedStreamChunkToEndpoint(UnifiedStreamChunk chunk, String endpointType) {
+    public String unifiedStreamChunkToEndpoint(UnifiedStreamChunk chunk, String endpointType) {
         return getVendorTransform(endpointType).unifiedStreamChunkToVendor(chunk);
     }
 }
