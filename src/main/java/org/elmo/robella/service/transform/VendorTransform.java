@@ -11,9 +11,8 @@ import org.elmo.robella.model.internal.UnifiedStreamChunk;
  * 3. 厂商响应 -> Unified
  * 4. Unified -> 厂商响应
  * 5. 厂商流事件 -> Unified 流片段
- * 6. Unified 流片段 -> 厂商流事件
+ * 6. Unified 流片段 -> 端点流事件
  *
- * 对于暂不支持的方向，可返回 null 或抛出 UnsupportedOperationException。
  */
 public interface VendorTransform {
     /** 返回该转换器支持的 ProviderType 名称（枚举 name）。 */

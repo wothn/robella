@@ -1,7 +1,7 @@
 package org.elmo.robella.adapter.openai;
 
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.AIProviderAdapter;
+import org.elmo.robella.adapter.ApiClient;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.config.WebClientProperties;
@@ -27,7 +27,7 @@ import java.util.List;
 
 
 @Slf4j
-public class OpenAIAdapter implements AIProviderAdapter {
+public class OpenAIClient implements ApiClient {
 
     private static final String SSE_DONE_MARKER = "[DONE]";
 
@@ -35,7 +35,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
 
-    public OpenAIAdapter(ProviderConfig.Provider config, WebClient webClient, WebClientProperties webClientProperties) {
+    public OpenAIClient(ProviderConfig.Provider config, WebClient webClient, WebClientProperties webClientProperties) {
         this.config = config;
         this.webClient = webClient.mutate()
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + config.getApiKey())
@@ -120,57 +120,7 @@ public class OpenAIAdapter implements AIProviderAdapter {
                 .doOnError(err -> log.debug("[OpenAIAdapter] streamChatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
     }
 
-    @Override
-    public Mono<List<ModelInfo>> listModels() {
-        if (config.getProviderType() == ProviderType.AzureOpenAI) {
-            // Azure OpenAI 不支持列出模型，返回配置的模型
-            return Mono.just(getConfiguredModelInfos());
-        }
-        String url = config.getBaseUrl() + "/models";
-        return webClient.get()
-                .uri(url)
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(responseStr -> {
-                    if (responseStr == null || responseStr.isEmpty()) {
-                        return getConfiguredModelInfos();
-                    }
 
-                    try {
-                        // OpenAI 模型列表结构: { "data": [ {"id":"gpt-4o", "owned_by":"openai"}, ... ] }
-                        var node = JsonUtils.fromJson(responseStr, com.fasterxml.jackson.databind.JsonNode.class);
-                        if (node == null || !node.has("data")) {
-                            return getConfiguredModelInfos();
-                        }
-
-                        var data = node.get("data");
-                        List<ModelInfo> list = new java.util.ArrayList<>();
-                        data.forEach(n -> {
-                            if (n.has("id")) {
-                                list.add(new ModelInfo(n.get("id").asText(), "model", n.has("owned_by") ? n.get("owned_by").asText() : config.getName()));
-                            }
-                        });
-
-                        if (list.isEmpty()) {
-                            return getConfiguredModelInfos();
-                        }
-                        return list;
-                    } catch (Exception e) {
-                        log.debug("Failed to parse model list JSON: {}", e.getMessage());
-                        return getConfiguredModelInfos();
-                    }
-                })
-                .timeout(webClientProperties.getTimeout().getRead()) // 使用配置的超时
-                .onErrorResume(Exception.class, e -> {
-                    log.warn("Failed to list models, returning configured models: {}", e.getMessage());
-                    return Mono.just(getConfiguredModelInfos());
-                });
-    }
-
-    @Override
-    public String getProviderName() {
-        return config.getName();
-    }
 
     // ===================== 私有辅助方法 =====================
 

@@ -3,6 +3,8 @@ package org.elmo.robella.service;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
+import org.elmo.robella.service.endpoint.EndpointFamily;
+import reactor.core.publisher.Flux;
 
 /**
  * 统一转换入口：内部通过厂商类型 (providerType) 分发到对应的 VendorTransform 实现。
@@ -33,6 +35,15 @@ public interface TransformService {
      * 根据端点格式从统一流片段转换为端点格式（与实际调用的provider无关）
      */
     String unifiedStreamChunkToEndpoint(UnifiedStreamChunk chunk, String endpointType);
-
-
+    
+    // ========== 新增：有状态流式转换 ==========
+    /**
+     * 有状态流式转换：支持端点族间的协议转换
+     * 
+     * @param sourceFamily 源端点族（入口）
+     * @param targetFamily 目标端点族（输出）
+     * @param chunkFlux 输入的UnifiedStreamChunk流
+     * @return 目标格式的SSE事件字符串流
+     */
+    Flux<String> transcodeStreamWithFamily(EndpointFamily sourceFamily, EndpointFamily targetFamily, Flux<UnifiedStreamChunk> chunkFlux);
 }

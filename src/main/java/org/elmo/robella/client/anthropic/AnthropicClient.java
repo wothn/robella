@@ -1,7 +1,7 @@
 package org.elmo.robella.adapter.anthropic;
 
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.AIProviderAdapter;
+import org.elmo.robella.adapter.ApiClient;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.WebClientProperties;
 import org.elmo.robella.exception.AuthenticationException;
@@ -30,7 +30,7 @@ import java.util.List;
  * Anthropic Messages API 适配器
  */
 @Slf4j
-public class AnthropicAdapter implements AIProviderAdapter {
+public class AnthropicClient implements ApiClient {
 
     private static final String SSE_DATA_PREFIX = "data: ";
     private static final String SSE_EVENT_PREFIX = "event: ";
@@ -40,9 +40,9 @@ public class AnthropicAdapter implements AIProviderAdapter {
     private final WebClientProperties webClientProperties;
     private static final String ANTHROPIC_VERSION = "2023-06-01";
 
-    public AnthropicAdapter(ProviderConfig.Provider config,
-            WebClient baseClient,
-            WebClientProperties webClientProperties) {
+    public AnthropicClient(ProviderConfig.Provider config,
+                           WebClient baseClient,
+                           WebClientProperties webClientProperties) {
         this.config = config;
         this.webClient = baseClient.mutate()
                 .defaultHeader("x-api-key", config.getApiKey())
@@ -137,16 +137,6 @@ public class AnthropicAdapter implements AIProviderAdapter {
                         config.getName(), anthropicRequest.getModel(), err.toString()));
     }
 
-    @Override
-    public Mono<List<ModelInfo>> listModels() {
-        // Anthropic 暂无公开列出模型端点，返回配置模型
-        return Mono.just(getConfiguredModelInfos());
-    }
-
-    @Override
-    public String getProviderName() {
-        return config.getName();
-    }
 
     // ==== 辅助方法 ====
 
