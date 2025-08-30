@@ -26,32 +26,44 @@ import java.util.*;
 public class AnthropicTransformUtils {
 
     public static void convertBaseToUnified(AnthropicChatRequest req, UnifiedChatRequest unifiedRequest) {
-        unifiedRequest.setModel(req.getModel());
+        if (req.getModel() != null) {
+            unifiedRequest.setModel(req.getModel());
+        }
         unifiedRequest.setStream(req.getStream());
         StreamOptions streamOptions = new StreamOptions();
         streamOptions.setIncludeUsage(true);
         unifiedRequest.setStreamOptions(streamOptions);
-        unifiedRequest.setMaxTokens(req.getMaxTokens());
-        unifiedRequest.setTemperature(req.getTemperature());
-        unifiedRequest.setTopP(req.getTopP());
-        unifiedRequest.setTopK(req.getTopK());
+        if (req.getMaxTokens() != null) {
+            unifiedRequest.setMaxTokens(req.getMaxTokens());
+        }
+        if (req.getTemperature() != null) {
+            unifiedRequest.setTemperature(req.getTemperature());
+        }
+        if (req.getTopP() != null) {
+            unifiedRequest.setTopP(req.getTopP());
+        }
+        if (req.getTopK() != null) {
+            unifiedRequest.setTopK(req.getTopK());
+        }
         unifiedRequest.setStop(req.getStopSequences());
     }
 
     public static void convertToolsToUnified(AnthropicChatRequest req, UnifiedChatRequest unifiedRequest) {
         List<Tool> tools = new ArrayList<>();
-        for (AnthropicTool tool : req.getTools()) {
-            if (tool instanceof AnthropicCustomTool customTool) {
-                Tool openAITool = new Tool();
-                openAITool.setType("function");
-                Function function = new Function();
-                function.setName(customTool.getName());
-                function.setDescription(customTool.getDescription());
-                function.setParameters(customTool.getInputSchema());
-                openAITool.setFunction(function);
-                tools.add(openAITool);
+        if (req.getTools() != null) {
+            for (AnthropicTool tool : req.getTools()) {
+                if (tool instanceof AnthropicCustomTool customTool) {
+                    Tool openAITool = new Tool();
+                    openAITool.setType("function");
+                    Function function = new Function();
+                    function.setName(customTool.getName());
+                    function.setDescription(customTool.getDescription());
+                    function.setParameters(customTool.getInputSchema());
+                    openAITool.setFunction(function);
+                    tools.add(openAITool);
+                }
+                // TODO: Anthropic的服务端工具暂时不支持，如computer、bash、text_editor
             }
-            // TODO: Anthropic的服务端工具暂时不支持，如computer、bash、text_editor
         }
         unifiedRequest.setTools(tools);
     }
@@ -83,10 +95,12 @@ public class AnthropicTransformUtils {
 
     public static void convertThinkingToUnified(AnthropicChatRequest req, UnifiedChatRequest unifiedRequest) {
         AnthropicThinking thinking = req.getThinking();
-        ThinkingOptions thinkingOptions = new ThinkingOptions();
-        thinkingOptions.setType(thinking.getType());
-        thinkingOptions.setThinkingBudget(thinking.getBudgetTokens());
-        unifiedRequest.setThinkingOptions(thinkingOptions);
+        if (thinking != null) {
+            ThinkingOptions thinkingOptions = new ThinkingOptions();
+            thinkingOptions.setType(thinking.getType());
+            thinkingOptions.setThinkingBudget(thinking.getBudgetTokens());
+            unifiedRequest.setThinkingOptions(thinkingOptions);
+        }
     }
 
     public static void convertSystemToUnified(AnthropicChatRequest req, UnifiedChatRequest unifiedRequest) {
@@ -117,25 +131,26 @@ public class AnthropicTransformUtils {
         List<AnthropicMessage> messages = req.getMessages();
         List<OpenAIMessage> unifiedMessages = new ArrayList<>();
 
-        for (AnthropicMessage message : messages) {
+        if (messages != null) {
+            for (AnthropicMessage message : messages) {
             // 转换内容
             List<OpenAIContent> openAIContents = new ArrayList<>();
             List<ToolCall> toolCalls = new ArrayList<>();
 
             // 检查是否包含ToolResultContent，如果包含则只处理这些内容
             boolean hasToolResultContent = false;
-            for (AnthropicContent anthropicContent : message.getContent()) {
-                if (anthropicContent instanceof AnthropicToolResultContent toolResultContent) {
-                    // ToolResultContent 应该转换为单独的 tool 角色消息
-                    // 而不是作为当前消息的内容部分
-                    OpenAIMessage toolMessage = convertToolResultToToolMessage(toolResultContent);
-                    unifiedMessages.add(toolMessage);
-                    hasToolResultContent = true;
+                for (AnthropicContent anthropicContent : message.getContent()) {
+                    if (anthropicContent instanceof AnthropicToolResultContent toolResultContent) {
+                        // ToolResultContent 应该转换为单独的 tool 角色消息
+                        // 而不是作为当前消息的内容部分
+                        OpenAIMessage toolMessage = convertToolResultToToolMessage(toolResultContent);
+                        unifiedMessages.add(toolMessage);
+                        hasToolResultContent = true;
+                    }
                 }
-            }
 
             // 如果消息只包含ToolResultContent，则不需要为原始消息创建OpenAIMessage
-            if (hasToolResultContent && message.getContent().size() == 1) {
+            if (hasToolResultContent && message.getContent() != null && message.getContent().size() == 1) {
                 continue;
             }
 
@@ -146,26 +161,28 @@ public class AnthropicTransformUtils {
             openAIMessage.setRole(role);
 
             // 转换内容（排除已处理的ToolResultContent）
-            for (AnthropicContent anthropicContent : message.getContent()) {
-                if (anthropicContent instanceof AnthropicToolUseContent toolUseContent) {
-                    // toolUseContent 转换为 ToolCall
-                    ToolCall toolCall = convertAnthropicToolUseToToolCall(toolUseContent);
-                    if (toolCall != null) {
-                        toolCalls.add(toolCall);
-                    }
-                } else if (anthropicContent instanceof AnthropicToolResultContent) {
-                    // 已经处理过，跳过
-                    continue;
-                } else if (anthropicContent instanceof AnthropicThinkingContent thinkingContent) {
-                    // Anthropic思考内容转换为OpenAI的reasoningContent字段
-                    // 仅对assistant角色的消息设置reasoningContent
-                    if ("assistant".equals(role)) {
-                        openAIMessage.setReasoningContent(thinkingContent.getThinking());
-                    }
-                } else {
-                    OpenAIContent openAIContent = convertAnthropicContentToOpenAI(anthropicContent);
-                    if (openAIContent != null) {
-                        openAIContents.add(openAIContent);
+            if (message.getContent() != null) {
+                for (AnthropicContent anthropicContent : message.getContent()) {
+                    if (anthropicContent instanceof AnthropicToolUseContent toolUseContent) {
+                        // toolUseContent 转换为 ToolCall
+                        ToolCall toolCall = convertAnthropicToolUseToToolCall(toolUseContent);
+                        if (toolCall != null) {
+                            toolCalls.add(toolCall);
+                        }
+                    } else if (anthropicContent instanceof AnthropicToolResultContent) {
+                        // 已经处理过，跳过
+                        continue;
+                    } else if (anthropicContent instanceof AnthropicThinkingContent thinkingContent) {
+                        // Anthropic思考内容转换为OpenAI的reasoningContent字段
+                        // 仅对assistant角色的消息设置reasoningContent
+                        if ("assistant".equals(role)) {
+                            openAIMessage.setReasoningContent(thinkingContent.getThinking());
+                        }
+                    } else {
+                        OpenAIContent openAIContent = convertAnthropicContentToOpenAI(anthropicContent);
+                        if (openAIContent != null) {
+                            openAIContents.add(openAIContent);
+                        }
                     }
                 }
             }
@@ -173,6 +190,7 @@ public class AnthropicTransformUtils {
             openAIMessage.setToolCalls(toolCalls.isEmpty() ? null : toolCalls);
 
             unifiedMessages.add(openAIMessage);
+        }
         }
         unifiedRequest.setMessages(unifiedMessages);
     }
@@ -253,12 +271,22 @@ public class AnthropicTransformUtils {
 
     // Unified to Anthropic conversion methods
     public static void convertBaseToAnthropic(UnifiedChatRequest unifiedRequest, AnthropicChatRequest anthropicRequest) {
-        anthropicRequest.setModel(unifiedRequest.getModel());
+        if (unifiedRequest.getModel() != null) {
+            anthropicRequest.setModel(unifiedRequest.getModel());
+        }
         anthropicRequest.setStream(unifiedRequest.getStream());
-        anthropicRequest.setMaxTokens(unifiedRequest.getMaxTokens());
-        anthropicRequest.setTemperature(unifiedRequest.getTemperature());
-        anthropicRequest.setTopP(unifiedRequest.getTopP());
-        anthropicRequest.setTopK(unifiedRequest.getTopK());
+        if (unifiedRequest.getMaxTokens() != null) {
+            anthropicRequest.setMaxTokens(unifiedRequest.getMaxTokens());
+        }
+        if (unifiedRequest.getTemperature() != null) {
+            anthropicRequest.setTemperature(unifiedRequest.getTemperature());
+        }
+        if (unifiedRequest.getTopP() != null) {
+            anthropicRequest.setTopP(unifiedRequest.getTopP());
+        }
+        if (unifiedRequest.getTopK() != null) {
+            anthropicRequest.setTopK(unifiedRequest.getTopK());
+        }
         anthropicRequest.setStopSequences(unifiedRequest.getStop());
     }
 
@@ -333,9 +361,14 @@ public class AnthropicTransformUtils {
         List<OpenAIMessage> openAIMessages = unifiedRequest.getMessages();
         List<AnthropicMessage> anthropicMessages = new ArrayList<>();
 
+        if (openAIMessages == null) {
+            anthropicRequest.setMessages(anthropicMessages);
+            return;
+        }
+
         // 跳过系统消息（将在convertSystemToAnthropic中处理）
         int startIndex = 0;
-        if (openAIMessages != null && !openAIMessages.isEmpty() &&
+        if (!openAIMessages.isEmpty() &&
                 "system".equals(openAIMessages.get(0).getRole())) {
             startIndex = 1;
         }
@@ -412,23 +445,25 @@ public class AnthropicTransformUtils {
                 anthropicImageContent.setType("image");
                 AnthropicImageSource source = new AnthropicImageSource();
                 String url = imageContent.getImageUrl().getUrl();
-                if (url.startsWith("data:")) {
-                    // Base64 encoded image
-                    String[] parts = url.split(",");
-                    if (parts.length == 2) {
-                        String[] mediaTypeParts = parts[0].split(";");
-                        source.setType("base64");
-                        source.setMediaType(mediaTypeParts[0].replace("data:", ""));
-                        source.setData(parts[1]);
+                if (url != null) {
+                    if (url.startsWith("data:")) {
+                        // Base64 encoded image
+                        String[] parts = url.split(",");
+                        if (parts.length == 2) {
+                            String[] mediaTypeParts = parts[0].split(";");
+                            source.setType("base64");
+                            source.setMediaType(mediaTypeParts[0].replace("data:", ""));
+                            source.setData(parts[1]);
+                        }
+                    } else {
+                        // URL image
+                        source.setType("url");
+                        source.setUrl(url);
                     }
-                } else {
-                    // URL image
-                    source.setType("url");
-                    source.setUrl(url);
-                }
 
-                anthropicImageContent.setSource(source);
-                return anthropicImageContent;
+                    anthropicImageContent.setSource(source);
+                    return anthropicImageContent;
+                }
             }
         }
         return null;

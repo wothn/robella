@@ -51,8 +51,10 @@ public class OpenAITransform implements VendorTransform {
         unifiedRequest.setToolChoice(req.getToolChoice());
 
         // 获取配置的thinkingField
-        String thinkingField = configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel());
-        unifiedRequest.getTempFields().put("config_thinking", thinkingField);
+        if (unifiedRequest.getTempFields() != null) {
+            String thinkingField = configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel());
+            unifiedRequest.getTempFields().put("config_thinking", thinkingField);
+        }
 
         // 思考参数映射
         OpenAITransformUtils.convertThinkingToUnified(req, unifiedRequest);

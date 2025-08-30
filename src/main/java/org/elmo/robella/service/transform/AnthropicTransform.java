@@ -63,7 +63,9 @@ public class AnthropicTransform implements VendorTransform {
         AnthropicTransformUtils.convertThinkingToUnified(req, unifiedRequest);
 
         // 设置配置思考字段
-        unifiedRequest.getTempFields().put("config_thinking", configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel()));
+        if (unifiedRequest.getTempFields() != null) {
+            unifiedRequest.getTempFields().put("config_thinking", configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel()));
+        }
 
         // 转换messages
         AnthropicTransformUtils.convertMessagesToUnified(req, unifiedRequest);
