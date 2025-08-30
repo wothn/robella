@@ -6,7 +6,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
+import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
+import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
+import org.elmo.robella.model.openai.model.ModelListResponse;
+import org.elmo.robella.model.openai.model.ModelInfo;
 import org.elmo.robella.service.ForwardingService;
 import org.elmo.robella.service.transform.TransformService;
 import org.springframework.http.MediaType;
@@ -20,7 +24,7 @@ import reactor.core.publisher.Mono;
  */
 @Slf4j
 @RestController
-@RequestMapping("/v1")
+@RequestMapping("/anthropic/v1")
 @RequiredArgsConstructor
 public class AnthropicController {
 
@@ -46,9 +50,8 @@ public class AnthropicController {
 
         if (stream) {
             // 使用带端点族转换的流式接口
-            log.debug("处理流式请求");
             var sseFlux = forwardingService.streamUnified(unified, null, ProviderType.Anthropic.getName());
-            
+
             return ResponseEntity.ok()
                     .contentType(MediaType.TEXT_EVENT_STREAM)
                     .body(sseFlux
@@ -70,6 +73,28 @@ public class AnthropicController {
                     })
                     .doOnError(error -> log.error("处理 Anthropic 请求失败", error));
         }
+    }
+
+    /**
+     * 获取可用模型列表
+     */
+    @GetMapping("/models")
+    public Mono<ResponseEntity<AnthropicModelListResponse>> listModels() {
+        log.debug("获取 Anthropic 模型列表");
+        return forwardingService.listModels()
+                .map(this::convertToAnthropicModelList)
+                .map(response -> ResponseEntity.ok().body(response));
+    }
+
+    /**
+     * 将OpenAI格式的模型列表转换为Anthropic格式
+     */
+    private AnthropicModelListResponse convertToAnthropicModelList(ModelListResponse openaiResponse) {
+        var anthropicModels = openaiResponse.getData().stream()
+                .map(model -> new AnthropicModelInfo(model.getId(), model.getId()))
+                .toList();
+        
+        return new AnthropicModelListResponse(anthropicModels);
     }
 
     /**

@@ -33,7 +33,6 @@ import java.util.List;
 public class AnthropicClient implements ApiClient {
 
     private static final String SSE_DATA_PREFIX = "data: ";
-    private static final String SSE_EVENT_PREFIX = "event: ";
 
     private final ProviderConfig.Provider config;
     private final WebClient webClient;
@@ -98,11 +97,6 @@ public class AnthropicClient implements ApiClient {
                     + (request == null ? "null" : request.getClass().getName())));
         }
 
-        // 强制流式开关
-        if (anthropicRequest.getStream() == null || !anthropicRequest.getStream()) {
-            anthropicRequest.setStream(true);
-        }
-
         String url = buildMessagesUrl();
 
         double multiplier = webClientProperties.getTimeout().getStreamReadMultiplier();
@@ -125,7 +119,7 @@ public class AnthropicClient implements ApiClient {
                 .timeout(streamTimeout)
                 .onErrorMap(WebClientResponseException.class, this::handleApiError)
                 .onErrorMap(ex -> mapToProviderException(ex, "Anthropic streaming API call"))
-                .flatMap(this::parseStreamRaw) // 将原始字符串转换为事件对象
+                .map(this::parseStreamRaw) // 将原始字符串转换为事件对象
                 .doOnNext(event -> {
                     if (log.isTraceEnabled()) {
                         log.trace("[AnthropicAdapter] stream event: {}", event);
@@ -161,67 +155,18 @@ public class AnthropicClient implements ApiClient {
         }).toList();
     }
 
-    private Flux<AnthropicStreamEvent> parseStreamRaw(String raw) {
+    private AnthropicStreamEvent parseStreamRaw(String raw) {
         if (raw == null || raw.isEmpty())
-            return Flux.empty();
-        List<AnthropicStreamEvent> events = new ArrayList<>();
+            return null;
 
-        String currentEventType = null;
-        String currentData = null;
+        if (raw.startsWith(SSE_DATA_PREFIX)) {
+            raw = raw.substring(SSE_DATA_PREFIX.length()).trim();
 
-        String[] lines = raw.split("\n");
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (trimmed.isEmpty()) {
-                // 空行表示事件结束，如果同时有 event 和 data 则处理它
-                currentEventType = null;
-                currentData = null;
-                continue;
-            }
-
-            if (trimmed.startsWith(SSE_EVENT_PREFIX)) {
-                currentEventType = trimmed.substring(SSE_EVENT_PREFIX.length()).trim();
-            } else if (trimmed.startsWith(SSE_DATA_PREFIX)) {
-                currentData = trimmed.substring(SSE_DATA_PREFIX.length()).trim();
-            }
-
-            // 如果同时获得了事件类型和数据，则处理该事件
-            if (currentEventType != null && currentData != null) {
-                processEvent(events, currentEventType, currentData);
-                currentEventType = null;
-                currentData = null;
-            }
         }
 
-        // 在结束时处理任何剩余的事件
-        if (currentEventType != null && currentData != null) {
-            processEvent(events, currentEventType, currentData);
-        }
-
-        return Flux.fromIterable(events);
+        return JsonUtils.fromJson(raw, AnthropicStreamEvent.class);
     }
 
-    private void processEvent(List<AnthropicStreamEvent> events, String eventType, String jsonData) {
-        try {
-            AnthropicStreamEvent event = JsonUtils.fromJson(jsonData, AnthropicStreamEvent.class);
-            if (event != null) {
-                // 确保事件类型与 JSON 中的 type 字段匹配
-                if (event.getType() == null || !event.getType().equals(eventType)) {
-                    if (log.isTraceEnabled()) {
-                        log.trace("[AnthropicAdapter] Event type mismatch: SSE event={}, JSON type={}",
-                                eventType, event.getType());
-                    }
-                }
-                events.add(event);
-            }
-        } catch (Exception e) {
-            if (log.isTraceEnabled()) {
-                log.trace("[AnthropicAdapter] Failed to parse stream event: {} eventType={} data={}",
-                        e.getMessage(), eventType,
-                        jsonData.length() > 120 ? jsonData.substring(0, 120) + "..." : jsonData);
-            }
-        }
-    }
 
     private ProviderException mapToProviderException(Throwable ex, String operation) {
         if (ex instanceof WebClientResponseException webEx) {
@@ -247,7 +192,7 @@ public class AnthropicClient implements ApiClient {
                     yield new RateLimitException("Rate limit exceeded", ex);
             }
             case 400 ->
-                new ProviderException("Bad request: " + (!body.isEmpty() ? body : "Invalid request parameters"), ex);
+                    new ProviderException("Bad request: " + (!body.isEmpty() ? body : "Invalid request parameters"), ex);
             case 404 -> new ProviderException("Endpoint not found", ex);
             case 422 -> new ProviderException(
                     "Unprocessable entity: " + (!body.isEmpty() ? body : "Invalid request format"), ex);

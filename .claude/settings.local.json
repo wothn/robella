@@ -5,7 +5,8 @@
       "Bash(mvn compile:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(mvn clean compile:*)"
+      "Bash(mvn clean compile:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

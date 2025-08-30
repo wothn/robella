@@ -108,7 +108,7 @@ public class ForwardingServiceImpl implements ForwardingService {
         
         // 转换为Flux<String>以适配Controller的返回类型
         Flux<?> endpointStream = unifiedToEndpointTransformer.transformToEndpoint(unifiedStream, sessionId);
-        return endpointStream.map(obj -> {
+        return endpointStream.mapNotNull(obj -> {
             if (obj instanceof String) {
                 return (String) obj;
             } else if (obj != null) {
