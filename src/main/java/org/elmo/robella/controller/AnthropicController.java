@@ -8,11 +8,10 @@ import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.service.ForwardingService;
-import org.elmo.robella.service.TransformService;
+import org.elmo.robella.service.transform.TransformService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -46,23 +45,17 @@ public class AnthropicController {
         boolean stream = Boolean.TRUE.equals(request.getStream());
 
         if (stream) {
-            // 流式响应
+            // 使用带端点族转换的流式接口
             log.debug("处理流式请求");
+            var sseFlux = forwardingService.streamUnified(unified, null, ProviderType.Anthropic.getName());
+            
             return ResponseEntity.ok()
                     .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .body(
-                            forwardingService.streamUnified(unified, null)
-                                    .mapNotNull(chunk -> {
-                                        String event = transformService.unifiedStreamChunkToEndpoint(chunk, ProviderType.Anthropic.getName());
-                                        // 对于 Anthropic 端点，事件已经是完整的 SSE 格式字符串
-                                        return event != null ? event : null;
-                                    })
-                                    .filter(event -> event != null && !event.isEmpty()) // 过滤空事件
-                                    .doOnNext(event -> log.trace("发送流式事件: {}",
-                                            event.length() > 200 ? event.substring(0, 200) + "..." : event))
-                                    .doOnComplete(() -> log.debug("流式响应完成"))
-                                    .doOnError(error -> log.error("流式响应错误", error))
-                    );
+                    .body(sseFlux
+                            .doOnNext(event -> log.trace("发送流式事件: {}",
+                                    event.length() > 200 ? event.substring(0, 200) + "..." : event))
+                            .doOnComplete(() -> log.debug("流式响应完成"))
+                            .doOnError(error -> log.error("流式响应错误", error)));
         } else {
             // 非流式响应
             log.debug("处理非流式请求");

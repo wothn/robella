@@ -25,6 +25,6 @@ public class OpenAIStreamToUnifiedTransformer implements StreamToUnifiedTransfor
             unifiedChunk.setSystemFingerprint(chunk.getSystemFingerprint());
             unifiedChunk.setUsage(chunk.getUsage());
             return unifiedChunk;
-        });
+        }).filter(unifiedChunk -> unifiedChunk != null && unifiedChunk.getChoices() != null && !unifiedChunk.getChoices().isEmpty());
     }
 }

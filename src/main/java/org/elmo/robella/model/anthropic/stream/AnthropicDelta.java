@@ -84,6 +84,13 @@ public class AnthropicDelta {
     }
 
     /**
+     * 判断是否为签名增量
+     */
+    public boolean isSignatureDelta() {
+        return "signature_delta".equals(type);
+    }
+
+    /**
      * 获取实际的增量内容（自动判断类型）
      */
     public String getDeltaContent() {

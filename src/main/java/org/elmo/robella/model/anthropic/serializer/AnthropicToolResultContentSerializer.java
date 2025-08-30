@@ -1,4 +1,4 @@
-package org.elmo.robella.model.anthropic;
+package org.elmo.robella.model.anthropic.serializer;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;

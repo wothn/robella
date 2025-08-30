@@ -26,6 +26,10 @@ public class ProviderConfig {
         public ProviderType getProviderType() {
             return ProviderType.fromString(type);
         }
+        
+        public List<Model> getModels() {
+            return models;
+        }
     }
 
     @Data
@@ -33,5 +37,9 @@ public class ProviderConfig {
         private String name;
         private String vendorModel;
         private String thinkingField; // 思考字段配置，如 "thinking"
+        
+        public String getName() {
+            return name;
+        }
     }
 }

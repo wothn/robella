@@ -177,7 +177,7 @@ public class AnthropicTransformUtils {
         unifiedRequest.setMessages(unifiedMessages);
     }
 
-    private static OpenAIContent convertAnthropicContentToOpenAI(AnthropicContent anthropicContent) {
+    public static OpenAIContent convertAnthropicContentToOpenAI(AnthropicContent anthropicContent) {
         if (anthropicContent instanceof AnthropicTextContent textContent) {
             // 转换文本内容
             OpenAITextContent openAITextContent = new OpenAITextContent();
@@ -400,7 +400,7 @@ public class AnthropicTransformUtils {
         anthropicRequest.setMessages(anthropicMessages);
     }
 
-    private static AnthropicContent convertOpenAIContentToAnthropic(OpenAIContent openAIContent) {
+    public static AnthropicContent convertOpenAIContentToAnthropic(OpenAIContent openAIContent) {
         if (openAIContent instanceof OpenAITextContent textContent) {
             AnthropicTextContent anthropicTextContent = new AnthropicTextContent();
             anthropicTextContent.setType("text");

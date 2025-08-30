@@ -1,8 +1,8 @@
-package org.elmo.robella.adapter;
+package org.elmo.robella.client;
 
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.openai.OpenAIClient;
-import org.elmo.robella.adapter.anthropic.AnthropicClient;
+import org.elmo.robella.client.openai.OpenAIClient;
+import org.elmo.robella.client.anthropic.AnthropicClient;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.config.WebClientProperties;
@@ -25,16 +25,16 @@ public class ClientFactory {
         this.webClientProperties = webClientProperties;
     }
     
-    public ApiClient createAdapter(String providerName, ProviderConfig.Provider config) {
+    public ApiClient createClient(String providerName, ProviderConfig.Provider config) {
         ProviderType type = config.getProviderType();
-        log.debug("Creating adapter for provider: {}, type: {}", providerName, type);
+        log.debug("Creating client for provider: {}, type: {}", providerName, type);
         return switch (type) {
             case OpenAI, AzureOpenAI -> {
-                log.debug("Creating OpenAI adapter for provider: {}", providerName);
+                log.debug("Creating OpenAI client for provider: {}", providerName);
                 yield new OpenAIClient(config, defaultWebClient, webClientProperties);
             }
             case Anthropic -> {
-                log.debug("Creating Anthropic adapter for provider: {}", providerName);
+                log.debug("Creating Anthropic client for provider: {}", providerName);
                 yield new AnthropicClient(config, defaultWebClient, webClientProperties);
             }
         };

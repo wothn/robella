@@ -1,6 +1,5 @@
 package org.elmo.robella.service.transform;
 
-import org.elmo.robella.service.VendorTransform;
 import org.elmo.robella.util.ConfigUtils;
 import org.springframework.stereotype.Component;
 

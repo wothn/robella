@@ -46,7 +46,7 @@ public class AnthropicStreamToUnifiedTransformer implements StreamToUnifiedTrans
         // 初始化会话状态
         sessionStates.putIfAbsent(sessionId, new AnthropicStreamSessionState());
 
-        return vendorStream.map(event -> {
+        return vendorStream.mapNotNull(event -> {
             AnthropicStreamSessionState state = sessionStates.get(sessionId);
             return processEvent(event, state);
         }).doFinally(signalType -> {
@@ -81,8 +81,8 @@ public class AnthropicStreamToUnifiedTransformer implements StreamToUnifiedTrans
         } else if (event instanceof AnthropicContentBlockStartEvent blockStart) {
             int index = blockStart.getIndex();
 
-            // 更新状态
-            state.getContentBlocks().put(index, blockStart.getContentBlock());
+            // 移除了对 contentBlocks 的更新，因为该状态字段已被删除
+            // state.getContentBlocks().put(index, blockStart.getContentBlock());
 
             // 创建chunk
             chunk.setId(state.getMessageId());
@@ -241,6 +241,7 @@ public class AnthropicStreamToUnifiedTransformer implements StreamToUnifiedTrans
 
     /**
      * 将Anthropic的停止原因转换为OpenAI的完成原因
+     *
      * @param stopReason Anthropic的停止原因
      * @return OpenAI的完成原因
      */
@@ -266,7 +267,7 @@ public class AnthropicStreamToUnifiedTransformer implements StreamToUnifiedTrans
         private String messageId; // 当前消息的唯一标识符
         private String model; // 当前会话使用的模型名称
         private AnthropicUsage initialUsage; // 初始使用量信息（来自message_start事件）
-        private final Map<Integer, AnthropicContent> contentBlocks = new ConcurrentHashMap<>(); // 按索引存储内容块信息
+        // private final Map<Integer, AnthropicContent> contentBlocks = new ConcurrentHashMap<>(); // 已移除：按索引存储内容块信息
         private final Map<Integer, Integer> toolUseIndices = new ConcurrentHashMap<>(); // 内容块索引到工具调用索引的映射
         private final Map<Integer, String> toolCallIds = new ConcurrentHashMap<>(); // 工具调用ID存储
         private final Map<Integer, String> toolCallNames = new ConcurrentHashMap<>(); // 工具调用名称存储

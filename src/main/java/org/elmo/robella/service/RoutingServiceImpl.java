@@ -2,8 +2,8 @@ package org.elmo.robella.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.AdapterFactory;
-import org.elmo.robella.adapter.AIProviderAdapter;
+import org.elmo.robella.client.ClientFactory;
+import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.model.ModelInfo;
@@ -22,10 +22,10 @@ import java.util.concurrent.atomic.AtomicReference;
 public class RoutingServiceImpl implements RoutingService {
 
     private final ProviderConfig providerConfig;
-    private final AdapterFactory adapterFactory;
+    private final ClientFactory clientFactory;
     
     // 缓存适配器实例
-    private final Map<String, AIProviderAdapter> adapterCache = new ConcurrentHashMap<>();
+    private final Map<String, ApiClient> adapterCache = new ConcurrentHashMap<>();
     
     // 缓存模型列表，使用 AtomicReference 保证线程安全
     private final AtomicReference<ModelListResponse> cachedModels = new AtomicReference<>();
@@ -52,7 +52,7 @@ public class RoutingServiceImpl implements RoutingService {
         Map<String, ProviderConfig.Provider> providers = getProviderConfigMap();
         
         // 从配置中收集所有模型
-        ModelListResponse models = new ModelListResponse("list", new ArrayList<>());
+        ModelListResponse models = new ModelListResponse("list");
 
         if (providers != null) {
             for (var provider : providers.values()) {
@@ -68,12 +68,6 @@ public class RoutingServiceImpl implements RoutingService {
         return models;
     }
 
-    @Override
-    public String decideProvider(ChatCompletionRequest request) {
-        // 简单实现：根据模型名称决定提供商
-        String model = request.getModel();
-        return decideProviderByModel(model);
-    }
 
     @Override
     public String decideProviderByModel(String model) {
@@ -107,9 +101,9 @@ public class RoutingServiceImpl implements RoutingService {
     }
     
     @Override
-    public AIProviderAdapter getAdapter(String providerName) {
+    public ApiClient getClient(String providerName) {
         // 先从缓存获取
-        AIProviderAdapter adapter = adapterCache.get(providerName);
+        ApiClient adapter = adapterCache.get(providerName);
         if (adapter != null) {
             return adapter;
         }
@@ -117,12 +111,21 @@ public class RoutingServiceImpl implements RoutingService {
         // 创建新的适配器实例
         ProviderConfig.Provider config = getProviderConfig(providerName);
         if (config != null) {
-            adapter = adapterFactory.createAdapter(providerName, config);
+            adapter = clientFactory.createClient(providerName, config);
             adapterCache.put(providerName, adapter);
             return adapter;
         }
         
         throw new IllegalArgumentException("No configuration found for provider: " + providerName);
+    }
+    
+    @Override
+    public String getProviderType(String providerName) {
+        ProviderConfig.Provider provider = getProviderConfig(providerName);
+        if (provider != null && provider.getType() != null) {
+            return provider.getType();
+        }
+        return "OpenAI"; // 默认类型
     }
     
     @Override

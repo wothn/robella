@@ -63,6 +63,10 @@ public class OpenAITransformUtils {
     public static void convertThinkingToUnified(ChatCompletionRequest req, UnifiedChatRequest unifiedRequest) {
 
         ThinkingOptions thinkingOptions = unifiedRequest.getThinkingOptions();
+        if (thinkingOptions == null) {
+            thinkingOptions = new ThinkingOptions();
+            unifiedRequest.setThinkingOptions(thinkingOptions);
+        }
 
         // 智谱系列映射
         if (req.getThinking() != null) {

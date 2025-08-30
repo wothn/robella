@@ -1,7 +1,7 @@
-package org.elmo.robella.adapter.anthropic;
+package org.elmo.robella.client.anthropic;
 
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.ApiClient;
+import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.WebClientProperties;
 import org.elmo.robella.exception.AuthenticationException;
@@ -122,17 +122,15 @@ public class AnthropicClient implements ApiClient {
                 .bodyValue(anthropicRequest)
                 .retrieve()
                 .bodyToFlux(String.class)
-                .flatMap(raw -> {
-                    if (log.isTraceEnabled()) {
-                        log.trace("[AnthropicAdapter] raw stream fragment: {}",
-                                raw != null && raw.length() > 200 ? raw.substring(0, 200) + "..." : raw);
-                    }
-                    List<AnthropicStreamEvent> events = parseStreamRaw(raw);
-                    return events.isEmpty() ? Flux.empty() : Flux.fromIterable(events);
-                })
                 .timeout(streamTimeout)
                 .onErrorMap(WebClientResponseException.class, this::handleApiError)
                 .onErrorMap(ex -> mapToProviderException(ex, "Anthropic streaming API call"))
+                .flatMap(this::parseStreamRaw) // 将原始字符串转换为事件对象
+                .doOnNext(event -> {
+                    if (log.isTraceEnabled()) {
+                        log.trace("[AnthropicAdapter] stream event: {}", event);
+                    }
+                })
                 .doOnError(err -> log.debug("[AnthropicAdapter] streamChatCompletion error provider={} model={} msg={}",
                         config.getName(), anthropicRequest.getModel(), err.toString()));
     }
@@ -163,9 +161,9 @@ public class AnthropicClient implements ApiClient {
         }).toList();
     }
 
-    private List<AnthropicStreamEvent> parseStreamRaw(String raw) {
+    private Flux<AnthropicStreamEvent> parseStreamRaw(String raw) {
         if (raw == null || raw.isEmpty())
-            return Collections.emptyList();
+            return Flux.empty();
         List<AnthropicStreamEvent> events = new ArrayList<>();
 
         String currentEventType = null;
@@ -200,7 +198,7 @@ public class AnthropicClient implements ApiClient {
             processEvent(events, currentEventType, currentData);
         }
 
-        return events;
+        return Flux.fromIterable(events);
     }
 
     private void processEvent(List<AnthropicStreamEvent> events, String eventType, String jsonData) {

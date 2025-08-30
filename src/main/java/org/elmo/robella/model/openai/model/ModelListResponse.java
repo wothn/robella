@@ -25,5 +25,19 @@ public class ModelListResponse {
      * 模型列表
      */
     private List<ModelInfo> data;
-
+    
+    /**
+     * 获取模型列表
+     */
+    public List<ModelInfo> getData() {
+        return data;
+    }
+    
+    /**
+     * 创建一个带有对象类型和空数据列表的ModelListResponse
+     */
+    public ModelListResponse(String object) {
+        this.object = object;
+        this.data = new java.util.ArrayList<>();
+    }
 }

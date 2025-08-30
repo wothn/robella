@@ -2,17 +2,23 @@ package org.elmo.robella.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.AIProviderAdapter;
+import org.elmo.robella.client.ApiClient;
+import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.model.openai.model.ModelListResponse;
+import org.elmo.robella.service.stream.StreamTransformerFactory;
+import org.elmo.robella.service.stream.StreamToUnifiedTransformer;
+import org.elmo.robella.service.stream.UnifiedToEndpointTransformer;
+import org.elmo.robella.service.transform.TransformService;
 import org.elmo.robella.util.ConfigUtils;
+import org.elmo.robella.util.JsonUtils;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 import java.util.Objects;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -22,6 +28,7 @@ public class ForwardingServiceImpl implements ForwardingService {
     private final TransformService transformService;
     private final RoutingService routingService;
     private final ConfigUtils configUtils;
+    private final StreamTransformerFactory streamTransformerFactory;
 
     @Override
     public Mono<ModelListResponse> listModels() {
@@ -43,7 +50,6 @@ public class ForwardingServiceImpl implements ForwardingService {
     private String mapModelName(String providerName, String originalModel) {
         String vendorModel = configUtils.getModelMapping(providerName, originalModel);
         if (vendorModel != null && !vendorModel.isEmpty() && !vendorModel.equals(originalModel)) {
-            log.debug("Model mapped from '{}' to '{}' for provider '{}'", originalModel, vendorModel, providerName);
             return vendorModel;
         }
         return originalModel;
@@ -51,49 +57,67 @@ public class ForwardingServiceImpl implements ForwardingService {
 
     // ===== Unified Implementation =====
     @Override
-    public Mono<UnifiedChatResponse> forwardUnified(UnifiedChatRequest request, String forcedProvider) {
+    public Mono<UnifiedChatResponse> forwardUnified(UnifiedChatRequest request, String providerName) {
         // 路由供应商（使用原始模型名称进行路由决策）
-        String providerName = forcedProvider != null ? forcedProvider : routingService.decideProviderByModel(request.getModel());
+        String providerNameUsed = providerName != null ? providerName : routingService.decideProviderByModel(request.getModel());
 
         // 获取适配器
-        AIProviderAdapter adapter = routingService.getAdapter(providerName);
+        ApiClient client = routingService.getClient(providerNameUsed);
 
-        // 在调用转换服务之前处理模型映射
-        String originalModel = request.getModel();
-        String vendorModel = mapModelName(providerName, originalModel);
-        if (!vendorModel.equals(originalModel)) {
-            request.setModel(vendorModel);
-        }
+        // 模型名称映射
+        request.setModel(mapModelName(providerNameUsed, request.getModel()));
 
         // 转换为供应商所需格式
-        Object vendorReq = transformService.unifiedToVendorRequest(request, providerName);
-        return adapter.chatCompletion(vendorReq)
-                .map(resp -> transformService.vendorResponseToUnified(resp, providerName));
+        Object vendorReq = transformService.unifiedToVendorRequest(request, providerNameUsed);
+        return client.chatCompletion(vendorReq)
+                .map(resp -> transformService.vendorResponseToUnified(resp, providerNameUsed));
     }
 
     @Override
-    public Flux<UnifiedStreamChunk> streamUnified(UnifiedChatRequest request, String forcedProvider) {
+    public Flux<String> streamUnified(UnifiedChatRequest request, String providerName, String endpointFormat) {
         // 决定提供者
-        String providerName = forcedProvider != null ? forcedProvider : routingService.decideProviderByModel(request.getModel());
+        String providerNameUsed = providerName != null ? providerName : routingService.decideProviderByModel(request.getModel());
         // 获取适配器
-        AIProviderAdapter adapter = routingService.getAdapter(providerName);
+        ApiClient client = routingService.getClient(providerNameUsed);
 
         // 在调用转换服务之前处理模型映射
-        String originalModel = request.getModel();
-        String vendorModel = mapModelName(providerName, originalModel);
-        if (!vendorModel.equals(originalModel)) {
-            request.setModel(vendorModel);
-        }
+        request.setModel(mapModelName(providerNameUsed, request.getModel()));
 
-        // 转换为适配器特定格式
-        Object vendorReq = transformService.unifiedToVendorRequest(request, providerName);
-        return adapter.streamChatCompletion(vendorReq)
-                .map(event -> transformService.vendorStreamEventToUnified(event, providerName))
-                .filter(Objects::nonNull) // 只过滤掉转换后为null的事件
-                .doOnComplete(() -> {
-                    if (log.isDebugEnabled())
-                        log.debug("Streaming unified response completed: provider={}", providerName);
-                });
+        // 转换为供应商所需格式
+        Object vendorReq = transformService.unifiedToVendorRequest(request, providerNameUsed);
+
+        // 获取后端提供商类型
+        String providerTypeStr = routingService.getProviderType(providerNameUsed);
+        ProviderType providerType = ProviderType.fromString(providerTypeStr);
+        
+        // 获取端点格式类型（从endpointFormat参数转换）
+        ProviderType endpointProviderType = ProviderType.fromString(endpointFormat);
+        
+        // 生成会话ID用于流式转换状态管理
+        String sessionId = UUID.randomUUID().toString();
+        
+        // 获取供应商特定的流式响应
+        Flux<?> vendorStream = client.streamChatCompletion(vendorReq);
+        
+        // 将供应商流式响应转换为统一格式
+        StreamToUnifiedTransformer streamToUnifiedTransformer = streamTransformerFactory.getStreamToUnifiedTransformer(providerType);
+        Flux<UnifiedStreamChunk> unifiedStream = streamToUnifiedTransformer.transformToUnified(vendorStream, sessionId);
+        
+        // 将统一格式转换为端点格式（使用端点格式类型）
+        UnifiedToEndpointTransformer unifiedToEndpointTransformer = streamTransformerFactory.getUnifiedToEndpointTransformer(endpointProviderType);
+        
+        // 转换为Flux<String>以适配Controller的返回类型
+        Flux<?> endpointStream = unifiedToEndpointTransformer.transformToEndpoint(unifiedStream, sessionId);
+        return endpointStream.map(obj -> {
+            if (obj instanceof String) {
+                return (String) obj;
+            } else if (obj != null) {
+                // 对于非字符串对象，转换为JSON字符串
+                String json = JsonUtils.toJson(obj);
+                return json != null ? json : obj.toString();
+            }
+            return null; // 这里应该被filter过滤掉
+        }).filter(Objects::nonNull);
     }
 
 }

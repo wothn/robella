@@ -1,7 +1,7 @@
-package org.elmo.robella.adapter.openai;
+package org.elmo.robella.client.openai;
 
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.adapter.ApiClient;
+import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.config.ProviderConfig;
 import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.config.WebClientProperties;
@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 
 @Slf4j
@@ -104,22 +105,17 @@ public class OpenAIClient implements ApiClient {
                 .header(HttpHeaders.ACCEPT, "text/event-stream")
                 .bodyValue(openaiRequest)
                 .retrieve()
-                .bodyToFlux(String.class) // String 类型会只处理data内容
-                .doOnNext(raw -> {
+                .bodyToFlux(String.class)
+                .timeout(streamTimeout)
+                .onErrorMap(ex -> mapToProviderException(ex, "OpenAI streaming API call"))
+                .mapNotNull(this::parseStreamRaw) // 将原始字符串转换为响应对象，过滤掉null值（如结束标记）
+                .doOnNext(chunk -> {
                     if (log.isTraceEnabled()) {
-                        log.trace("[OpenAIAdapter] raw stream fragment: {}", raw != null && raw.length() > 200 ? raw.substring(0, 200) + "..." : raw);
+                        log.trace("[OpenAIAdapter] stream chunk: {}", chunk);
                     }
                 })
-                .flatMap(raw -> {
-                    ChatCompletionChunk parsed = parseStreamRaw(raw);
-                    return parsed != null ? Flux.just(parsed) : Flux.empty();
-                })
-                .timeout(streamTimeout)
-                .onErrorMap(WebClientResponseException.class, this::handleApiError)
-                .onErrorMap(ex -> mapToProviderException(ex, "OpenAI streaming API call"))
                 .doOnError(err -> log.debug("[OpenAIAdapter] streamChatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
     }
-
 
 
     // ===================== 私有辅助方法 =====================
@@ -198,7 +194,7 @@ public class OpenAIClient implements ApiClient {
 
     /**
      * 解析流数据
-     * 直接处理JSON格式，不处理SSE前缀
+     * 直接处理JSON格式
      *
      * @param raw 流数据片段
      * @return 解析后的数据块

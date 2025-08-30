@@ -1,17 +1,15 @@
-package org.elmo.robella.service;
+package org.elmo.robella.service.transform;
 
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
 
 /**
- * 单一厂商类型转换器。每个厂商需提供六个方向的转换：
+ * 单一厂商类型转换器。每个厂商需提供四个方向的转换，不处理流式转换：
  * 1. 厂商请求 -> Unified
  * 2. Unified -> 厂商请求
  * 3. 厂商响应 -> Unified
  * 4. Unified -> 厂商响应
- * 5. 厂商流事件 -> Unified 流片段
- * 6. Unified 流片段 -> 端点流事件
  *
  */
 public interface VendorTransform {
@@ -26,8 +24,4 @@ public interface VendorTransform {
     UnifiedChatResponse vendorResponseToUnified(Object vendorResponse);
     // Unified -> 厂商响应
     Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse);
-    // 厂商流事件 -> Unified
-    UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent);
-    // Unified -> 厂商流事件
-    String unifiedStreamChunkToVendor(UnifiedStreamChunk chunk);
 }

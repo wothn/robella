@@ -8,7 +8,6 @@ import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
-import org.elmo.robella.service.VendorTransform;
 import org.elmo.robella.util.ConfigUtils;
 import org.elmo.robella.util.JsonUtils;
 import org.elmo.robella.util.OpenAITransformUtils;
@@ -16,7 +15,7 @@ import org.elmo.robella.util.OpenAITransformUtils;
 import java.util.*;
 
 /**
- * OpenAI 及 OpenAI 兼容（DeepSeek、ModelScope、AIHubMix、Azure OpenAI）转换实现。
+ * OpenAI 及 OpenAI 兼容（DeepSeek、ModelScope、AIHubMix、Azure OpenAI）转换实现。不处理流式转换。
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -165,51 +164,5 @@ public class OpenAITransform implements VendorTransform {
             chatResponse.setUndefined(unifiedResponse.getUndefined());
         }
         return chatResponse;
-    }
-
-    @Override
-    public UnifiedStreamChunk vendorStreamEventToUnified(Object vendorEvent) {
-        if (!(vendorEvent instanceof ChatCompletionChunk chunk)) {
-            log.warn("vendorStreamEventToUnified: vendorEvent is not instance of ChatCompletionChunk, type: {}",
-                    vendorEvent != null ? vendorEvent.getClass().getName() : "null");
-            return null;
-        }
-
-        UnifiedStreamChunk unifiedChunk = new UnifiedStreamChunk();
-        unifiedChunk.setId(chunk.getId());
-        unifiedChunk.setCreated(chunk.getCreated());
-        unifiedChunk.setModel(chunk.getModel());
-        unifiedChunk.setObject(chunk.getObject());
-        unifiedChunk.setSystemFingerprint(chunk.getSystemFingerprint());
-        unifiedChunk.setChoices(chunk.getChoices());
-        unifiedChunk.setUsage(chunk.getUsage());
-        
-        return unifiedChunk;
-    }
-
-    @Override
-    public String unifiedStreamChunkToVendor(UnifiedStreamChunk chunk) {
-        if (chunk == null) {
-            return null;
-        }
-
-        ChatCompletionChunk chatCompletionChunk = new ChatCompletionChunk();
-        chatCompletionChunk.setId(chunk.getId());
-        chatCompletionChunk.setCreated(chunk.getCreated());
-        chatCompletionChunk.setModel(chunk.getModel());
-        chatCompletionChunk.setObject(chunk.getObject());
-        chatCompletionChunk.setSystemFingerprint(chunk.getSystemFingerprint());
-
-        // 转换choices
-        if (chunk.getChoices() != null) {
-            chatCompletionChunk.setChoices(chunk.getChoices());
-        }
-
-        // 转换usage
-        if (chunk.getUsage() != null) {
-            chatCompletionChunk.setUsage(chunk.getUsage());
-        }
-
-        return JsonUtils.toJson(chatCompletionChunk);
     }
 }
