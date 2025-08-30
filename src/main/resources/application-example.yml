@@ -4,9 +4,67 @@ server:
 spring:
   application:
     name: robella
+  # WebFlux 相关配置
+  webflux:
+    multipart:
+      max-in-memory-size: 32MB
+      max-disk-usage-per-part: 256MB
+  # 提升服务端编解码默认内存上限 (默认 256KB)，避免大请求体触发 DataBufferLimitException
+  codec:
+    max-in-memory-size: 32MB
+
+# 应用特定配置
+robella:
+  webclient:
+    # 连接池配置
+    connection-pool:
+      max-connections: 500
+      max-idle-time: 20s
+      max-lifetime: 60s
+      acquire-timeout: 10s       # 获取连接的超时时间
+      evict-in-background: 120s  # 后台线程清理过期连接的间隔时间
+    # 超时配置  
+    timeout:
+      connect: 10s
+      read: 60s
+      write: 30s
+    # 重试配置
+    retry:
+      max-attempts: 3
+      initial-delay: 1s
+      max-delay: 10s
+    # 缓冲区配置 (客户端 WebClient 使用)
+    buffer:
+      max-in-memory-size: 32MB
+      enable-logging-request-details: true  # 是否启动请求详情的日志
+      keep-alive: true
+      compress: true
 
 logging:
   level:
-    org.elmo.robella: DEBUG
+    org.elmo.robella: TRACE
+    reactor.netty.http.client: DEBUG  # 网络调试日志
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+providers:
+  aihubmix:
+    name: aihubmix
+    type: OpenAI
+    api-key: ${AIHUBMIX_API_KEY}
+    base-url: https://aihubmix.com/v1
+    models:
+      - name: GLM-4.5
+        vendor-model: GLM-4.5
+      - name: gpt-5-nano
+        vendor-model: gpt-5-nano
+      - name: doubao-seed-1-6-flash
+        vendor-model: doubao-seed-1-6-flash-250615
+  modelscope:
+    name: modelscope
+    type: OpenAI
+    api-key: ${MODELSCOPE_API_KEY}
+    base-url: https://api-inference.modelscope.cn/v1
+    models:
+      - name: modelscope/GLM-4.5
+        vendor-model: ZhipuAI/GLM-4.5
