@@ -55,12 +55,6 @@ public class AnthropicDelta {
     @JsonProperty("stop_sequence")
     private String stopSequence;
 
-    /**
-     * 使用量统计 (仅在 message_delta 事件中出现)
-     * 注意：只包含 output_tokens，input_tokens 在 message_start 中
-     */
-    private AnthropicUsage usage;
-
     // ==================== 辅助方法 ====================
 
     /**
