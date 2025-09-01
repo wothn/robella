@@ -22,411 +22,428 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * 统一格式到Anthropic端点格式的转换器
- * 需要维护会话状态，如消息ID、工具调用索引等
+ * 采用分层设计：事件识别 → 状态管理 → 数据转换 → 输出生成
  */
 @Component
 public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointTransformer<Object> {
 
-    // 会话状态存储，实际应用中可能需要使用更持久化的存储方案
-    private final Map<String, AnthropicEndpointSessionState> sessionStates = new ConcurrentHashMap<>();
+    // 会话状态存储
+    private final Map<String, SessionState> sessionStates = new ConcurrentHashMap<>();
 
     @Override
     public Flux<Object> transformToEndpoint(Flux<UnifiedStreamChunk> unifiedStream, String sessionId) {
         // 初始化会话状态
-        sessionStates.putIfAbsent(sessionId, new AnthropicEndpointSessionState());
+        sessionStates.putIfAbsent(sessionId, new SessionState());
 
         return unifiedStream.flatMap(unifiedChunk -> {
-            AnthropicEndpointSessionState state = sessionStates.get(sessionId);
-            Object result = processUnifiedChunk(unifiedChunk, state);
-
-            if (result instanceof List) {
-                // 如果返回的是事件列表，则将列表中的每个事件作为单独的流元素发出
-                @SuppressWarnings("unchecked")
-                List<Object> events = (List<Object>) result;
-                return Flux.fromIterable(events);
-            } else if (result != null) {
-                // 如果返回的是单个事件，则直接发出
-                return Flux.just(result);
-            } else {
-                // 如果返回null，则跳过
-                return Flux.empty();
-            }
+            SessionState state = sessionStates.get(sessionId);
+            return processUnifiedChunk(unifiedChunk, state);
         }).doFinally(signalType -> {
             // 清理会话状态
             sessionStates.remove(sessionId);
         });
     }
 
-    private Object processUnifiedChunk(UnifiedStreamChunk unifiedChunk, AnthropicEndpointSessionState state) {
-        // 用于返回多个事件的结果列表
+    /**
+     * 处理统一格式的chunk，返回Anthropic事件流
+     */
+    private Flux<Object> processUnifiedChunk(UnifiedStreamChunk unifiedChunk, SessionState state) {
         List<Object> events = new ArrayList<>();
 
-        // 处理消息开始事件
+        // 1. 处理消息开始事件
         if (state.getMessageId() == null && unifiedChunk.getId() != null) {
-            state.setMessageId(unifiedChunk.getId());
-            state.setLastModel(unifiedChunk.getModel());
-            state.setNextContentBlockIndex(new AtomicInteger(0)); // 重置内容块索引
-
-            // 创建MessageStartEvent
-            AnthropicMessageStartEvent messageStart = new AnthropicMessageStartEvent();
-            messageStart.setType("message_start");
-
-            // 构造完整的消息对象
-            AnthropicMessage message = new AnthropicMessage();
-            message.setId(unifiedChunk.getId());
-            message.setType("message");
-            message.setModel(unifiedChunk.getModel());
-
-            // 设置初始使用量信息
-            if (unifiedChunk.getUsage() != null) {
-                AnthropicUsage usage = new AnthropicUsage();
-                usage.setInputTokens(unifiedChunk.getUsage().getPromptTokens());
-                usage.setOutputTokens(unifiedChunk.getUsage().getCompletionTokens());
-                message.setUsage(usage);
-            }
-
-            messageStart.setMessage(message);
-            events.add(messageStart);
+            events.add(createMessageStartEvents(unifiedChunk, state));
         }
 
-        // 处理choices中的delta内容
+        // 2. 处理内容变化
         if (unifiedChunk.getChoices() != null && !unifiedChunk.getChoices().isEmpty()) {
-            // 处理第一个choice
             Choice choice = unifiedChunk.getChoices().get(0);
-
             if (choice.getDelta() != null) {
-                Delta delta = choice.getDelta();
-
-                // 处理角色信息（首次出现时）
-                if (delta.getRole() != null) {
-                    // 创建ContentBlockStartEvent
-                    AnthropicContentBlockStartEvent blockStart = new AnthropicContentBlockStartEvent();
-                    blockStart.setType("content_block_start");
-                    int contentIndex = state.getNextContentBlockIndex().getAndIncrement();
-
-                    // 创建文本内容块
-                    AnthropicTextContent contentBlock = new AnthropicTextContent();
-                    contentBlock.setType("text");
-                    contentBlock.setText("");
-
-                    blockStart.setIndex(contentIndex);
-                    blockStart.setContentBlock(contentBlock);
-                    events.add(blockStart);
-
-                    // 记录内容块状态
-                    BlockState blockState = new BlockState();
-                    blockState.setType(BlockType.TEXT);
-                    blockState.setIndex(contentIndex);
-                    blockState.setStarted(true);
-                    blockState.setStopped(false);
-                    state.getBlockStates().put(contentIndex, blockState);
-                }
-
-                // 处理工具调用
-                if (delta.getToolCalls() != null && !delta.getToolCalls().isEmpty()) {
-                    Object toolCallEvent = processToolCalls(delta.getToolCalls(), state);
-                    if (toolCallEvent != null) {
-                        events.add(toolCallEvent);
-                    }
-                    
-                    // 如果这是最后一个工具调用参数片段，停止tool_use块
-                    if (isLastToolCallChunk(delta.getToolCalls())) {
-                        Object toolStopEvent = generateContentBlockStopEvent(state, BlockType.TOOL_USE);
-                        if (toolStopEvent != null) {
-                            events.add(toolStopEvent);
-                        }
-                    }
-                }
-
-                // 处理文本内容
-                if (delta.getContent() != null && !delta.getContent().isEmpty()) {
-                    Object contentEvent = processContent(delta.getContent(), state);
-                    if (contentEvent != null) {
-                        events.add(contentEvent);
-                    }
-                }
-                
-                // 检测文本内容是否完成（当推理内容开始或工具调用开始时）
-                if (shouldStopTextBlock(delta)) {
-                    Object textStopEvent = generateContentBlockStopEvent(state, BlockType.TEXT);
-                    if (textStopEvent != null) {
-                        events.add(textStopEvent);
-                    }
-                }
-
-                // 处理推理内容
-                if (delta.getReasoningContent() != null) {
-                    Object reasoningEvent = processReasoningContent(delta.getReasoningContent(), state);
-                    if (reasoningEvent != null) {
-                        if (reasoningEvent instanceof List) {
-                            // 如果返回的是事件列表，添加所有事件
-                            @SuppressWarnings("unchecked")
-                            List<Object> reasoningEvents = (List<Object>) reasoningEvent;
-                            events.addAll(reasoningEvents);
-                        } else {
-                            // 如果是单个事件，直接添加
-                            events.add(reasoningEvent);
-                        }
-                    }
-                    
-                    // 如果这是最后一个推理内容片段，生成signature_delta并停止thinking块
-                    if (isLastReasoningChunk(unifiedChunk)) {
-                        // 生成signature_delta事件
-                        Object signatureEvent = generateSignatureDeltaEvent(state);
-                        if (signatureEvent != null) {
-                            events.add(signatureEvent);
-                        }
-                        
-                        // 停止thinking块
-                        Object thinkingStopEvent = generateContentBlockStopEvent(state, BlockType.THINKING);
-                        if (thinkingStopEvent != null) {
-                            events.add(thinkingStopEvent);
-                        }
-                    }
-                }
+                events.addAll(processDeltaEvents(choice.getDelta(), state, unifiedChunk));
             }
-
-            // 处理完成原因
+            
+            // 3. 处理完成信号
             if (choice.getFinishReason() != null) {
-                // 为所有已启动但未停止的内容块生成content_block_stop事件
-                generateStopEventsForAllBlocks(state, events);
-
-                // 创建MessageDeltaEvent
-                AnthropicMessageDeltaEvent messageDelta = new AnthropicMessageDeltaEvent();
-                messageDelta.setType("message_delta");
-
-                AnthropicDelta delta = new AnthropicDelta();
-                delta.setStopReason(convertFinishReasonToStopReason(choice.getFinishReason()));
-
-                // 处理使用量信息
-                if (unifiedChunk.getUsage() != null) {
-                    AnthropicUsage usage = new AnthropicUsage();
-                    usage.setOutputTokens(unifiedChunk.getUsage().getCompletionTokens());
-                    delta.setUsage(usage);
-                }
-
-                messageDelta.setDelta(delta);
-                events.add(messageDelta);
-
-                // 创建MessageStopEvent
-                AnthropicMessageStopEvent messageStop = new AnthropicMessageStopEvent();
-                messageStop.setType("message_stop");
-                events.add(messageStop);
-
-                // 标记消息完成
-                state.setMessageCompleted(true);
+                events.addAll(createMessageEndEvents(choice.getFinishReason(), unifiedChunk, state));
             }
         }
 
-        // 验证事件序列的完整性
-        validateEventSequence(events, state);
-
-        // 根据事件数量返回结果
-        if (!events.isEmpty()) {
-            if (events.size() == 1) {
-                return events.get(0);
-            } else {
-                // 返回事件列表，需要修改transformToEndpoint方法的返回类型
-                return events;
-            }
+        // 如果没有事件，返回空的Flux
+        if (events.isEmpty()) {
+            return Flux.empty();
         }
 
-        // 默认返回ping事件保持连接
-        AnthropicPingEvent ping = new AnthropicPingEvent();
-        ping.setType("ping");
-        return ping;
+        return Flux.fromIterable(events);
     }
 
     /**
-     * 处理工具调用
+     * 创建消息开始事件
      */
-    private Object processToolCalls(List<ToolCall> toolCalls, AnthropicEndpointSessionState state) {
-        for (ToolCall toolCall : toolCalls) {
-            // 如果是工具调用的开始（有ID和名称）
-            if (toolCall.getId() != null && toolCall.getFunction() != null && toolCall.getFunction().getName() != null) {
-                // 按照Anthropic规范，tool_use块应该在thinking和text块之后（索引2）
-                int contentIndex = state.isToolUseStarted() ? 
-                    state.getNextContentBlockIndex().getAndIncrement() : 
-                    (state.isThinkingStarted() ? (state.isTextStarted() ? 2 : 1) : (state.isTextStarted() ? 1 : 0));
-                
-                state.setToolUseStarted(true);
-                state.setToolUseBlockCount(state.getToolUseBlockCount() + 1);
-                
-                // 记录工具调用索引映射
-                state.getToolCallIndices().put(toolCall.getIndex(), contentIndex);
+    private AnthropicMessageStartEvent createMessageStartEvents(UnifiedStreamChunk unifiedChunk, SessionState state) {
+        state.setMessageId(unifiedChunk.getId());
+        state.setModel(unifiedChunk.getModel());
 
-                // 创建ContentBlockStartEvent
-                AnthropicContentBlockStartEvent blockStart = new AnthropicContentBlockStartEvent();
-                blockStart.setType("content_block_start");
-                blockStart.setIndex(contentIndex);
+        // 创建MessageStartEvent
+        AnthropicMessageStartEvent messageStart = new AnthropicMessageStartEvent();
+        messageStart.setType("message_start");
 
-                // 创建工具使用内容块
-                AnthropicToolUseContent contentBlock = new AnthropicToolUseContent();
-                contentBlock.setType("tool_use");
-                contentBlock.setId(toolCall.getId());
-                contentBlock.setName(toolCall.getFunction().getName());
-                // 注意：初始时没有输入参数
+        AnthropicMessage message = new AnthropicMessage();
+        message.setId(unifiedChunk.getId());
+        message.setType("message");
+        message.setModel(unifiedChunk.getModel());
+        message.setRole("assistant");
 
-                blockStart.setContentBlock(contentBlock);
-
-                // 记录内容块状态
-                BlockState blockState = new BlockState();
-                blockState.setType(BlockType.TOOL_USE);
-                blockState.setIndex(contentIndex);
-                blockState.setStarted(true);
-                blockState.setStopped(false);
-                state.getBlockStates().put(contentIndex, blockState);
-
-                return blockStart;
-            }
-            // 如果是工具调用的增量（只有参数增量）
-            else if (toolCall.getFunction() != null && toolCall.getFunction().getArguments() != null) {
-                // 获取对应的content block索引
-                Integer contentBlockIndex = state.getToolCallIndices().get(toolCall.getIndex());
-                if (contentBlockIndex != null) {
-                    // 创建ContentBlockDeltaEvent
-                    AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
-                    blockDelta.setType("content_block_delta");
-                    blockDelta.setIndex(contentBlockIndex);
-
-                    AnthropicDelta delta = new AnthropicDelta();
-                    delta.setType("input_json_delta");
-                    delta.setPartialJson(toolCall.getFunction().getArguments());
-
-                    blockDelta.setDelta(delta);
-                    return blockDelta;
-                }
-            }
+        // 设置初始使用量信息
+        if (unifiedChunk.getUsage() != null) {
+            AnthropicUsage usage = new AnthropicUsage();
+            usage.setInputTokens(unifiedChunk.getUsage().getPromptTokens());
+            usage.setOutputTokens(unifiedChunk.getUsage().getCompletionTokens());
+            message.setUsage(usage);
         }
 
-        return null;
+        messageStart.setMessage(message);
+        return messageStart;
+    }
+
+    /**
+     * 处理Delta事件
+     */
+    private List<Object> processDeltaEvents(Delta delta, SessionState state, UnifiedStreamChunk unifiedChunk) {
+        List<Object> events = new ArrayList<>();
+
+        // 检查是否需要结束文本块（仅在开始工具调用时）
+        List<BlockState> activeTextBlocks = state.getBlockStates(BlockType.TEXT);
+        boolean hasActiveTextBlock = !activeTextBlocks.isEmpty();
+        
+        // 如果存在活跃文本块且当前开始工具调用，说明文本过程已结束
+        if (hasActiveTextBlock && delta.getToolCalls() != null && !delta.getToolCalls().isEmpty()) {
+            events.addAll(completeTextProcess(state));
+        }
+
+        // 检查是否需要结束推理过程
+        List<BlockState> activeThinkingBlocks = state.getBlockStates(BlockType.THINKING);
+        boolean hasActiveThinkingBlock = !activeThinkingBlocks.isEmpty();
+        boolean hasNonReasoningContent = (delta.getContent() != null && !delta.getContent().isEmpty()) ||
+                                       (delta.getToolCalls() != null && !delta.getToolCalls().isEmpty());
+        
+        // 如果存在活跃推理块且当前没有推理内容但有非推理内容，说明推理过程已结束
+        if (hasActiveThinkingBlock && delta.getReasoningContent() == null && hasNonReasoningContent) {
+            events.addAll(completeReasoningProcess(state));
+        }
+
+        // 处理推理内容
+        if (delta.getReasoningContent() != null) {
+            events.addAll(handleReasoningContent(delta.getReasoningContent(), state, unifiedChunk));
+        }
+
+        // 处理文本内容
+        if (delta.getContent() != null && !delta.getContent().isEmpty()) {
+            events.addAll(handleTextContent(delta.getContent(), state));
+        }
+
+        // 处理工具调用
+        if (delta.getToolCalls() != null && !delta.getToolCalls().isEmpty()) {
+            events.addAll(handleToolCalls(delta.getToolCalls(), state));
+        }
+
+        return events;
+    }
+
+    
+    /**
+     * 创建消息结束事件
+     */
+    private List<Object> createMessageEndEvents(String finishReason, UnifiedStreamChunk unifiedChunk, SessionState state) {
+        List<Object> events = new ArrayList<>();
+
+        // 停止所有活跃的内容块
+        events.addAll(state.stopAllActiveBlocks());
+
+        // 创建MessageDeltaEvent
+        AnthropicMessageDeltaEvent messageDelta = new AnthropicMessageDeltaEvent();
+        messageDelta.setType("message_delta");
+
+        AnthropicDelta delta = new AnthropicDelta();
+        delta.setStopReason(convertFinishReasonToStopReason(finishReason));
+
+        if (unifiedChunk.getUsage() != null) {
+            AnthropicUsage usage = new AnthropicUsage();
+            usage.setOutputTokens(unifiedChunk.getUsage().getCompletionTokens());
+            delta.setUsage(usage);
+        }
+
+        messageDelta.setDelta(delta);
+        events.add(messageDelta);
+
+        // 创建MessageStopEvent
+        AnthropicMessageStopEvent messageStop = new AnthropicMessageStopEvent();
+        messageStop.setType("message_stop");
+        events.add(messageStop);
+
+        return events;
     }
 
     /**
      * 处理文本内容
      */
-    private Object processContent(List<OpenAIContent> contents, AnthropicEndpointSessionState state) {
+    private List<Object> handleTextContent(List<OpenAIContent> contents, SessionState state) {
+        List<Object> events = new ArrayList<>();
+        
         for (OpenAIContent content : contents) {
             if (content instanceof OpenAITextContent textContent) {
-                // 查找文本内容块状态
-                BlockState textBlockState = findBlockStateByType(state, BlockType.TEXT);
-
-                if (textBlockState == null || !textBlockState.isStarted()) {
-                    // 按照Anthropic规范，text块应该在thinking块之后（索引1）
-                    int contentIndex = state.isTextStarted() ? 
-                        state.getNextContentBlockIndex().getAndIncrement() : (state.isThinkingStarted() ? 1 : 0);
-                    
-                    state.setTextStarted(true);
-                    state.setTextBlockCount(state.getTextBlockCount() + 1);
-
-                    // 创建ContentBlockStartEvent
-                    AnthropicContentBlockStartEvent blockStart = new AnthropicContentBlockStartEvent();
-                    blockStart.setType("content_block_start");
-
-                    // 创建文本内容块
-                    AnthropicTextContent contentBlock = new AnthropicTextContent();
-                    contentBlock.setType("text");
-                    contentBlock.setText("");
-
-                    blockStart.setIndex(contentIndex);
-                    blockStart.setContentBlock(contentBlock);
-
-                    // 记录内容块状态
-                    BlockState blockState = new BlockState();
-                    blockState.setType(BlockType.TEXT);
-                    blockState.setIndex(contentIndex);
-                    blockState.setStarted(true);
-                    blockState.setStopped(false);
-                    state.getBlockStates().put(contentIndex, blockState);
-
-                    return blockStart;
-                } else {
-                    // 创建ContentBlockDeltaEvent
-                    AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
-                    blockDelta.setType("content_block_delta");
-                    blockDelta.setIndex(textBlockState.getIndex());
-
-                    AnthropicDelta delta = new AnthropicDelta();
-                    delta.setType("text_delta");
-                    delta.setText(textContent.getText());
-
-                    blockDelta.setDelta(delta);
-                    return blockDelta;
+                List<BlockState> blockStates = state.getBlockStates(BlockType.TEXT);
+                
+                if (blockStates.isEmpty()) {
+                    // 创建新的文本块
+                    events.add(createTextBlock(state));
+                    // 重新获取刚创建的块状态
+                    blockStates = state.getBlockStates(BlockType.TEXT);
                 }
+                
+                if (!blockStates.isEmpty()) {
+                    // 使用第一个文本块添加增量
+                    BlockState blockState = blockStates.get(0);
+                    events.add(createTextDelta(blockState.getIndex(), textContent.getText()));
+                }
+                break;
             }
         }
+        
+        return events;
+    }
 
-        return null;
+    /**
+     * 创建文本块
+     */
+    private AnthropicContentBlockStartEvent createTextBlock(SessionState state) {
+        int index = state.getNextContentIndex();
+        
+        // 创建Start事件
+        AnthropicContentBlockStartEvent blockStart = new AnthropicContentBlockStartEvent();
+        blockStart.setType("content_block_start");
+        blockStart.setIndex(index);
+
+        AnthropicTextContent contentBlock = new AnthropicTextContent();
+        contentBlock.setType("text");
+        contentBlock.setText("");
+
+        blockStart.setContentBlock(contentBlock);
+
+        // 记录块状态
+        state.addBlockState(index, BlockType.TEXT);
+        return blockStart;
+    }
+
+    /**
+     * 创建文本增量事件
+     */
+    private Object createTextDelta(int index, String text) {
+        AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
+        blockDelta.setType("content_block_delta");
+        blockDelta.setIndex(index);
+
+        AnthropicDelta delta = new AnthropicDelta();
+        delta.setType("text_delta");
+        delta.setText(text);
+
+        blockDelta.setDelta(delta);
+        return blockDelta;
     }
 
     /**
      * 处理推理内容
      */
-    private Object processReasoningContent(String reasoningContent, AnthropicEndpointSessionState state) {
-        // 查找推理内容块状态
-        BlockState thinkingBlockState = findBlockStateByType(state, BlockType.THINKING);
+    private List<Object> handleReasoningContent(String reasoningContent, SessionState state, UnifiedStreamChunk unifiedChunk) {
+        List<Object> events = new ArrayList<>();
 
-        if (thinkingBlockState == null || !thinkingBlockState.isStarted()) {
-            // 创建一个事件列表，同时包含start和delta事件
-            List<Object> reasoningEvents = new ArrayList<>();
-            
-            // 按照Anthropic规范，thinking块应该是第一个内容块（索引0）
-            int contentIndex = state.isThinkingStarted() ? 
-                state.getNextContentBlockIndex().getAndIncrement() : 0;
-            
-            state.setThinkingStarted(true);
-            state.setThinkingBlockCount(state.getThinkingBlockCount() + 1);
-
-            // 创建ContentBlockStartEvent
-            AnthropicContentBlockStartEvent blockStart = new AnthropicContentBlockStartEvent();
-            blockStart.setType("content_block_start");
-
-            // 创建推理内容块
-            AnthropicThinkingContent contentBlock = new AnthropicThinkingContent();
-            contentBlock.setType("thinking");
-            contentBlock.setThinking("");
-
-            blockStart.setIndex(contentIndex);
-            blockStart.setContentBlock(contentBlock);
-            reasoningEvents.add(blockStart);
-
-            // 创建对应的thinking_delta事件
-            AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
-            blockDelta.setType("content_block_delta");
-            blockDelta.setIndex(contentIndex);
-
-            AnthropicDelta delta = new AnthropicDelta();
-            delta.setType("thinking_delta");
-            delta.setThinking(reasoningContent);
-
-            blockDelta.setDelta(delta);
-            reasoningEvents.add(blockDelta);
-
-            // 记录内容块状态
-            BlockState blockState = new BlockState();
-            blockState.setType(BlockType.THINKING);
-            blockState.setIndex(contentIndex);
-            blockState.setStarted(true);
-            blockState.setStopped(false);
-            state.getBlockStates().put(contentIndex, blockState);
-
-            return reasoningEvents; // 返回事件列表
-        } else {
-            // 创建ContentBlockDeltaEvent
-            AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
-            blockDelta.setType("content_block_delta");
-            blockDelta.setIndex(thinkingBlockState.getIndex());
-
-            AnthropicDelta delta = new AnthropicDelta();
-            delta.setType("thinking_delta");
-            delta.setThinking(reasoningContent);
-
-            blockDelta.setDelta(delta);
-            return blockDelta;
+        // 检查是否存在活跃的推理块
+        List<BlockState> blockStates = state.getBlockStates(BlockType.THINKING);
+        
+        if (blockStates.isEmpty()) {
+            // 创建新的推理块
+            events.add(createThinkingBlock(state));
+            // 重新获取刚创建的块状态
+            blockStates = state.getBlockStates(BlockType.THINKING);
         }
+        
+        if (!blockStates.isEmpty()) {
+            BlockState blockState = blockStates.get(0);
+            // 添加推理增量
+            events.add(createThinkingDelta(blockState.getIndex(), reasoningContent));
+        }
+        
+        return events;
+    }
+
+    /**
+     * 完成文本过程
+     * 当文本过程结束时（开始推理或工具调用），主动完成文本块
+     */
+    private List<Object> completeTextProcess(SessionState state) {
+        List<Object> events = new ArrayList<>();
+        
+        List<BlockState> activeTextBlocks = state.getBlockStates(BlockType.TEXT);
+        for (BlockState blockState : activeTextBlocks) {
+            // 停止文本块
+            events.add(state.stopBlock(blockState.getIndex()));
+        }
+        
+        return events;
+    }
+
+    /**
+     * 完成推理过程
+     * 当推理过程结束时（接收到非推理内容），主动完成推理块
+     */
+    private List<Object> completeReasoningProcess(SessionState state) {
+        List<Object> events = new ArrayList<>();
+        
+        List<BlockState> activeThinkingBlocks = state.getBlockStates(BlockType.THINKING);
+        for (BlockState blockState : activeThinkingBlocks) {
+            // 添加签名增量
+            events.add(createSignatureDelta(blockState.getIndex()));
+            // 停止推理块
+            events.add(state.stopBlock(blockState.getIndex()));
+        }
+        
+        return events;
+    }
+
+    /**
+     * 创建推理块
+     */
+    private AnthropicContentBlockStartEvent createThinkingBlock(SessionState state) {
+        int index = state.getNextContentIndex();
+        
+        // 创建Start事件
+        AnthropicContentBlockStartEvent blockStart = new AnthropicContentBlockStartEvent();
+        blockStart.setType("content_block_start");
+        blockStart.setIndex(index);
+
+        AnthropicThinkingContent contentBlock = new AnthropicThinkingContent();
+        contentBlock.setType("thinking");
+        contentBlock.setThinking("");
+
+        blockStart.setContentBlock(contentBlock);
+
+        // 记录块状态
+        state.addBlockState(index, BlockType.THINKING);
+        return blockStart;
+    }
+
+    /**
+     * 创建推理增量事件
+     */
+    private Object createThinkingDelta(int index, String thinking) {
+        AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
+        blockDelta.setType("content_block_delta");
+        blockDelta.setIndex(index);
+
+        AnthropicDelta delta = new AnthropicDelta();
+        delta.setType("thinking_delta");
+        delta.setThinking(thinking);
+
+        blockDelta.setDelta(delta);
+        return blockDelta;
+    }
+
+    /**
+     * 创建签名增量事件
+     */
+    private Object createSignatureDelta(int index) {
+        AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
+        blockDelta.setType("content_block_delta");
+        blockDelta.setIndex(index);
+
+        AnthropicDelta delta = new AnthropicDelta();
+        delta.setType("signature_delta");
+        delta.setSignature("EqQBCgIYAhIM1gbcDa9GJwZA2b3hGgxBdjrkzLoky3dl1pkiMOYds...");
+
+        blockDelta.setDelta(delta);
+        return blockDelta;
+    }
+
+    /**
+     * 处理工具调用
+     */
+    private List<Object> handleToolCalls(List<ToolCall> toolCalls, SessionState state) {
+        List<Object> events = new ArrayList<>();
+        
+        for (ToolCall toolCall : toolCalls) {
+            if (toolCall.getId() != null && toolCall.getFunction() != null && toolCall.getFunction().getName() != null) {
+                // 工具调用开始 - 为每个工具调用创建独立的块
+                events.add(createToolUseBlock(toolCall, state));
+            } else if (toolCall.getFunction() != null && toolCall.getFunction().getArguments() != null) {
+                // 工具调用参数增量 - 根据工具调用ID找到对应的块
+                events.add(createToolUseDelta(toolCall, state));
+            }
+        }
+        
+        // 检查是否有工具调用需要停止
+        for (ToolCall toolCall : toolCalls) {
+            if (isToolCallComplete(toolCall)) {
+                BlockState blockState = state.getBlockStateByToolCallId(toolCall.getId());
+                if (blockState != null) {
+                    events.add(state.stopBlock(blockState.getIndex()));
+                }
+            }
+        }
+        
+        return events;
+    }
+
+    /**
+     * 创建工具使用块
+     */
+    private AnthropicContentBlockStartEvent createToolUseBlock(ToolCall toolCall, SessionState state) {
+        int index = state.getNextContentIndex();
+        
+        // 创建Start事件
+        AnthropicContentBlockStartEvent blockStart = new AnthropicContentBlockStartEvent();
+        blockStart.setType("content_block_start");
+        blockStart.setIndex(index);
+
+        AnthropicToolUseContent contentBlock = new AnthropicToolUseContent();
+        contentBlock.setType("tool_use");
+        contentBlock.setId(toolCall.getId());
+        contentBlock.setName(toolCall.getFunction().getName());
+
+        blockStart.setContentBlock(contentBlock);
+
+        // 记录块状态和工具调用映射
+        state.addBlockState(index, BlockType.TOOL_USE, toolCall.getId());
+        state.addToolCallMapping(toolCall.getId(), index);
+        
+        return blockStart;
+    }
+
+    /**
+     * 创建工具使用增量事件
+     */
+    private Object createToolUseDelta(ToolCall toolCall, SessionState state) {
+        if (toolCall.getId() == null) {
+            return null;
+        }
+        
+        Integer contentBlockIndex = state.getToolCallMapping(toolCall.getId());
+        if (contentBlockIndex == null) {
+            return null;
+        }
+        
+        AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
+        blockDelta.setType("content_block_delta");
+        blockDelta.setIndex(contentBlockIndex);
+
+        AnthropicDelta delta = new AnthropicDelta();
+        delta.setType("input_json_delta");
+        delta.setPartialJson(toolCall.getFunction().getArguments());
+
+        blockDelta.setDelta(delta);
+        return blockDelta;
     }
 
     /**
@@ -446,91 +463,20 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
         };
     }
 
+        
     /**
-     * 为所有已启动但未停止的内容块生成content_block_stop事件
+     * 判断单个工具调用是否完成
      */
-    private void generateStopEventsForAllBlocks(AnthropicEndpointSessionState state, List<Object> events) {
-        for (BlockState blockState : state.getBlockStates().values()) {
-            if (blockState.isStarted() && !blockState.isStopped()) {
-                // 创建ContentBlockStopEvent
-                AnthropicContentBlockStopEvent blockStop = new AnthropicContentBlockStopEvent();
-                blockStop.setType("content_block_stop");
-                blockStop.setIndex(blockState.getIndex());
-                events.add(blockStop);
-
-                // 标记为已停止
-                blockState.setStopped(true);
-            }
-        }
-    }
-
-    /**
-     * 根据类型查找内容块状态
-     */
-    private BlockState findBlockStateByType(AnthropicEndpointSessionState state, BlockType type) {
-        for (BlockState blockState : state.getBlockStates().values()) {
-            if (blockState.getType() == type) {
-                return blockState;
-            }
-        }
-        return null;
-    }
-    
-    /**
-     * 为指定类型的内容块生成停止事件
-     */
-    private Object generateContentBlockStopEvent(AnthropicEndpointSessionState state, BlockType type) {
-        BlockState blockState = findBlockStateByType(state, type);
-        if (blockState != null && blockState.isStarted() && !blockState.isStopped()) {
-            AnthropicContentBlockStopEvent blockStop = new AnthropicContentBlockStopEvent();
-            blockStop.setType("content_block_stop");
-            blockStop.setIndex(blockState.getIndex());
-            
-            // 标记为已停止
-            blockState.setStopped(true);
-            return blockStop;
-        }
-        return null;
-    }
-    
-    /**
-     * 判断是否为最后一个推理内容片段
-     */
-    private boolean isLastReasoningChunk(UnifiedStreamChunk unifiedChunk) {
-        // 如果当前片段包含非推理内容（如文本或工具调用），说明推理已完成
-        if (unifiedChunk.getChoices() != null && !unifiedChunk.getChoices().isEmpty()) {
-            Choice choice = unifiedChunk.getChoices().get(0);
-            if (choice.getDelta() != null) {
-                Delta delta = choice.getDelta();
-                // 如果同时包含推理内容和其他内容，说明推理即将完成
-                boolean hasNonReasoning = delta.getContent() != null || 
-                                      (delta.getToolCalls() != null && !delta.getToolCalls().isEmpty());
-                boolean hasReasoning = delta.getReasoningContent() != null;
-                
-                // 如果包含非推理内容，或者推理内容为空，说明推理完成
-                return hasNonReasoning || (hasReasoning && delta.getReasoningContent().isEmpty());
-            }
+    private boolean isToolCallComplete(ToolCall toolCall) {
+        if (toolCall.getFunction() != null && toolCall.getFunction().getArguments() != null) {
+            String args = toolCall.getFunction().getArguments();
+            return isCompleteJson(args);
         }
         return false;
     }
     
     /**
-     * 判断是否为最后一个工具调用片段
-     */
-    private boolean isLastToolCallChunk(List<ToolCall> toolCalls) {
-        // 检查是否有完整的JSON参数
-        for (ToolCall toolCall : toolCalls) {
-            if (toolCall.getFunction() != null && toolCall.getFunction().getArguments() != null) {
-                String args = toolCall.getFunction().getArguments();
-                // 更严格的JSON完整性检查
-                return isCompleteJson(args);
-            }
-        }
-        return false;
-    }
-    
-    /**
-     * 检查JSON是否完整（包括括号匹配、字符串引号匹配等）
+     * 检查JSON是否完整
      */
     private boolean isCompleteJson(String json) {
         if (json == null || json.trim().isEmpty()) {
@@ -538,18 +484,15 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
         }
         
         String trimmed = json.trim();
-        
-        // 必须以{开头，}结尾
         if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
             return false;
         }
         
-        // 检查括号匹配和字符串引号匹配
         return isValidJsonStructure(trimmed);
     }
     
     /**
-     * 验证JSON结构的有效性（包括括号和引号匹配）
+     * 验证JSON结构的有效性
      */
     private boolean isValidJsonStructure(String json) {
         int braceBalance = 0;
@@ -599,79 +542,6 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
         
         return braceBalance == 0 && bracketBalance == 0 && !inString;
     }
-    
-    /**
-     * 生成signature_delta事件
-     */
-    private Object generateSignatureDeltaEvent(AnthropicEndpointSessionState state) {
-        BlockState thinkingBlockState = findBlockStateByType(state, BlockType.THINKING);
-        if (thinkingBlockState != null && thinkingBlockState.isStarted() && !thinkingBlockState.isStopped()) {
-            // 创建ContentBlockDeltaEvent
-            AnthropicContentBlockDeltaEvent blockDelta = new AnthropicContentBlockDeltaEvent();
-            blockDelta.setType("content_block_delta");
-            blockDelta.setIndex(thinkingBlockState.getIndex());
-
-            AnthropicDelta delta = new AnthropicDelta();
-            delta.setType("signature_delta");
-            // 生成一个模拟的签名，实际应用中可能需要真实的签名生成逻辑
-            delta.setSignature("EqQBCgIYAhIM1gbcDa9GJwZA2b3hGgxBdjrkzLoky3dl1pkiMOYds...");
-
-            blockDelta.setDelta(delta);
-            return blockDelta;
-        }
-        return null;
-    }
-
-    /**
-     * 验证事件序列的完整性
-     */
-    private void validateEventSequence(List<Object> events, AnthropicEndpointSessionState state) {
-        // 检查是否有必需的message_start事件
-        boolean hasMessageStart = events.stream()
-            .anyMatch(event -> event instanceof AnthropicMessageStartEvent);
-        
-        if (!hasMessageStart && state.getMessageId() == null) {
-            // 如果还没有message_start，添加到事件列表开头
-            AnthropicMessageStartEvent messageStart = new AnthropicMessageStartEvent();
-            messageStart.setType("message_start");
-            
-            AnthropicMessage message = new AnthropicMessage();
-            message.setId("msg_" + System.currentTimeMillis());
-            message.setType("message");
-            message.setModel(state.getLastModel() != null ? state.getLastModel() : "claude-3-opus-20240229");
-            
-            messageStart.setMessage(message);
-            events.add(0, messageStart);
-        }
-        
-        // 检查是否所有已启动的内容块都有对应的stop事件
-        for (BlockState blockState : state.getBlockStates().values()) {
-            if (blockState.isStarted() && !blockState.isStopped()) {
-                // 检查是否已有stop事件
-                boolean hasStopEvent = events.stream()
-                    .anyMatch(event -> event instanceof AnthropicContentBlockStopEvent stopEvent && 
-                                   stopEvent.getIndex() == blockState.getIndex());
-                
-                if (!hasStopEvent) {
-                    // 添加missing的stop事件
-                    AnthropicContentBlockStopEvent stopEvent = new AnthropicContentBlockStopEvent();
-                    stopEvent.setType("content_block_stop");
-                    stopEvent.setIndex(blockState.getIndex());
-                    events.add(stopEvent);
-                    blockState.setStopped(true);
-                }
-            }
-        }
-    }
-
-    /**
-     * 判断是否应该停止文本内容块
-     */
-    private boolean shouldStopTextBlock(Delta delta) {
-        // 当开始工具调用或推理内容时，文本内容应该停止
-        return (delta.getToolCalls() != null && !delta.getToolCalls().isEmpty()) ||
-               (delta.getReasoningContent() != null && !delta.getReasoningContent().isEmpty());
-    }
 
     /**
      * 内容块类型枚举
@@ -685,32 +555,123 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
      */
     @Data
     private static class BlockState {
+        /** 内容块类型 */
         private BlockType type;
+        /** 内容块索引 */
         private Integer index;
-        private boolean started;
-        private boolean stopped;
+        /** 是否活跃（已开始未停止） */
+        private boolean active;
+        /** 关联的工具调用ID（用于tool_use类型） */
+        private String toolCallId;
     }
 
     /**
-     * Anthropic端点会话状态
+     * 简化的会话状态
      */
     @Data
-    private static class AnthropicEndpointSessionState {
+    private static class SessionState {
+        /** 消息ID */
         private String messageId;
-        private String lastModel;
-        private AtomicInteger nextContentBlockIndex = new AtomicInteger(0); // 下一个内容块索引
-        private final Map<Integer, BlockState> blockStates = new ConcurrentHashMap<>(); // 内容块状态
-        private final Map<Integer, Integer> toolCallIndices = new ConcurrentHashMap<>(); // 工具调用索引到内容块索引的映射
-        private boolean messageCompleted = false; // 消息是否完成
+        /** 模型名称 */
+        private String model;
+        /** 下一个内容块的索引计数器 */
+        private final AtomicInteger nextContentIndex = new AtomicInteger(0);
+        /** 活跃内容块的状态映射（支持多个相同类型的块） */
+        private final Map<Integer, BlockState> activeBlocks = new ConcurrentHashMap<>();
+        /** 工具调用ID到内容块索引的映射 */
+        private final Map<String, Integer> toolCallMappings = new ConcurrentHashMap<>();
         
-        // 添加内容块类型计数器，确保按正确顺序生成索引
-        private int thinkingBlockCount = 0;
-        private int textBlockCount = 0;
-        private int toolUseBlockCount = 0;
+        /**
+         * 获取下一个内容块索引
+         */
+        public int getNextContentIndex() {
+            return nextContentIndex.getAndIncrement();
+        }
         
-        // 标记哪些类型的内容块已经启动
-        private boolean thinkingStarted = false;
-        private boolean textStarted = false;
-        private boolean toolUseStarted = false;
+        /**
+         * 添加内容块状态
+         */
+        public void addBlockState(int index, BlockType type) {
+            addBlockState(index, type, null);
+        }
+        
+        /**
+         * 添加内容块状态（带工具调用ID）
+         */
+        public void addBlockState(int index, BlockType type, String toolCallId) {
+            BlockState blockState = new BlockState();
+            blockState.setType(type);
+            blockState.setIndex(index);
+            blockState.setActive(true);
+            blockState.setToolCallId(toolCallId);
+            activeBlocks.put(index, blockState);
+        }
+        
+        /**
+         * 获取指定类型的内容块状态列表
+         */
+        public List<BlockState> getBlockStates(BlockType type) {
+            return activeBlocks.values().stream()
+                    .filter(state -> state.getType() == type && state.isActive())
+                    .collect(Collectors.toList());
+        }
+        
+        /**
+         * 根据工具调用ID获取内容块状态
+         */
+        public BlockState getBlockStateByToolCallId(String toolCallId) {
+            return activeBlocks.values().stream()
+                    .filter(state -> toolCallId.equals(state.getToolCallId()) && state.isActive())
+                    .findFirst()
+                    .orElse(null);
+        }
+        
+        /**
+         * 停止指定索引的内容块
+         */
+        public AnthropicContentBlockStopEvent stopBlock(int index) {
+            BlockState blockState = activeBlocks.get(index);
+            if (blockState != null && blockState.isActive()) {
+                // 将内容块从活跃状态移除
+                blockState.setActive(false);
+                activeBlocks.remove(index);
+                
+                AnthropicContentBlockStopEvent stopEvent = new AnthropicContentBlockStopEvent();
+                stopEvent.setType("content_block_stop");
+                stopEvent.setIndex(index);
+                return stopEvent;
+            }
+            return null;
+        }
+        
+        /**
+         * 停止所有活跃的内容块
+         */
+        public List<Object> stopAllActiveBlocks() {
+            List<Object> stopEvents = new ArrayList<>();
+            // 创建副本以避免并发修改问题
+            List<Integer> indices = new ArrayList<>(activeBlocks.keySet());
+            for (Integer index : indices) {
+                AnthropicContentBlockStopEvent stopEvent = stopBlock(index);
+                if (stopEvent != null) {
+                    stopEvents.add(stopEvent);
+                }
+            }
+            return stopEvents;
+        }
+        
+        /**
+         * 添加工具调用映射
+         */
+        public void addToolCallMapping(String toolCallId, int contentBlockIndex) {
+            toolCallMappings.put(toolCallId, contentBlockIndex);
+        }
+        
+        /**
+         * 获取工具调用映射
+         */
+        public Integer getToolCallMapping(String toolCallId) {
+            return toolCallMappings.get(toolCallId);
+        }
     }
 }

@@ -1,5 +1,6 @@
 package org.elmo.robella.model.anthropic.stream;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -65,6 +66,7 @@ public class AnthropicDelta {
     /**
      * 判断是否为文本增量
      */
+    @JsonIgnore
     public boolean isTextDelta() {
         return "text_delta".equals(type);
     }
@@ -72,6 +74,7 @@ public class AnthropicDelta {
     /**
      * 判断是否为思考增量
      */
+    @JsonIgnore
     public boolean isThinkingDelta() {
         return "thinking_delta".equals(type);
     }
@@ -79,6 +82,7 @@ public class AnthropicDelta {
     /**
      * 判断是否为工具输入增量
      */
+    @JsonIgnore
     public boolean isInputJsonDelta() {
         return "input_json_delta".equals(type);
     }
@@ -86,6 +90,7 @@ public class AnthropicDelta {
     /**
      * 判断是否为签名增量
      */
+    @JsonIgnore
     public boolean isSignatureDelta() {
         return "signature_delta".equals(type);
     }
@@ -93,6 +98,7 @@ public class AnthropicDelta {
     /**
      * 获取实际的增量内容（自动判断类型）
      */
+    @JsonIgnore
     public String getDeltaContent() {
         if (isTextDelta()) {
             return text;

@@ -58,6 +58,12 @@ public class OpenAIClient implements ApiClient {
         // 发送请求
         if (log.isDebugEnabled()) {
             log.debug("[OpenAIAdapter] chatCompletion start provider={} model={} stream=false", config.getName(), openaiRequest.getModel());
+            try {
+                String requestJson = JsonUtils.toJson(openaiRequest);
+                log.debug("[OpenAIAdapter] chatCompletion request: {}", requestJson);
+            } catch (Exception e) {
+                log.debug("[OpenAIAdapter] Failed to serialize request: {}", e.getMessage());
+            }
         }
 
         return webClient.post()
@@ -98,6 +104,12 @@ public class OpenAIClient implements ApiClient {
 
         if (log.isDebugEnabled()) {
             log.debug("[OpenAIAdapter] streamChatCompletion start provider={} model={} stream=true", config.getName(), openaiRequest.getModel());
+            try {
+                String requestJson = JsonUtils.toJson(openaiRequest);
+                log.debug("[OpenAIAdapter] streamChatCompletion request: {}", requestJson);
+            } catch (Exception e) {
+                log.debug("[OpenAIAdapter] Failed to serialize request: {}", e.getMessage());
+            }
         }
 
         return webClient.post()
@@ -208,25 +220,16 @@ public class OpenAIClient implements ApiClient {
 
         // 检查结束标记
         if (SSE_DONE_MARKER.equals(trimmed)) {
-            if (log.isTraceEnabled()) {
-                log.trace("[OpenAIAdapter] Received stream completion marker");
-            }
             return null;
         }
         // 尝试解析JSON
         try {
             ChatCompletionChunk chunk = JsonUtils.fromJson(trimmed, ChatCompletionChunk.class);
             if (chunk != null) {
-                if (log.isTraceEnabled()) {
-                    log.trace("[OpenAIAdapter] Received stream chunk: {}", chunk);
-                }
                 return chunk;
             }
         } catch (Exception e) {
-            if (log.isTraceEnabled()) {
-                log.trace("[OpenAIAdapter] Failed to parse stream chunk: {} - Data: {}",
-                        e.getMessage(), trimmed.length() > 100 ? trimmed.substring(0, 100) + "..." : trimmed);
-            }
+            // 解析失败，返回null
         }
 
         return null;

@@ -49,29 +49,44 @@ public class AnthropicTransform implements VendorTransform {
         if (!(vendorRequest instanceof AnthropicChatRequest req)) {
             return null;
         }
-        // 设置基础字段
+
         UnifiedChatRequest unifiedRequest = new UnifiedChatRequest();
-        AnthropicTransformUtils.convertBaseToUnified(req, unifiedRequest);
-
-        // 设置tools
-        AnthropicTransformUtils.convertToolsToUnified(req, unifiedRequest);
-
-        // 设置tool_choice
-        AnthropicTransformUtils.convertToolChoiceToUnified(req, unifiedRequest);
-
-        // 设置思考字段
-        AnthropicTransformUtils.convertThinkingToUnified(req, unifiedRequest);
-
-        // 设置配置思考字段
-        if (unifiedRequest.getTempFields() != null) {
-            unifiedRequest.getTempFields().put("config_thinking", configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel()));
+        unifiedRequest.setModel(req.getModel());
+        unifiedRequest.setStream(req.getStream());
+        unifiedRequest.setMaxTokens(req.getMaxTokens());
+        unifiedRequest.setTemperature(req.getTemperature());
+        unifiedRequest.setTopP(req.getTopP());
+        unifiedRequest.setTopK(req.getTopK());
+        unifiedRequest.setStop(req.getStopSequences());
+        
+        // 转换消息
+        if (req.getMessages() != null) {
+            List<OpenAIMessage> openAiMessages = new ArrayList<>();
+            for (AnthropicMessage anthropicMessage : req.getMessages()) {
+                openAiMessages.add(AnthropicTransformUtils.anthropicToOpenAiMessage(anthropicMessage));
+            }
+            unifiedRequest.setMessages(openAiMessages);
         }
-
-        // 转换messages
-        AnthropicTransformUtils.convertMessagesToUnified(req, unifiedRequest);
-
-        // 处理系统消息（Anthropic的system字段转换为OpenAI格式的系统消息）
-        AnthropicTransformUtils.convertSystemToUnified(req, unifiedRequest);
+        
+        // 转换工具
+        unifiedRequest.setTools(AnthropicTransformUtils.anthropicToOpenAiTools(req.getTools()));
+        unifiedRequest.setToolChoice(AnthropicTransformUtils.anthropicToOpenAiToolChoice(req.getToolChoice()));
+        
+        // 设置系统提示
+        if (req.getSystem() != null) {
+            OpenAIMessage systemMessage = new OpenAIMessage();
+            systemMessage.setRole("system");
+            OpenAITextContent textContent = new OpenAITextContent();
+            textContent.setType("text");
+            textContent.setText(req.getSystem());
+            systemMessage.setContent(Collections.singletonList(textContent));
+            
+            // 将系统消息添加到消息列表的开头
+            if (unifiedRequest.getMessages() == null) {
+                unifiedRequest.setMessages(new ArrayList<>());
+            }
+            unifiedRequest.getMessages().add(0, systemMessage);
+        }
 
         return unifiedRequest;
     }
@@ -79,24 +94,38 @@ public class AnthropicTransform implements VendorTransform {
     @Override
     public Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
         AnthropicChatRequest anthropicRequest = new AnthropicChatRequest();
+        anthropicRequest.setModel(unifiedRequest.getModel());
+        anthropicRequest.setStream(unifiedRequest.getStream());
+        anthropicRequest.setMaxTokens(unifiedRequest.getMaxTokens());
+        anthropicRequest.setTemperature(unifiedRequest.getTemperature());
+        anthropicRequest.setTopP(unifiedRequest.getTopP());
+        anthropicRequest.setTopK(unifiedRequest.getTopK());
+        anthropicRequest.setStopSequences(unifiedRequest.getStop());
         
-        // 设置基础字段
-        AnthropicTransformUtils.convertBaseToAnthropic(unifiedRequest, anthropicRequest);
-
-        // 设置tools
-        AnthropicTransformUtils.convertToolsToAnthropic(unifiedRequest, anthropicRequest);
-
-        // 设置tool_choice
-        AnthropicTransformUtils.convertToolChoiceToAnthropic(unifiedRequest, anthropicRequest);
-
-        // 设置思考字段
-        AnthropicTransformUtils.convertThinkingToAnthropic(unifiedRequest, anthropicRequest);
-
-        // 转换messages
-        AnthropicTransformUtils.convertMessagesToAnthropic(unifiedRequest, anthropicRequest);
-
-        // 处理系统消息（从OpenAI格式的系统消息转换为Anthropic的system字段）
-        AnthropicTransformUtils.convertSystemToAnthropic(unifiedRequest, anthropicRequest);
+        // 转换消息
+        if (unifiedRequest.getMessages() != null) {
+            List<AnthropicMessage> anthropicMessages = new ArrayList<>();
+            for (OpenAIMessage openAiMessage : unifiedRequest.getMessages()) {
+                // 处理系统消息的特殊情况
+                if ("system".equals(openAiMessage.getRole())) {
+                    if (openAiMessage.getContent() != null && !openAiMessage.getContent().isEmpty()) {
+                        OpenAIContent firstContent = openAiMessage.getContent().get(0);
+                        if (firstContent instanceof OpenAITextContent) {
+                            anthropicRequest.setSystem(((OpenAITextContent) firstContent).getText());
+                        }
+                    }
+                } else {
+                    anthropicMessages.add(AnthropicTransformUtils.openAiToAnthropicMessage(openAiMessage));
+                }
+            }
+            anthropicRequest.setMessages(anthropicMessages);
+        }
+        
+        // 转换工具
+        anthropicRequest.setTools(AnthropicTransformUtils.openAiToAnthropicTools(unifiedRequest.getTools()));
+        
+        // 转换工具选择策略
+        anthropicRequest.setToolChoice(AnthropicTransformUtils.openAiToAnthropicToolChoice(unifiedRequest.getToolChoice()));
 
         return anthropicRequest;
     }
@@ -109,156 +138,93 @@ public class AnthropicTransform implements VendorTransform {
         }
 
         UnifiedChatResponse unifiedResponse = new UnifiedChatResponse();
-        
-        // 设置基础字段
         unifiedResponse.setId(message.getId());
         unifiedResponse.setModel(message.getModel());
         unifiedResponse.setObject("chat.completion");
-        unifiedResponse.setCreated(System.currentTimeMillis() / 1000); // Unix timestamp in seconds
-
-        // 转换内容
+        unifiedResponse.setCreated(System.currentTimeMillis() / 1000);
+        
+        // 转换使用量统计
+        unifiedResponse.setUsage(AnthropicTransformUtils.anthropicToOpenAiUsage(message.getUsage()));
+        
+        // 转换消息内容
         Choice choice = new Choice();
         choice.setIndex(0);
-        choice.setFinishReason(convertStopReasonToFinishReason(message.getStopReason()));
+        choice.setMessage(AnthropicTransformUtils.anthropicToOpenAiMessage(message));
         
-        OpenAIMessage openAIMessage = new OpenAIMessage();
-        openAIMessage.setRole(message.getRole());
-        
-        // 转换内容块
-        List<OpenAIContent> openAIContents = new ArrayList<>();
-        StringBuilder reasoningContent = new StringBuilder();
-        
-        if (message.getContent() != null) {
-            for (AnthropicContent content : message.getContent()) {
-                if (content instanceof AnthropicThinkingContent thinkingContent) {
-                    // 处理思考内容
-                    reasoningContent.append(thinkingContent.getThinking());
-                } else {
-                    OpenAIContent openAIContent = AnthropicTransformUtils.convertAnthropicContentToOpenAI(content);
-                    if (openAIContent != null) {
-                        openAIContents.add(openAIContent);
-                    }
-                }
+        // 设置结束原因
+        if (message.getStopReason() != null) {
+            switch (message.getStopReason()) {
+                case "end_turn":
+                    choice.setFinishReason("stop");
+                    break;
+                case "max_tokens":
+                    choice.setFinishReason("length");
+                    break;
+                case "stop_sequence":
+                    choice.setFinishReason("stop");
+                    break;
+                default:
+                    choice.setFinishReason(message.getStopReason());
+                    break;
             }
         }
         
-        openAIMessage.setContent(openAIContents);
-        if (!reasoningContent.isEmpty()) {
-            openAIMessage.setReasoningContent(reasoningContent.toString());
-        }
-        
-        choice.setMessage(openAIMessage);
         unifiedResponse.setChoices(Collections.singletonList(choice));
-
-        // 转换使用量统计
-        if (message.getUsage() != null) {
-            Usage usage = new Usage();
-            usage.setPromptTokens(message.getUsage().getInputTokens());
-            usage.setCompletionTokens(message.getUsage().getOutputTokens());
-            usage.setTotalTokens(
-                (message.getUsage().getInputTokens() != null ? message.getUsage().getInputTokens() : 0) +
-                (message.getUsage().getOutputTokens() != null ? message.getUsage().getOutputTokens() : 0)
-            );
-            unifiedResponse.setUsage(usage);
-        }
 
         return unifiedResponse;
     }
 
-    /**
-     * 将Anthropic的停止原因转换为OpenAI的完成原因
-     * @param stopReason Anthropic的停止原因
-     * @return OpenAI的完成原因
-     */
-    private String convertStopReasonToFinishReason(String stopReason) {
-        if (stopReason == null) {
-            return null;
-        }
-        
-        return switch (stopReason) {
-            case "end_turn" -> "stop";
-            case "max_tokens" -> "length";
-            case "stop_sequence" -> "stop";
-            case "tool_use" -> "tool_calls";
-            default -> stopReason;
-        };
-    }
+
 
     @Override
     public Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse) {
-        if (unifiedResponse == null) {
+        if (unifiedResponse == null || unifiedResponse.getChoices() == null || unifiedResponse.getChoices().isEmpty()) {
             return null;
         }
 
         AnthropicMessage anthropicMessage = new AnthropicMessage();
-        
-        // 设置基础字段
-        anthropicMessage.setId(unifiedResponse.getId());
-        anthropicMessage.setModel(unifiedResponse.getModel());
         anthropicMessage.setType("message");
+        anthropicMessage.setId(unifiedResponse.getId() != null ? unifiedResponse.getId() : "msg_" + UUID.randomUUID().toString().replace("-", ""));
+        anthropicMessage.setModel(unifiedResponse.getModel());
         
-        // 设置使用量统计
+        // 转换第一个选择项
+        Choice choice = unifiedResponse.getChoices().get(0);
+        if (choice.getMessage() != null) {
+            // 转换消息内容
+            AnthropicMessage convertedMessage = AnthropicTransformUtils.openAiToAnthropicMessage(choice.getMessage());
+            if (convertedMessage != null) {
+                anthropicMessage.setRole(convertedMessage.getRole());
+                anthropicMessage.setContent(convertedMessage.getContent());
+            }
+        }
+        
+        // 转换使用量统计
         if (unifiedResponse.getUsage() != null) {
             AnthropicUsage anthropicUsage = new AnthropicUsage();
             anthropicUsage.setInputTokens(unifiedResponse.getUsage().getPromptTokens());
             anthropicUsage.setOutputTokens(unifiedResponse.getUsage().getCompletionTokens());
+            if (unifiedResponse.getUsage().getPromptTokens() != null && unifiedResponse.getUsage().getCompletionTokens() != null) {
+                // Anthropic没有total_tokens字段，但我们可以计算它
+            }
             anthropicMessage.setUsage(anthropicUsage);
         }
-
-        // 处理choices
-        if (unifiedResponse.getChoices() != null && !unifiedResponse.getChoices().isEmpty()) {
-            // 使用第一个choice作为主要响应
-            Choice choice = unifiedResponse.getChoices().get(0);
-            
-            // 设置角色
-            if (choice.getMessage() != null) {
-                anthropicMessage.setRole(choice.getMessage().getRole());
-                
-                // 转换内容
-                List<AnthropicContent> anthropicContents = new ArrayList<>();
-                
-                // 处理推理内容
-                if (choice.getMessage().getReasoningContent() != null && !choice.getMessage().getReasoningContent().isEmpty()) {
-                    AnthropicThinkingContent thinkingContent = new AnthropicThinkingContent();
-                    thinkingContent.setThinking(choice.getMessage().getReasoningContent());
-                    anthropicContents.add(thinkingContent);
-                }
-                
-                // 处理其他内容
-                if (choice.getMessage().getContent() != null) {
-                    for (OpenAIContent openAIContent : choice.getMessage().getContent()) {
-                        AnthropicContent anthropicContent = AnthropicTransformUtils.convertOpenAIContentToAnthropic(openAIContent);
-                        if (anthropicContent != null) {
-                            anthropicContents.add(anthropicContent);
-                        }
-                    }
-                }
-                
-                anthropicMessage.setContent(anthropicContents);
-                
-                // 设置停止原因
-                anthropicMessage.setStopReason(convertFinishReasonToStopReason(choice.getFinishReason()));
+        
+        // 设置停止原因
+        if (choice.getFinishReason() != null) {
+            switch (choice.getFinishReason()) {
+                case "stop":
+                    anthropicMessage.setStopReason("end_turn");
+                    break;
+                case "length":
+                    anthropicMessage.setStopReason("max_tokens");
+                    break;
+                default:
+                    anthropicMessage.setStopReason(choice.getFinishReason());
+                    break;
             }
         }
 
         return anthropicMessage;
     }
 
-    /**
-     * 将OpenAI的完成原因转换为Anthropic的停止原因
-     * @param finishReason OpenAI的完成原因
-     * @return Anthropic的停止原因
-     */
-    private String convertFinishReasonToStopReason(String finishReason) {
-        if (finishReason == null) {
-            return null;
-        }
-        
-        return switch (finishReason) {
-            case "stop" -> "end_turn";
-            case "length" -> "max_tokens";
-            case "tool_calls" -> "tool_use";
-            default -> finishReason;
-        };
-    }
 }

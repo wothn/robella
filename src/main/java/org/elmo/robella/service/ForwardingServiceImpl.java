@@ -113,8 +113,7 @@ public class ForwardingServiceImpl implements ForwardingService {
                 return (String) obj;
             } else if (obj != null) {
                 // 对于非字符串对象，转换为JSON字符串
-                String json = JsonUtils.toJson(obj);
-                return json != null ? json : obj.toString();
+                return JsonUtils.toJson(obj);
             }
             return null; // 这里应该被filter过滤掉
         }).filter(Objects::nonNull);
