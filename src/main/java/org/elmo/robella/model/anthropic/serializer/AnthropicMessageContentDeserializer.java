@@ -72,6 +72,7 @@ public class AnthropicMessageContentDeserializer extends JsonDeserializer<List<A
         
         String type = node.get("type").asText();
         return switch (type) {
+            case "text" -> mapper.treeToValue(node, AnthropicTextContent.class);
             case "image" -> mapper.treeToValue(node, AnthropicImageContent.class);
             case "tool_use" -> mapper.treeToValue(node, AnthropicToolUseContent.class);
             case "tool_result" -> mapper.treeToValue(node, AnthropicToolResultContent.class);
