@@ -25,6 +25,13 @@ public class OpenAIStreamToUnifiedTransformer implements StreamToUnifiedTransfor
             unifiedChunk.setSystemFingerprint(chunk.getSystemFingerprint());
             unifiedChunk.setUsage(chunk.getUsage());
             return unifiedChunk;
-        }).filter(unifiedChunk -> unifiedChunk != null && unifiedChunk.getChoices() != null && !unifiedChunk.getChoices().isEmpty());
+        }).filter(unifiedChunk -> {
+            // 放宽过滤条件：保留仅包含 usage 的分片（choices 为空但 usage 非空），
+            // 以便下游转换器可以及时发送 usage 的 message_delta。
+            if (unifiedChunk == null) return false;
+            boolean hasChoices = unifiedChunk.getChoices() != null && !unifiedChunk.getChoices().isEmpty();
+            boolean hasUsage = unifiedChunk.getUsage() != null;
+            return hasChoices || hasUsage;
+        });
     }
 }
