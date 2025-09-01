@@ -182,15 +182,22 @@ public class AnthropicStreamToUnifiedTransformer implements StreamToUnifiedTrans
             chunk.setId(state.getMessageId());
             chunk.setModel(state.getModel());
 
-            // 转换AnthropicUsage到OpenAI Usage
-            // 注意：Anthropic在message_delta事件中只返回output_tokens，需要结合message_start中的input_tokens
-            if (messageDelta.getDelta().getUsage() != null) {
-                chunk.setUsage(convertUsage(messageDelta.getDelta().getUsage(), state.getInitialUsage()));
-            }
-
             Choice choice = new Choice();
             choice.setIndex(0);
-            choice.setFinishReason(convertStopReasonToFinishReason(messageDelta.getDelta().getStopReason()));
+
+            // 根据delta中包含的属性来设置相应的字段
+            AnthropicDelta delta = messageDelta.getDelta();
+            
+            // 如果包含usage信息，则设置usage
+            if (messageDelta.getUsage() != null) {
+                chunk.setUsage(convertUsage(messageDelta.getUsage(), state.getInitialUsage()));
+            }
+
+            // 如果包含stopReason，则设置finishReason
+            if (delta.getStopReason() != null) {
+                choice.setFinishReason(convertStopReasonToFinishReason(delta.getStopReason()));
+            }
+
             chunk.setChoices(List.of(choice));
 
         } else if (event instanceof AnthropicContentBlockStopEvent ||
