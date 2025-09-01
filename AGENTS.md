@@ -1,67 +1,87 @@
-# Agent.md
+# AGENTS.md
 
-This file provides guidance to Agent Code when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Build and Development Commands
 
 **Build**: `mvn clean package`
-**Run**: `java -jar target/robella-1.0.0.jar`
 
 ## Architecture Overview
 
-Robella is a Spring Boot WebFlux reactive AI API aggregation gateway that unifies multiple AI providers (OpenAI, Anthropic, Gemini, etc.) into standardized API interfaces.
+Robella is a Spring Boot WebFlux reactive AI API aggregation gateway that unifies multiple AI providers (OpenAI, Anthropic, etc.) into standardized API interfaces with advanced streaming capabilities.
 
 ### Key Architecture Components
 
-**Data Flow**: `HTTP Request → Controller → ForwardingService → RoutingService → AIApiClient → Vendor API → TransformService`
+**Data Flow**: `HTTP Request → Controller → ForwardingService → RoutingService → ApiClient → Vendor API → Dual-Layer Stream Transform → Response`
 
 **Core Services**:
-- `ForwardingServiceImpl` - Request dispatch entry point, handles model mapping and stream response filtering
-- `RoutingServiceImpl` - Model→provider routing decisions, adapter instance caching
-- `TransformServiceImpl` - Routes to specific VendorTransform implementations via VendorTransformRegistry
+- `ForwardingServiceImpl` - Request dispatch with model name mapping (`mapModelName()`) and dual-layer stream orchestration
+- `RoutingServiceImpl` - Provider routing decisions, client instance caching, model list management
+- `TransformServiceImpl` - Delegates to VendorTransform via `VendorTransformRegistry`
+- `StreamTransformerFactory` - Factory for dual-layer stream transformers with session management
 
 **Key Design Principles**:
-- Endpoint format separation (OpenAI format independent of backend provider type)
-- Unified conversion layer using `UnifiedChatRequest/Response/StreamChunk` as internal intermediate format
-- Reactive stream processing with WebFlux `Mono/Flux`
+- Endpoint format separation (OpenAI format independent of backend provider)
+- Dual-layer streaming: `Vendor → Unified → Endpoint` with stateful session tracking
+- Unified conversion using `UnifiedChatRequest/Response/StreamChunk` as intermediate format
+- Reactive stream processing with WebFlux `Mono/Flux` and backpressure
+
+### Dual-Layer Stream Processing Architecture
+
+**Stream Transformation Flow**:
+1. **Vendor → Unified**: `StreamToUnifiedTransformer` converts vendor SSE events to `UnifiedStreamChunk`
+2. **Unified → Endpoint**: `UnifiedToEndpointTransformer` converts to client-expected format (OpenAI/Anthropic)
+3. **Session Management**: UUID-based session tracking for stateful stream transformations
+
+**Stream Components**:
+- `StreamTransformerFactory`: Factory providing transformer instances by `ProviderType`
+- Session-based state management using `UUID.randomUUID().toString()`
+- Filter empty chunks, return only content changes or end signals
+- OpenAI endpoints append `[DONE]` marker via `concatWith(Flux.just("[DONE]"))`
 
 ### Provider/Adapter System
-- **Interface**: `AIApiClient` defines contract (`chatCompletion()`, `streamChatCompletion()`)
-- **Factory**: `ClientFactory.createClient()` creates instances based on `ProviderType` enum
+- **Interface**: `ApiClient` contract (`chatCompletion()`, `streamChatCompletion()`)
+- **Factory**: `ClientFactory.createClient()` by `ProviderType` enum
 - **Built-in Adapters**:
-    - `OpenAIClient`: Handles OpenAI and compatible providers (DeepSeek, ModelScope, AIHubMix). Azure support via `deploymentName` with URL pattern `/deployments/{name}/chat/completions`
-    - `AnthropicClient`: Anthropic Messages API (`/messages`), handles SSE streaming
+    - `OpenAIClient`: OpenAI and compatible (DeepSeek, ModelScope, AIHubMix). Azure via `deploymentName` with URL pattern `/deployments/{name}/chat/completions`
+    - `AnthropicClient`: Anthropic Messages API (`/messages`), SSE streaming
 
 ### Configuration & Routing
-- **Config File**: `application.yml` with `providers:` section binding to `ProviderConfig`
+- **Config File**: `application.yml` with `providers:` section → `ProviderConfig`
 - **Provider Structure**: `name, type, api-key, base-url, deploymentName?, models[]{name, vendor-model}`
-- **Routing Strategy**: `RoutingServiceImpl.decideProviderByModel()` linear scan of all providers.models to match requested model, defaults to "openai" if no match
-- **Environment Variables**: API Keys use `${ENV_VAR}` placeholders (e.g., `${OPENAI_API_KEY}`, `${ANTHROPIC_API_KEY}`)
+- **Model Mapping**: `ForwardingServiceImpl.mapModelName()` maps client model names to vendor models via `ConfigUtils.getModelMapping()`
+- **Routing Strategy**: `RoutingServiceImpl.decideProviderByModel()` linear scan, defaults to "openai"
+- **Environment Variables**: API keys use `${ENV_VAR}` (e.g., `${OPENAI_API_KEY}`, `${ANTHROPIC_API_KEY}`)
 
 ### Unified Model Conversion
 - **Format**: `model/internal/UnifiedChatRequest/Response/StreamChunk` as internal representation
-- **Registry**: `VendorTransformRegistry` manually registers vendor-specific transformers
+- **Registry**: `VendorTransformRegistry` manually registers transformers in constructor
 - **Transformers**: `service/transform/*VendorTransform` handle bidirectional conversions
+- **Stream Chunk**: `UnifiedStreamChunk` uses OpenAI `Choice` and `Usage` structures for compatibility
 
-### Stream Processing
-- Uses WebFlux `Flux<UnifiedStreamChunk>` for reactive stream handling with backpressure support
-- **Conversion Flow**: Vendor SSE events → `VendorTransform.vendorStreamEventToUnified()` → `UnifiedStreamChunk` → endpoint format
-- **OpenAIClient**: Sets `request.setStream(true)`, receives `text/event-stream` fragments
-- **AnthropicClient**: Uses `Accept: text/event-stream`, parses SSE events
-- **Filtering**: `ForwardingService.streamUnified()` filters empty chunks, only returns content changes or end signals
-- **End Marker**: OpenAI endpoints return `[DONE]` marker added via `concatWith(Flux.just("[DONE]"))`
+### Stream Processing Details
+- **Reactive Streams**: WebFlux `Flux<UnifiedStreamChunk>` with backpressure support
+- **Conversion Flow**: 
+  1. Vendor SSE → `StreamToUnifiedTransformer.transformToUnified()` → `UnifiedStreamChunk`
+  2. `UnifiedStreamChunk` → `UnifiedToEndpointTransformer.transformToEndpoint()` → Endpoint format
+- **Session Management**: Each stream gets unique session ID for state tracking across transformations
+- **Filtering**: `ForwardingService.streamUnified()` filters null/empty chunks
+- **Type Safety**: Final conversion to `Flux<String>` with JSON serialization fallback
 
 ### Error Handling
-- All downstream HTTP exceptions wrapped as `ProviderException`
-- Uses WebFlux `onErrorMap` and `onErrorResume` for reactive error handling
+- Downstream HTTP exceptions wrapped as `ProviderException`
+- WebFlux `onErrorMap` and `onErrorResume` for reactive error handling
 - Exception propagation maintains stack trace integrity
+- Stream error handling preserves session context
 
 ## Key Files
-- **Services**: `service/ForwardingServiceImpl` (request dispatch), `service/RoutingServiceImpl` (routing & caching), `service/TransformServiceImpl` (transform routing)
-- **Transformers**: `service/transform/*VendorTransform` (conversion logic), `VendorTransformRegistry` (transformer registry)
-- **Clients**: `client/*Client` (HTTP client wrappers), `ClientFactory` (client creation)
+- **Core Services**: `service/ForwardingServiceImpl` (dispatch & model mapping), `service/RoutingServiceImpl` (routing & caching), `service/TransformServiceImpl` (transform routing)
+- **Stream Processing**: `service/stream/StreamTransformerFactory` (transformer factory), `service/stream/*/` (vendor-specific transformers)
+- **Transformers**: `service/transform/*VendorTransform` (conversion logic), `VendorTransformRegistry` (registry)
+- **Models**: `model/internal/UnifiedStreamChunk` (unified stream format), `model/*/stream/` (vendor stream events)
+- **Clients**: `client/*Client` (HTTP wrappers), `ClientFactory` (client creation)
 - **Configuration**: `config/ProviderConfig` (config binding), `config/ProviderType` (provider enum), `application.yml` (main config)
-- **Controllers**: `controller/OpenAIController` (OpenAI-compatible API), `controller/AnthropicController` (Anthropic API)
+- **Controllers**: `controller/OpenAIController`, `controller/AnthropicController`
 
 ## Adding New Providers
 
@@ -73,21 +93,34 @@ Add new provider node in `application.yml` using existing type (`OpenAI` or `Ant
 
 ### Adding New Protocol (new type)
 1. Add `ProviderType` enum entry with `fromString()` parsing logic
-2. Implement new `AIProviderAdapter` with `chatCompletion()` and `streamChatCompletion()` methods
-3. Update `AdapterFactory` switch statement
-4. Implement corresponding `VendorTransform` with bidirectional conversions and register in `VendorTransformRegistry`
-5. Add provider configuration in `application.yml` with matching type
+2. Implement new `ApiClient` with `chatCompletion()` and `streamChatCompletion()` methods
+3. Update `ClientFactory` switch statement
+4. Implement `VendorTransform` with bidirectional conversions and register in `VendorTransformRegistry`
+5. Create `StreamToUnifiedTransformer` and `UnifiedToEndpointTransformer` implementations
+6. Update `StreamTransformerFactory` switch statements for both transformer types
+7. Add provider configuration in `application.yml` with matching type
 
 ## Performance & Caching
 - **Client Caching**: `RoutingServiceImpl.clientCache` (ConcurrentHashMap) caches client instances
-- **Model List Caching**: AtomicReference ensures thread safety, initialized via @PostConstruct, call `refreshModelCache()` to reload
-- **Connection Pool**: WebClient uses Reactor Netty connection pool configured in `robella.webclient.connection-pool` (max 500 connections)
-- **Timeouts**: Connect (10s), Read (60s), Write (30s) configured in `robella.webclient.timeout`
-- **Retry Logic**: Max 3 attempts with exponential backoff (1s initial, 10s max delay)
+- **Model List Caching**: AtomicReference for thread safety, `@PostConstruct` initialization, `refreshModelCache()` to reload
+- **Connection Pool**: WebClient uses Reactor Netty pool - max 500 connections, 20s idle, 60s lifetime
+- **Timeouts**: Connect 10s, Read 60s, Write 30s (`robella.webclient.timeout`)
+- **Retry Logic**: Max 3 attempts, exponential backoff (1s initial, 10s max)
+- **Stream Buffering**: 32MB in-memory buffer for large payloads
 
 ## Development Guidelines
-- **Security**: Never hardcode API keys, use `${ENV_VAR}` placeholders in configuration
-- **Type Consistency**: Ensure `ProviderConfig.Provider.type` matches `ProviderType` enum values
-- **Reactive Programming**: Use WebFlux `Mono/Flux`, avoid blocking operations
-- **Error Handling**: Wrap exceptions as `ProviderException` in adapters using `onErrorMap`
-- **Logging**: Use `log.debug`/`log.trace` for new logs to avoid noise
+- **Reactive Programming**: Always use WebFlux `Mono/Flux`, avoid blocking operations
+- **Stream Session Management**: Each stream transformation requires unique session ID
+- **Error Handling**: Wrap exceptions as `ProviderException`, use reactive error operators
+- **Type Safety**: Ensure consistent `ProviderType` enum values across config and factory switches
+- **Security**: Never hardcode API keys, use `${ENV_VAR}` placeholders
+- **Testing**: Current test directory empty - add unit tests for transformers and integration tests for stream processing
+- **Logging**: Use `log.debug`/`log.trace` levels, especially for stream state transitions
+- **Model Mapping**: Use `ConfigUtils.getModelMapping()` for client→vendor model name translation
+
+## Debugging Stream Processing
+- **Session Tracking**: Each stream has UUID session ID in logs
+- **Transform Layers**: Monitor both vendor→unified and unified→endpoint conversions
+- **Empty Chunk Filtering**: Check for null/empty chunks being filtered in `ForwardingService`
+- **WebFlux Debugging**: Enable `reactor.netty.http.client: DEBUG` for network-level issues
+- **Stream State**: Monitor session-based state management in transformers
