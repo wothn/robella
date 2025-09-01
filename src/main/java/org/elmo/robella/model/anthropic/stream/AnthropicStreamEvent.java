@@ -9,7 +9,12 @@ import lombok.Data;
  * Anthropic 流式事件基类
  */
 @Data
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "type",
+    visible = true
+)
 @JsonSubTypes({
     @JsonSubTypes.Type(value = AnthropicMessageStartEvent.class, name = "message_start"),
     @JsonSubTypes.Type(value = AnthropicContentBlockStartEvent.class, name = "content_block_start"),
