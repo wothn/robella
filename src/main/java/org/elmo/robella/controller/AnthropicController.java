@@ -2,6 +2,7 @@ package org.elmo.robella.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
@@ -25,6 +26,7 @@ import reactor.core.publisher.Flux;
 @RestController
 @RequestMapping("/anthropic/v1")
 @RequiredArgsConstructor
+@Slf4j
 public class AnthropicController {
 
     private final ForwardingService forwardingService;
@@ -40,11 +42,13 @@ public class AnthropicController {
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public Object createMessage(@RequestBody @Valid AnthropicChatRequest request) {
+        log.info("Received Anthropic request: {}", request);
 
         // 将 Anthropic 请求转换为内部统一格式（使用端点格式）
         UnifiedChatRequest unified = transformService.endpointRequestToUnified(request, ProviderType.Anthropic.getName());
-        boolean stream = Boolean.TRUE.equals(request.getStream());
+        log.info("Transformed Unified request: {}", unified);
 
+        boolean stream = Boolean.TRUE.equals(request.getStream());
         if (stream) {
             // 使用带端点族转换的流式接口
             var rawFlux = forwardingService.streamUnified(unified, null, ProviderType.Anthropic.getName());
