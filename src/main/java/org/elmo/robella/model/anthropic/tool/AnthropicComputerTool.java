@@ -3,12 +3,14 @@ package org.elmo.robella.model.anthropic.tool;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Anthropic 计算机工具
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 public class AnthropicComputerTool extends AnthropicTool {
     
     /**

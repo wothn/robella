@@ -1,6 +1,6 @@
 package org.elmo.robella.model.anthropic.tool;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Data;
@@ -9,7 +9,7 @@ import lombok.Data;
  * Anthropic 工具定义基类
  */
 @Data
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = AnthropicCustomTool.class, visible = true)
 @JsonSubTypes({
     @JsonSubTypes.Type(value = AnthropicCustomTool.class, name = "custom"),
     @JsonSubTypes.Type(value = AnthropicComputerTool.class, name = "computer_20241022"),
