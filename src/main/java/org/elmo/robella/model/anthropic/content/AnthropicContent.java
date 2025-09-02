@@ -8,7 +8,12 @@ import lombok.Data;
  * Anthropic 内容块基类
  */
 @Data
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "type",
+    visible = true
+)
 @JsonSubTypes({
     @JsonSubTypes.Type(value = AnthropicTextContent.class, name = "text"),
     @JsonSubTypes.Type(value = AnthropicImageContent.class, name = "image"),
