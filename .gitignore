@@ -78,7 +78,9 @@ build/
 # VS Code
 .vscode/
 
+# AI Agent
 .roo/
+./clinerules/
 
 # Logs
 logs
