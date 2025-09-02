@@ -25,6 +25,6 @@ public class OpenAIUnifiedToEndpointTransformer implements UnifiedToEndpointTran
             chunk.setSystemFingerprint(unifiedChunk.getSystemFingerprint());
             chunk.setUsage(unifiedChunk.getUsage());
             return chunk;
-        }).filter(chunk -> chunk != null && chunk.getChoices() != null && !chunk.getChoices().isEmpty());
+        });
     }
 }
