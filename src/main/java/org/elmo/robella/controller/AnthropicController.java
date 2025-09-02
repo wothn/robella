@@ -41,7 +41,7 @@ public class AnthropicController {
     @PostMapping(value = "/messages",
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
             consumes = MediaType.APPLICATION_JSON_VALUE)
-    public Object createMessage(@RequestBody @Valid AnthropicChatRequest request) {
+    public Mono<ResponseEntity<?>> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
         log.info("Received Anthropic request: {}", request);
 
         // 将 Anthropic 请求转换为内部统一格式（使用端点格式）
@@ -67,9 +67,9 @@ public class AnthropicController {
                         .build();
             });
 
-            return ResponseEntity.ok()
+            return Mono.just(ResponseEntity.ok()
                     .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .body(sseFlux);
+                    .body(sseFlux));
         } else {
             // 非流式响应
             return forwardingService.forwardUnified(unified, null)

@@ -8,19 +8,11 @@ import org.elmo.robella.model.internal.*;
 import org.elmo.robella.util.ConfigUtils;
 
 import org.elmo.robella.model.anthropic.core.*;
-import org.elmo.robella.model.anthropic.stream.*;
-import org.elmo.robella.model.anthropic.content.*;
 import org.elmo.robella.util.AnthropicTransformUtils;
 
-import org.elmo.robella.model.anthropic.content.AnthropicThinkingContent;
 import org.elmo.robella.model.openai.core.Choice;
 import org.elmo.robella.model.openai.core.OpenAIMessage;
-import org.elmo.robella.model.openai.core.Usage;
-import org.elmo.robella.model.openai.stream.Delta;
-import org.elmo.robella.model.openai.tool.ToolCall;
-import org.elmo.robella.model.openai.content.ImageUrl;
 import org.elmo.robella.model.openai.content.OpenAIContent;
-import org.elmo.robella.model.openai.content.OpenAIImageContent;
 import org.elmo.robella.model.openai.content.OpenAITextContent;
 
 import java.util.ArrayList;
@@ -35,7 +27,7 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 public class AnthropicTransform implements VendorTransform {
-    
+
     private final ConfigUtils configUtils;
 
 
@@ -58,7 +50,7 @@ public class AnthropicTransform implements VendorTransform {
         unifiedRequest.setTopP(req.getTopP());
         unifiedRequest.setTopK(req.getTopK());
         unifiedRequest.setStop(req.getStopSequences());
-        
+
         // 转换消息
         if (req.getMessages() != null) {
             List<OpenAIMessage> openAiMessages = new ArrayList<>();
@@ -67,11 +59,11 @@ public class AnthropicTransform implements VendorTransform {
             }
             unifiedRequest.setMessages(openAiMessages);
         }
-        
+
         // 转换工具
         unifiedRequest.setTools(AnthropicTransformUtils.anthropicToOpenAiTools(req.getTools()));
         unifiedRequest.setToolChoice(AnthropicTransformUtils.anthropicToOpenAiToolChoice(req.getToolChoice()));
-        
+
         // 设置系统提示
         if (req.getSystem() != null) {
             OpenAIMessage systemMessage = new OpenAIMessage();
@@ -80,7 +72,7 @@ public class AnthropicTransform implements VendorTransform {
             textContent.setType("text");
             textContent.setText(req.getSystem());
             systemMessage.setContent(Collections.singletonList(textContent));
-            
+
             // 将系统消息添加到消息列表的开头
             if (unifiedRequest.getMessages() == null) {
                 unifiedRequest.setMessages(new ArrayList<>());
@@ -101,7 +93,7 @@ public class AnthropicTransform implements VendorTransform {
         anthropicRequest.setTopP(unifiedRequest.getTopP());
         anthropicRequest.setTopK(unifiedRequest.getTopK());
         anthropicRequest.setStopSequences(unifiedRequest.getStop());
-        
+
         // 转换消息
         if (unifiedRequest.getMessages() != null) {
             List<AnthropicMessage> anthropicMessages = new ArrayList<>();
@@ -120,10 +112,10 @@ public class AnthropicTransform implements VendorTransform {
             }
             anthropicRequest.setMessages(anthropicMessages);
         }
-        
+
         // 转换工具
         anthropicRequest.setTools(AnthropicTransformUtils.openAiToAnthropicTools(unifiedRequest.getTools()));
-        
+
         // 转换工具选择策略
         anthropicRequest.setToolChoice(AnthropicTransformUtils.openAiToAnthropicToolChoice(unifiedRequest.getToolChoice()));
 
@@ -142,15 +134,15 @@ public class AnthropicTransform implements VendorTransform {
         unifiedResponse.setModel(message.getModel());
         unifiedResponse.setObject("chat.completion");
         unifiedResponse.setCreated(System.currentTimeMillis() / 1000);
-        
+
         // 转换使用量统计
         unifiedResponse.setUsage(AnthropicTransformUtils.anthropicToOpenAiUsage(message.getUsage()));
-        
+
         // 转换消息内容
         Choice choice = new Choice();
         choice.setIndex(0);
         choice.setMessage(AnthropicTransformUtils.anthropicToOpenAiMessage(message));
-        
+
         // 设置结束原因
         if (message.getStopReason() != null) {
             switch (message.getStopReason()) {
@@ -168,12 +160,11 @@ public class AnthropicTransform implements VendorTransform {
                     break;
             }
         }
-        
+
         unifiedResponse.setChoices(Collections.singletonList(choice));
 
         return unifiedResponse;
     }
-
 
 
     @Override
@@ -186,7 +177,7 @@ public class AnthropicTransform implements VendorTransform {
         anthropicMessage.setType("message");
         anthropicMessage.setId(unifiedResponse.getId() != null ? unifiedResponse.getId() : "msg_" + UUID.randomUUID().toString().replace("-", ""));
         anthropicMessage.setModel(unifiedResponse.getModel());
-        
+
         // 转换第一个选择项
         Choice choice = unifiedResponse.getChoices().get(0);
         if (choice.getMessage() != null) {
@@ -197,7 +188,7 @@ public class AnthropicTransform implements VendorTransform {
                 anthropicMessage.setContent(convertedMessage.getContent());
             }
         }
-        
+
         // 转换使用量统计
         if (unifiedResponse.getUsage() != null) {
             AnthropicUsage anthropicUsage = new AnthropicUsage();
@@ -208,7 +199,7 @@ public class AnthropicTransform implements VendorTransform {
             }
             anthropicMessage.setUsage(anthropicUsage);
         }
-        
+
         // 设置停止原因
         if (choice.getFinishReason() != null) {
             switch (choice.getFinishReason()) {
