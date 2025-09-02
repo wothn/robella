@@ -629,7 +629,7 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
         /**
          * 使用量信息（用于处理finish_reason和usage分离的情况）
          */
-        private org.elmo.robella.model.openai.core.Usage usage;
+        private Usage usage;
         /**
          * 消息阶段
          */
