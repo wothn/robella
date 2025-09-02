@@ -80,7 +80,8 @@ build/
 
 # AI Agent
 .roo/
-./clinerules/
+.clinerules/
+.claude/
 
 # Logs
 logs
