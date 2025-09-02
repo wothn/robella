@@ -32,11 +32,5 @@ public class CustomTool {
      * 可选，默认为无约束文本
      */
     private CustomToolFormat format;
-    
-    /**
-     * 设置工具名称
-     */
-    public void setName(String name) {
-        this.name = name;
-    }
+
 }

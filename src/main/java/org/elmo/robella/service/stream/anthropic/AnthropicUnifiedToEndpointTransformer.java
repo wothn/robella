@@ -158,10 +158,19 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
         // 处理推理内容
         if (delta.getReasoningContent() != null) {
             events.addAll(handleReasoningContent(delta.getReasoningContent(), state, unifiedChunk));
-        } else if (delta.getContent() != null && !delta.getContent().isEmpty()) {
-            events.addAll(handleTextContent(delta.getContent(), state));
         } else if (delta.getToolCalls() != null && !delta.getToolCalls().isEmpty()) {
+            // 优先处理工具调用，避免同时存在的空文本内容干扰
             events.addAll(handleToolCalls(delta.getToolCalls(), state));
+        } else if (delta.getContent() != null && !delta.getContent().isEmpty()) {
+            // 只有在没有工具调用时才处理文本内容，并且需要检查文本是否有实际内容
+            boolean hasActualTextContent = delta.getContent().stream()
+                    .filter(content -> content instanceof OpenAITextContent)
+                    .map(content -> ((OpenAITextContent) content).getText())
+                    .anyMatch(text -> text != null && !text.trim().isEmpty());
+            
+            if (hasActualTextContent) {
+                events.addAll(handleTextContent(delta.getContent(), state));
+            }
         }
 
         return events;
@@ -410,7 +419,25 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
         // 检查是否有工具调用需要停止
         for (ToolCall toolCall : toolCalls) {
             if (isToolCallComplete(toolCall)) {
-                BlockState blockState = state.getBlockStateByToolCallId(toolCall.getId());
+                BlockState blockState = null;
+                // 优先通过 ID 查找
+                if (toolCall.getId() != null) {
+                    blockState = state.getBlockStateByToolCallId(toolCall.getId());
+                }
+                // 若 ID 缺失或未命中，尝试使用 index 映射
+                if (blockState == null && toolCall.getIndex() != null) {
+                    Integer contentIdx = state.getToolCallIndexMapping(toolCall.getIndex());
+                    if (contentIdx != null) {
+                        blockState = state.getActiveBlockByIndex(contentIdx);
+                    }
+                }
+                // 若仍未命中且当前只有一个活跃的 tool_use 块，则回退到该块
+                if (blockState == null) {
+                    List<BlockState> activeToolBlocks = state.getBlockStates(BlockType.TOOL_USE);
+                    if (activeToolBlocks.size() == 1) {
+                        blockState = activeToolBlocks.get(0);
+                    }
+                }
                 if (blockState != null) {
                     events.add(state.stopBlock(blockState.getIndex()));
                 }
@@ -440,7 +467,14 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
 
         // 记录块状态和工具调用映射
         state.addBlockState(index, BlockType.TOOL_USE, toolCall.getId());
-        state.addToolCallMapping(toolCall.getId(), index);
+        // 映射：id -> contentIndex
+        if (toolCall.getId() != null) {
+            state.addToolCallMapping(toolCall.getId(), index);
+        }
+        // 额外映射：toolCall.index -> contentIndex（用于后续增量缺失id的情况）
+        if (toolCall.getIndex() != null) {
+            state.addToolCallIndexMapping(toolCall.getIndex(), index);
+        }
 
         return blockStart;
     }
@@ -449,11 +483,22 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
      * 创建工具使用增量事件
      */
     private Object createToolUseDelta(ToolCall toolCall, SessionState state) {
-        if (toolCall.getId() == null) {
-            return null;
+        Integer contentBlockIndex = null;
+        // 优先使用 id 映射
+        if (toolCall.getId() != null) {
+            contentBlockIndex = state.getToolCallMapping(toolCall.getId());
         }
-
-        Integer contentBlockIndex = state.getToolCallMapping(toolCall.getId());
+        // 若 id 缺失或未映射，尝试使用 index 映射
+        if (contentBlockIndex == null && toolCall.getIndex() != null) {
+            contentBlockIndex = state.getToolCallIndexMapping(toolCall.getIndex());
+        }
+        // 若仍未命中且当前仅有一个活跃 tool_use 块，则回退到该块
+        if (contentBlockIndex == null) {
+            List<BlockState> activeToolBlocks = state.getBlockStates(BlockType.TOOL_USE);
+            if (activeToolBlocks.size() == 1) {
+                contentBlockIndex = activeToolBlocks.get(0).getIndex();
+            }
+        }
         if (contentBlockIndex == null) {
             return null;
         }
@@ -622,6 +667,10 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
          * 工具调用ID到内容块索引的映射
          */
         private final Map<String, Integer> toolCallMappings = new ConcurrentHashMap<>();
+    /**
+     * 工具调用索引到内容块索引的映射（当上游增量缺失 id，仅有 index 时使用）
+     */
+    private final Map<Integer, Integer> toolCallIndexMappings = new ConcurrentHashMap<>();
         /**
          * 完成原因（用于处理finish_reason和usage分离的情况）
          */
@@ -738,6 +787,32 @@ public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointT
          */
         public Integer getToolCallMapping(String toolCallId) {
             return toolCallMappings.get(toolCallId);
+        }
+
+        /**
+         * 添加工具调用索引映射
+         */
+        public void addToolCallIndexMapping(Integer toolCallIndex, int contentBlockIndex) {
+            if (toolCallIndex != null) {
+                toolCallIndexMappings.put(toolCallIndex, contentBlockIndex);
+            }
+        }
+
+        /**
+         * 获取工具调用索引映射
+         */
+        public Integer getToolCallIndexMapping(Integer toolCallIndex) {
+            if (toolCallIndex == null) return null;
+            return toolCallIndexMappings.get(toolCallIndex);
+        }
+
+        /**
+         * 通过内容块索引获取活跃块（仅当块仍活跃时返回）
+         */
+        public BlockState getActiveBlockByIndex(Integer index) {
+            if (index == null) return null;
+            BlockState st = activeBlocks.get(index);
+            return (st != null && st.isActive()) ? st : null;
         }
 
         // 便捷访问器

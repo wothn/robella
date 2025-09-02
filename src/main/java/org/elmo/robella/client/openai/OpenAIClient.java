@@ -49,7 +49,7 @@ public class OpenAIClient implements ApiClient {
     @Override
     public Mono<ChatCompletionResponse> chatCompletion(Object request) {
         if (!(request instanceof ChatCompletionRequest openaiRequest)) {
-            return Mono.error(new ProviderException("Invalid request type for OpenAIAdapter: " + (request == null ? "null" : request.getClass().getName())));
+            return Mono.error(new ProviderException("Invalid request type for OpenAIClient: " + (request == null ? "null" : request.getClass().getName())));
         }
 
         // 构建URL
@@ -57,12 +57,12 @@ public class OpenAIClient implements ApiClient {
 
         // 发送请求
         if (log.isDebugEnabled()) {
-            log.debug("[OpenAIAdapter] chatCompletion start provider={} model={} stream=false", config.getName(), openaiRequest.getModel());
+            log.debug("[OpenAIClient] chatCompletion start provider={} model={} stream=false", config.getName(), openaiRequest.getModel());
             try {
                 String requestJson = JsonUtils.toJson(openaiRequest);
-                log.debug("[OpenAIAdapter] chatCompletion request: {}", requestJson);
+                log.debug("[OpenAIClient] chatCompletion request: {}", requestJson);
             } catch (Exception e) {
-                log.debug("[OpenAIAdapter] Failed to serialize request: {}", e.getMessage());
+                log.debug("[OpenAIClient] Failed to serialize request: {}", e.getMessage());
             }
         }
 
@@ -83,9 +83,9 @@ public class OpenAIClient implements ApiClient {
                 .onErrorMap(ex -> mapToProviderException(ex, "OpenAI API call"))
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
-                        log.debug("[OpenAIAdapter] chatCompletion success provider={} model={}", config.getName(), openaiRequest.getModel());
+                        log.debug("[OpenAIClient] chatCompletion success provider={} model={}", config.getName(), openaiRequest.getModel());
                 })
-                .doOnError(err -> log.debug("[OpenAIAdapter] chatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
+                .doOnError(err -> log.debug("[OpenAIClient] chatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
     }
 
     @Override
@@ -103,13 +103,7 @@ public class OpenAIClient implements ApiClient {
         Duration streamTimeout = Duration.ofMillis((long) (webClientProperties.getTimeout().getRead().toMillis() * multiplier));
 
         if (log.isDebugEnabled()) {
-            log.debug("[OpenAIAdapter] streamChatCompletion start provider={} model={} stream=true", config.getName(), openaiRequest.getModel());
-            try {
-                String requestJson = JsonUtils.toJson(openaiRequest);
-                log.debug("[OpenAIAdapter] streamChatCompletion request: {}", requestJson);
-            } catch (Exception e) {
-                log.debug("[OpenAIAdapter] Failed to serialize request: {}", e.getMessage());
-            }
+            log.debug("[OpenAIClient] streamChatCompletion start provider={} model={} stream=true", config.getName(), openaiRequest.getModel());
         }
 
         return webClient.post()
@@ -123,10 +117,10 @@ public class OpenAIClient implements ApiClient {
                 .mapNotNull(this::parseStreamRaw) // 将原始字符串转换为响应对象，过滤掉null值（如结束标记）
                 .doOnNext(chunk -> {
                     if (log.isTraceEnabled()) {
-                        log.trace("[OpenAIAdapter] stream chunk: {}", chunk);
+                        log.trace("[OpenAIClient] stream chunk: {}", chunk);
                     }
                 })
-                .doOnError(err -> log.debug("[OpenAIAdapter] streamChatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
+                .doOnError(err -> log.debug("[OpenAIClient] streamChatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
     }
 
 
@@ -144,7 +138,7 @@ public class OpenAIClient implements ApiClient {
             String errorMessage = String.format("OpenAI API error: %d %s%s",
                     webEx.getStatusCode().value(),
                     webEx.getStatusText(),
-                    body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
+                    body);
             return new ProviderException(errorMessage, ex);
         }
 

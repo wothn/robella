@@ -1,7 +1,6 @@
 package org.elmo.robella.util;
 
 import org.elmo.robella.model.anthropic.content.*;
-import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.core.AnthropicUsage;
 import org.elmo.robella.model.anthropic.tool.AnthropicCustomTool;
@@ -34,111 +33,132 @@ public class AnthropicTransformUtils {
             return null;
         }
 
-        AnthropicMessage anthropicMessage = new AnthropicMessage();
-        
-        // 处理 tool 角色的特殊转换
+        // tool 角色的特殊处理
         if ("tool".equals(openAiMessage.getRole())) {
-            anthropicMessage.setRole("user"); // Anthropic 中工具结果通常用 user 角色表示
-            
-            // 创建 tool_result 内容
-            AnthropicToolResultContent toolResultContent = new AnthropicToolResultContent();
-            toolResultContent.setType("tool_result");
-            toolResultContent.setToolUseId(openAiMessage.getToolCallId());
-            
-            // 将 OpenAI content 转换为 Anthropic content
-            if (openAiMessage.getContent() != null && !openAiMessage.getContent().isEmpty()) {
-                List<AnthropicContent> resultContents = new ArrayList<>();
-                for (OpenAIContent openAiContent : openAiMessage.getContent()) {
-                    if (openAiContent instanceof OpenAITextContent) {
-                        AnthropicTextContent textContent = new AnthropicTextContent();
-                        textContent.setType("text");
-                        textContent.setText(((OpenAITextContent) openAiContent).getText());
-                        resultContents.add(textContent);
-                    }
-                    // 可以添加对其他内容类型的支持
-                }
-                toolResultContent.setContent(resultContents);
-            }
-            
-            anthropicMessage.setContent(List.of(toolResultContent));
-            return anthropicMessage;
+            return buildToolResultMessageFromOpenAI(openAiMessage);
         }
-        
+
+        AnthropicMessage anthropicMessage = new AnthropicMessage();
         anthropicMessage.setRole(openAiMessage.getRole());
-        
-        // 处理内容转换
+
+        // 内容转换
         if (openAiMessage.getContent() != null && !openAiMessage.getContent().isEmpty()) {
-            List<AnthropicContent> anthropicContents = new ArrayList<>();
-            for (OpenAIContent openAiContent : openAiMessage.getContent()) {
-                if (openAiContent instanceof OpenAITextContent) {
-                    AnthropicTextContent textContent = new AnthropicTextContent();
-                    textContent.setType("text");
-                    textContent.setText(((OpenAITextContent) openAiContent).getText());
-                    anthropicContents.add(textContent);
-                } else if (openAiContent instanceof OpenAIImageContent) {
-                    OpenAIImageContent openAiImageContent = (OpenAIImageContent) openAiContent;
-                    AnthropicImageContent imageContent = new AnthropicImageContent();
-                    imageContent.setType("image");
-                    
-                    AnthropicImageSource imageSource = new AnthropicImageSource();
-                    ImageUrl imageUrl = openAiImageContent.getImageUrl();
-                    if (imageUrl != null) {
-                        if (imageUrl.getUrl() != null && imageUrl.getUrl().startsWith("data:")) {
-                            // Base64编码的图片
-                            String[] parts = imageUrl.getUrl().split(",");
-                            if (parts.length == 2) {
-                                imageSource.setType("base64");
-                                // 从data URL中提取媒体类型
-                                String mediaType = parts[0].substring(5); // 移除 "data:" 前缀
-                                if (mediaType.contains(";")) {
-                                    mediaType = mediaType.substring(0, mediaType.indexOf(";"));
-                                }
-                                imageSource.setMediaType(mediaType);
-                                imageSource.setData(parts[1]);
-                            }
-                        } else if (imageUrl.getUrl() != null) {
-                            // URL图片
-                            imageSource.setType("url");
-                            imageSource.setUrl(imageUrl.getUrl());
-                        }
-                    }
-                    imageContent.setSource(imageSource);
-                    anthropicContents.add(imageContent);
-                }
+            List<AnthropicContent> anthropicContents = convertOpenAIContentsToAnthropic(openAiMessage.getContent());
+            if (!anthropicContents.isEmpty()) {
+                anthropicMessage.setContent(anthropicContents);
             }
-            anthropicMessage.setContent(anthropicContents);
         }
-        
-        // 处理 OpenAI 的 tool_calls，转换为 Anthropic 的 tool_use 内容
+
+        // tool_calls → tool_use
         if (openAiMessage.getToolCalls() != null && !openAiMessage.getToolCalls().isEmpty()) {
-            if (anthropicMessage.getContent() == null) {
-                anthropicMessage.setContent(new ArrayList<>());
-            }
-            
+            List<AnthropicContent> anthropicContents = anthropicMessage.getContent() == null
+                    ? new ArrayList<>()
+                    : new ArrayList<>(anthropicMessage.getContent());
             for (ToolCall toolCall : openAiMessage.getToolCalls()) {
-                if ("function".equals(toolCall.getType()) && toolCall.getFunction() != null) {
-                    AnthropicToolUseContent toolUseContent = new AnthropicToolUseContent();
-                    toolUseContent.setType("tool_use");
-                    toolUseContent.setId(toolCall.getId());
-                    toolUseContent.setName(toolCall.getFunction().getName());
-                    
-                    // 将 JSON 字符串参数转换为 Map
-                    try {
-                        Map<String, Object> input = JsonUtils.fromJson(toolCall.getFunction().getArguments(), Map.class);
-                        toolUseContent.setInput(input);
-                    } catch (Exception e) {
-                        // 如果解析失败，创建一个包含原始字符串的简单 Map
-                        Map<String, Object> input = new HashMap<>();
-                        input.put("raw_arguments", toolCall.getFunction().getArguments());
-                        toolUseContent.setInput(input);
-                    }
-                    
-                    anthropicMessage.getContent().add(toolUseContent);
+                AnthropicToolUseContent toolUse = convertToolCallToAnthropic(toolCall);
+                if (toolUse != null) {
+                    anthropicContents.add(toolUse);
                 }
+            }
+            if (!anthropicContents.isEmpty()) {
+                anthropicMessage.setContent(anthropicContents);
             }
         }
 
         return anthropicMessage;
+    }
+
+    private static AnthropicMessage buildToolResultMessageFromOpenAI(OpenAIMessage openAiMessage) {
+        AnthropicMessage anthropicMessage = new AnthropicMessage();
+        anthropicMessage.setRole("user"); // 工具结果在Anthropic侧通常视为user消息
+
+        AnthropicToolResultContent toolResultContent = new AnthropicToolResultContent();
+        toolResultContent.setType("tool_result");
+        toolResultContent.setToolUseId(openAiMessage.getToolCallId());
+
+        List<AnthropicContent> resultContents = new ArrayList<>();
+        if (openAiMessage.getContent() != null && !openAiMessage.getContent().isEmpty()) {
+            for (OpenAIContent openAiContent : openAiMessage.getContent()) {
+                if (openAiContent instanceof OpenAITextContent text) {
+                    resultContents.add(createAnthropicTextContent(text.getText()));
+                }
+                // 如有需要，后续可扩展其它类型（例如图像）
+            }
+        }
+        toolResultContent.setContent(resultContents);
+        anthropicMessage.setContent(List.of(toolResultContent));
+        return anthropicMessage;
+    }
+
+    private static List<AnthropicContent> convertOpenAIContentsToAnthropic(List<OpenAIContent> openAiContents) {
+        List<AnthropicContent> anthropicContents = new ArrayList<>();
+        for (OpenAIContent openAiContent : openAiContents) {
+            if (openAiContent instanceof OpenAITextContent text) {
+                anthropicContents.add(createAnthropicTextContent(text.getText()));
+            } else if (openAiContent instanceof OpenAIImageContent image) {
+                AnthropicImageContent imgContent = buildAnthropicImageContent(image);
+                anthropicContents.add(imgContent);
+            }
+        }
+        return anthropicContents;
+    }
+
+    private static AnthropicTextContent createAnthropicTextContent(String text) {
+        AnthropicTextContent textContent = new AnthropicTextContent();
+        textContent.setType("text");
+        textContent.setText(text);
+        return textContent;
+    }
+
+    private static AnthropicImageContent buildAnthropicImageContent(OpenAIImageContent openAiImageContent) {
+        AnthropicImageContent imageContent = new AnthropicImageContent();
+        imageContent.setType("image");
+        AnthropicImageSource imageSource = buildAnthropicImageSourceFromImageUrl(openAiImageContent.getImageUrl());
+        imageContent.setSource(imageSource);
+        return imageContent;
+    }
+
+    private static AnthropicImageSource buildAnthropicImageSourceFromImageUrl(ImageUrl imageUrl) {
+        AnthropicImageSource imageSource = new AnthropicImageSource();
+        if (imageUrl != null) {
+            if (imageUrl.getUrl() != null && imageUrl.getUrl().startsWith("data:")) {
+                // Base64编码的图片 dataURL
+                String[] parts = imageUrl.getUrl().split(",");
+                if (parts.length == 2) {
+                    imageSource.setType("base64");
+                    String mediaType = parts[0].substring(5); // 移除 "data:"
+                    if (mediaType.contains(";")) {
+                        mediaType = mediaType.substring(0, mediaType.indexOf(";"));
+                    }
+                    imageSource.setMediaType(mediaType);
+                    imageSource.setData(parts[1]);
+                }
+            } else if (imageUrl.getUrl() != null) {
+                imageSource.setType("url");
+                imageSource.setUrl(imageUrl.getUrl());
+            }
+        }
+        return imageSource;
+    }
+
+    private static AnthropicToolUseContent convertToolCallToAnthropic(ToolCall toolCall) {
+        if (!"function".equals(toolCall.getType()) || toolCall.getFunction() == null) {
+            return null;
+        }
+        AnthropicToolUseContent toolUseContent = new AnthropicToolUseContent();
+        toolUseContent.setType("tool_use");
+        toolUseContent.setId(toolCall.getId());
+        toolUseContent.setName(toolCall.getFunction().getName());
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> input = JsonUtils.fromJson(toolCall.getFunction().getArguments(), Map.class);
+            toolUseContent.setInput(input);
+        } catch (Exception e) {
+            Map<String, Object> input = new HashMap<>();
+            input.put("raw_arguments", toolCall.getFunction().getArguments());
+            toolUseContent.setInput(input);
+        }
+        return toolUseContent;
     }
 
     /**
@@ -149,87 +169,110 @@ public class AnthropicTransformUtils {
             return null;
         }
 
-        OpenAIMessage openAiMessage = new OpenAIMessage();
-        openAiMessage.setRole(anthropicMessage.getRole());
-        
-        // 处理内容转换
+        // 特殊处理：如果消息包含工具结果，需要转换为tool角色的消息
         if (anthropicMessage.getContent() != null && !anthropicMessage.getContent().isEmpty()) {
-            List<OpenAIContent> openAiContents = new ArrayList<>();
-            for (AnthropicContent anthropicContent : anthropicMessage.getContent()) {
-                if (anthropicContent instanceof AnthropicTextContent) {
-                    // 文本内容转换
-                    OpenAITextContent textContent = new OpenAITextContent();
-                    textContent.setType("text");
-                    textContent.setText(((AnthropicTextContent) anthropicContent).getText());
-                    openAiContents.add(textContent);
-                } else if (anthropicContent instanceof AnthropicImageContent anthropicImageContent) {
-                    // 图片内容转换
-                    OpenAIImageContent imageContent = new OpenAIImageContent();
-                    imageContent.setType("image_url");
-                    
-                    ImageUrl imageUrl = new ImageUrl();
-                    AnthropicImageSource imageSource = anthropicImageContent.getSource();
-                    if (imageSource != null) {
-                        if ("base64".equals(imageSource.getType())) {
-                            // Base64编码的图片
-                            imageUrl.setUrl("data:" + imageSource.getMediaType() + ";base64," + imageSource.getData());
-                        } else if ("url".equals(imageSource.getType())) {
-                            // URL图片
-                            imageUrl.setUrl(imageSource.getUrl());
-                        }
-                    }
-                    imageContent.setImageUrl(imageUrl);
-                    openAiContents.add(imageContent);
-                } else if (anthropicContent instanceof AnthropicToolUseContent toolUseContent) {
-                    // 工具调用内容转换为 OpenAI 的 tool_calls
-                    // 创建 ToolCall 对象
-                    ToolCall toolCall = new ToolCall();
-                    toolCall.setId(toolUseContent.getId());
-                    toolCall.setType("function");
-                    
-                    // 创建 Function 对象
-                    ToolCall.Function function = new ToolCall.Function();
-                    function.setName(toolUseContent.getName());
-                    // 将 Map 参数转换为 JSON 字符串
-                    String arguments = JsonUtils.toJson(toolUseContent.getInput());
-                    function.setArguments(arguments);
-                    
-                    toolCall.setFunction(function);
-                    
-                    // 如果消息还没有 tool_calls 列表，则创建一个
-                    if (openAiMessage.getToolCalls() == null) {
-                        openAiMessage.setToolCalls(new ArrayList<>());
-                    }
-                    openAiMessage.getToolCalls().add(toolCall);
-                } else if (anthropicContent instanceof AnthropicToolResultContent toolResultContent) {
-                    // 工具结果内容转换为 OpenAI 的 tool 消息
-                    // 设置 role 为 "tool"
-                    openAiMessage.setRole("tool");
-                    // 设置 tool_call_id
-                    openAiMessage.setToolCallId(toolResultContent.getToolUseId());
-                    
-                    // 将工具结果内容转换为 OpenAI content
-                    if (toolResultContent.getContent() != null && !toolResultContent.getContent().isEmpty()) {
-                        List<OpenAIContent> resultContents = new ArrayList<>();
-                        for (AnthropicContent resultContent : toolResultContent.getContent()) {
-                            if (resultContent instanceof AnthropicTextContent) {
-                                OpenAITextContent textContent = new OpenAITextContent();
-                                textContent.setType("text");
-                                textContent.setText(((AnthropicTextContent) resultContent).getText());
-                                resultContents.add(textContent);
-                            } else if (resultContent instanceof AnthropicImageContent) {
-                                // 如果需要，也可以处理图像结果
-                                // 这里暂时只处理文本结果
-                            }
-                        }
-                        openAiMessage.setContent(resultContents);
-                    }
+            for (AnthropicContent content : anthropicMessage.getContent()) {
+                if (content instanceof AnthropicToolResultContent toolResult) {
+                    // 这是一个工具结果消息，需要转换为OpenAI的tool消息
+                    OpenAIMessage toolMessage = new OpenAIMessage();
+                    toolMessage.setRole("tool");
+                    toolMessage.setToolCallId(toolResult.getToolUseId());
+                    List<OpenAIContent> resultContents = collectToolResultContentsToOpenAI(toolResult);
+                    toolMessage.setContent(resultContents);
+                    return toolMessage;
                 }
             }
+        }
+
+        OpenAIMessage openAiMessage = new OpenAIMessage();
+        openAiMessage.setRole(anthropicMessage.getRole());
+
+        if (anthropicMessage.getContent() != null && !anthropicMessage.getContent().isEmpty()) {
+            List<OpenAIContent> openAiContents =
+                    fillOpenAIMessageFromAnthropicContents(anthropicMessage.getContent(), openAiMessage);
             openAiMessage.setContent(openAiContents);
         }
 
         return openAiMessage;
+    }
+
+    private static List<OpenAIContent> fillOpenAIMessageFromAnthropicContents(List<AnthropicContent> anthropicContents,
+                                                                              OpenAIMessage target) {
+        List<OpenAIContent> openAiContents = new ArrayList<>();
+        for (AnthropicContent anthropicContent : anthropicContents) {
+            if (anthropicContent instanceof AnthropicTextContent text) {
+                openAiContents.add(toOpenAITextContent(text));
+            } else if (anthropicContent instanceof AnthropicImageContent image) {
+                openAiContents.add(toOpenAIImageContent(image));
+            } else if (anthropicContent instanceof AnthropicToolUseContent toolUse) {
+                ToolCall toolCall = toOpenAIToolCall(toolUse);
+                if (toolCall != null) {
+                    if (target.getToolCalls() == null) {
+                        target.setToolCalls(new ArrayList<>());
+                    }
+                    target.getToolCalls().add(toolCall);
+                }
+            }
+            // 移除AnthropicToolResultContent的处理，因为已经在上层方法中处理
+        }
+        return openAiContents;
+    }
+
+    private static OpenAITextContent toOpenAITextContent(AnthropicTextContent text) {
+        OpenAITextContent content = new OpenAITextContent();
+        content.setType("text");
+        content.setText(text.getText());
+        return content;
+    }
+
+    private static OpenAIImageContent toOpenAIImageContent(AnthropicImageContent anthropicImageContent) {
+        OpenAIImageContent imageContent = new OpenAIImageContent();
+        imageContent.setType("image_url");
+        imageContent.setImageUrl(buildImageUrlFromAnthropicSource(anthropicImageContent.getSource()));
+        return imageContent;
+    }
+
+    private static ImageUrl buildImageUrlFromAnthropicSource(AnthropicImageSource imageSource) {
+        ImageUrl imageUrl = new ImageUrl();
+        if (imageSource != null) {
+            if ("base64".equals(imageSource.getType())) {
+                imageUrl.setUrl("data:" + imageSource.getMediaType() + ";base64," + imageSource.getData());
+            } else if ("url".equals(imageSource.getType())) {
+                imageUrl.setUrl(imageSource.getUrl());
+            }
+        }
+        return imageUrl;
+    }
+
+    private static ToolCall toOpenAIToolCall(AnthropicToolUseContent toolUseContent) {
+        ToolCall toolCall = new ToolCall();
+        toolCall.setId(toolUseContent.getId());
+        toolCall.setType("function");
+
+        ToolCall.Function function = new ToolCall.Function();
+        function.setName(toolUseContent.getName());
+        String arguments = JsonUtils.toJson(toolUseContent.getInput());
+        function.setArguments(arguments);
+
+        toolCall.setFunction(function);
+        return toolCall;
+    }
+
+    private static List<OpenAIContent> collectToolResultContentsToOpenAI(AnthropicToolResultContent toolResultContent) {
+        List<OpenAIContent> resultContents = new ArrayList<>();
+        if (toolResultContent.getContent() != null && !toolResultContent.getContent().isEmpty()) {
+            for (AnthropicContent resultContent : toolResultContent.getContent()) {
+                if (resultContent instanceof AnthropicTextContent text) {
+                    OpenAITextContent textContent = new OpenAITextContent();
+                    textContent.setType("text");
+                    textContent.setText(text.getText());
+                    resultContents.add(textContent);
+                } else if (resultContent instanceof AnthropicImageContent) {
+                    // 如需，后续可扩展对图像结果的处理
+                }
+            }
+        }
+        return resultContents;
     }
 
     /**
@@ -246,7 +289,7 @@ public class AnthropicTransformUtils {
         if (anthropicUsage.getInputTokens() != null && anthropicUsage.getOutputTokens() != null) {
             usage.setTotalTokens(anthropicUsage.getInputTokens() + anthropicUsage.getOutputTokens());
         }
-        
+
         return usage;
     }
 
@@ -305,7 +348,7 @@ public class AnthropicTransformUtils {
                 .map(anthropicTool -> {
                     Tool openAiTool = new Tool();
                     openAiTool.setType("function");
-                    
+
                     if (anthropicTool instanceof AnthropicCustomTool customTool) {
                         Function function = new Function();
                         function.setName(customTool.getName());
@@ -313,7 +356,7 @@ public class AnthropicTransformUtils {
                         function.setParameters(customTool.getInputSchema());
                         openAiTool.setFunction(function);
                     }
-                    
+
                     return openAiTool;
                 })
                 .collect(Collectors.toList());
