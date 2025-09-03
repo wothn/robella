@@ -12,6 +12,30 @@ spring:
   # 提升服务端编解码默认内存上限 (默认 256KB)，避免大请求体触发 DataBufferLimitException
   codec:
     max-in-memory-size: 32MB
+  
+  # PostgreSQL R2DBC 配置
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/robella
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:password}
+    properties:
+      ssl: false
+      sslMode: disable
+    pool:
+      enabled: true
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
+      max-life-time: 60m
+      acquire-timeout: 30s
+      validation-query: SELECT 1
+  
+  # 数据库初始化配置
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
 
 # 应用特定配置
 robella:
