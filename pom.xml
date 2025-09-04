@@ -72,6 +72,13 @@
             <artifactId>r2dbc-pool</artifactId>
         </dependency>
 
+        <!-- Sa-Token for authentication -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-reactor-spring-boot3-starter</artifactId>
+            <version>1.39.0</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

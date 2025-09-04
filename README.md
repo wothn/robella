@@ -6,11 +6,9 @@ Robella是一AI API的转发平台，可以统一接入多家AI服务商（OpenA
 
 - OpenAI API端点
 - Anthropic API端点
-- Gemini API端点
 - 多AI服务商转发支持
 - 流式传输处理
 - 动态路由配置
-- 监控统计功能
 
 ## 技术栈
 
@@ -18,8 +16,6 @@ Robella是一AI API的转发平台，可以统一接入多家AI服务商（OpenA
 - Spring Boot 3.x
 - Spring WebFlux (响应式编程)
 - Maven 3.8+
-- Redis 7.x
-- Micrometer + Prometheus
 
 ## 快速开始
 
@@ -27,7 +23,6 @@ Robella是一AI API的转发平台，可以统一接入多家AI服务商（OpenA
 
 - Java 17+
 - Maven 3.8+
-- Redis 7.x
 
 ### 构建项目
 
@@ -84,10 +79,6 @@ GET /v1/models
 
 - `application.yml`: 主配置文件
 - `providers.yml`: AI服务商配置文件
-
-## 监控
-
-应用集成了Micrometer和Prometheus，可以通过 `/actuator/prometheus` 端点获取监控指标。
 
 ## 许可证
 
