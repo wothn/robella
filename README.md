@@ -73,6 +73,61 @@ Content-Type: application/json
 GET /v1/models
 ```
 
+## 前端开发
+
+### 技术栈
+
+- React 19.1.1
+- TypeScript
+- Vite
+- Tailwind CSS
+- Shadcn UI 组件库
+- Radix UI 基础组件
+
+### 开发环境
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+### 构建生产版本
+
+```bash
+cd web
+npm run build
+```
+
+### 代码检查
+
+```bash
+cd web
+npm run lint
+```
+
+### 项目结构
+
+```
+web/
+├── src/
+│   ├── components/     # React 组件
+│   ├── lib/           # 工具函数和配置
+│   ├── assets/        # 静态资源
+│   ├── App.tsx        # 主应用组件
+│   └── main.tsx       # 应用入口
+├── dist/              # 构建输出目录
+├── public/            # 公共资源
+└── package.json       # 依赖配置
+```
+
+### 开发脚本
+
+- `npm run dev` - 启动开发服务器
+- `npm run build` - 构建生产版本
+- `npm run lint` - 运行代码检查
+- `npm run preview` - 预览生产构建
+
 ## 配置说明
 
 配置文件位于 `src/main/resources` 目录下：

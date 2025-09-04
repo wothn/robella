@@ -1,5 +1,7 @@
 package org.elmo.robella.controller;
 
+import org.elmo.robella.model.LoginRequest;
+import org.elmo.robella.model.LoginResponse;
 import org.elmo.robella.model.UserDTO;
 import org.elmo.robella.model.UserResponse;
 import org.elmo.robella.service.UserService;
@@ -139,21 +141,15 @@ public class UserController {
     }
     
     @PostMapping("/login")
-    public Mono<ResponseEntity<String>> login(
-            @RequestParam @NotBlank String username,
-            @RequestParam @NotBlank String password) {
-        return userService.validateUser(username, password)
-            .flatMap(valid -> {
-                if (valid) {
-                    return userService.getUserByUsername(username)
-                        .map(user -> ResponseEntity.ok("登录成功"));
-                } else {
-                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("用户名或密码错误"));
-                }
-            })
+    public Mono<ResponseEntity<LoginResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
+        return userService.login(loginRequest)
+            .map(ResponseEntity::ok)
             .onErrorResume(e -> {
                 log.error("登录失败: {}", e.getMessage());
-                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("登录失败"));
+                if (e instanceof IllegalArgumentException) {
+                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+                }
+                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
             });
     }
     

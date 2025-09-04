@@ -59,6 +59,12 @@ public class GlobalExceptionHandler {
         return Mono.just(buildGenericError(exchange, 500, "serialization_error", "Failed to serialize response: " + e.getMessage()));
     }
 
+    @ExceptionHandler(AuthenticationException.class)
+    public Mono<ResponseEntity<?>> handleAuthenticationException(AuthenticationException e, ServerWebExchange exchange) {
+        log.error("Authentication exception: {}", e.getMessage());
+        return Mono.just(buildGenericError(exchange, 401, "authentication_error", e.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public Mono<ResponseEntity<?>> handleIllegalArgumentException(IllegalArgumentException e, ServerWebExchange exchange) {
         log.error("Illegal argument exception: ", e);

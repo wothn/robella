@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API 测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Robella API 测试</h1>
+    
+    <div>
+        <button onclick="testGetUsers()">测试获取用户列表</button>
+        <button onclick="testLogin()">测试登录 (admin)</button>
+        <button onclick="testLoginWrongPassword()">测试错误密码</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        function addResult(message, isSuccess = true) {
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = message;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        async function testGetUsers() {
+            try {
+                addResult('开始测试获取用户列表...');
+                const response = await fetch('http://localhost:10032/api/users', {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const users = await response.json();
+                    addResult(`成功获取 ${users.length} 个用户`, true);
+                    console.log('Users:', users);
+                } else {
+                    addResult(`获取用户失败: ${response.status}`, false);
+                }
+            } catch (error) {
+                addResult(`获取用户错误: ${error.message}`, false);
+                console.error('Error:', error);
+            }
+        }
+        
+        async function testLogin() {
+            try {
+                addResult('开始测试登录...');
+                const formData = new URLSearchParams();
+                formData.append('username', 'admin');
+                formData.append('password', 'password123');
+                
+                const response = await fetch('http://localhost:10032/api/users/login', {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData
+                });
+                
+                console.log('Login response status:', response.status);
+                const result = await response.text();
+                console.log('Login result:', result);
+                
+                if (response.ok) {
+                    addResult(`登录成功: ${result}`, true);
+                } else {
+                    addResult(`登录失败: ${response.status} - ${result}`, false);
+                }
+            } catch (error) {
+                addResult(`登录错误: ${error.message}`, false);
+                console.error('Error:', error);
+            }
+        }
+        
+        async function testLoginWrongPassword() {
+            try {
+                addResult('开始测试错误密码登录...');
+                const formData = new URLSearchParams();
+                formData.append('username', 'admin');
+                formData.append('password', 'wrongpassword');
+                
+                const response = await fetch('http://localhost:10032/api/users/login', {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData
+                });
+                
+                const result = await response.text();
+                
+                if (response.ok) {
+                    addResult(`意外成功: ${result}`, false);
+                } else {
+                    addResult(`预期失败: ${response.status} - ${result}`, true);
+                }
+            } catch (error) {
+                addResult(`测试错误: ${error.message}`, false);
+                console.error('Error:', error);
+            }
+        }
+        
+        // 页面加载时自动运行基本测试
+        window.onload = function() {
+            addResult('页面加载完成，可以开始测试');
+        }
+    </script>
+</body>
+</html>

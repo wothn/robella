@@ -1,12 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mvn test:*)",
-      "Bash(mvn compile:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(mvn clean compile:*)",
-      "WebSearch"
+      "Read(/E:\\robella\\src\\main\\java\\org\\elmo\\robella\\controller/**)",
+      "Read(/E:\\robella\\src\\main\\java\\org\\elmo\\robella\\model/**)",
+      "Read(/E:\\robella\\web\\src\\components/**)",
+      "Bash(mvn compile:*)"
     ],
     "deny": [],
     "ask": []

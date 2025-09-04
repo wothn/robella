@@ -1,16 +1,5 @@
-# Compiled class file
+# Java
 *.class
-
-# Log files
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
 *.jar
 *.war
 *.nar
@@ -18,45 +7,6 @@
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs, see http://www.oracle.com/technetwork/java/javase/crashcatcher-137022.html
-hs_err_pid*
-
-# Eclipse
-.settings/
-.metadata/
-.classpath
-.project
-*.tmp
-*.bak
-*.swp
-*~.nib
-local.properties
-.classpath
-.project
-.externalToolBuilders/
-*.launch
-.settings/
-.cproject
-.buildpath
-
-# IntelliJ IDEA
-.idea/
-*.iws
-*.iml
-*.ipr
-out/
-com_crashlytics_export_strings.xml
-
-# NetBeans
-/nbproject/private/
-/nbproject/build.xml
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-# Maven
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -67,25 +17,48 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 
-# Gradle
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.settings/
+.metadata/
+.classpath
+.project
+.externalToolBuilders/
+*.launch
+.cproject
+.buildpath
+*.sublime-project
+*.sublime-workspace
+.vscode/
+.nbproject/private/
+/nbproject/build.xml
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Build tools
 .gradle/
 build/
 !src/**/build/
 
-# SonarQube
-.sonar/
-
-# VS Code
-.vscode/
-
-# AI Agent
-.roo/
-.clinerules/
-.claude/
-
 # Logs
-logs
 *.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+\#*\#
+.mtj.tmp/
 
 # OS generated files
 .DS_Store
@@ -96,11 +69,26 @@ logs
 ehthumbs.db
 Thumbs.db
 
-# Redis
+# Database
 dump.rdb
 appendonly.aof
 
-# Docker
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+src/main/resources/application.yml
+
+# AI tools
+.roo/
+.clinerules/
+.claude/
+.claude/settings.local.json
+
+# Development tools
+.sonar/
 .dockerignore
 
 # Node.js
@@ -108,20 +96,6 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-
-# Vim
-*.swp
-*.swo
 
 # Python
 *.pyc
@@ -137,25 +111,37 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-
-# Jupyter Notebook
 .ipynb_checkpoints
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
+# Emacs
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
 
-# IDE
-.idea/
-*.sublime-project
-*.sublime-workspace
-
-# Temporary files
-*.tmp
-*.temp
-
-# Application configuration
-src/main/resources/application.yml
+# Web frontend
+web/node_modules/
+web/dist/
+web/dist-ssr/
+web/.env*
+web/.local
+web/*.local
+web/*.tsbuildinfo
+web/.npm
+web/.eslintcache
+web/.node_repl_history
+web/*.tgz
+web/.yarn-integrity
+web/.cache
+web/.parcel-cache
+web/.next
+web/.nuxt
+web/.vuepress/dist
+web/.serverless/
+web/.fusebox/
+web/.dynamodb/
+web/.tern-port
+web/.pnp
+web/.pnp.js

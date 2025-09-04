@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>登录接口测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+        .form-group { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>登录接口测试（修复后）</h1>
+    
+    <div class="form-group">
+        <label>用户名: </label>
+        <input type="text" id="username" value="admin" />
+    </div>
+    <div class="form-group">
+        <label>密码: </label>
+        <input type="password" id="password" value="password123" />
+    </div>
+    
+    <div>
+        <button onclick="testLoginJSON()">测试JSON格式登录</button>
+        <button onclick="testLoginForm()">测试表单格式登录（旧方式）</button>
+        <button onclick="clearResults()">清除结果</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        function addResult(message, isSuccess = true) {
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testLoginJSON() {
+            try {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                addResult('开始测试JSON格式登录...');
+                
+                const loginRequest = {
+                    username: username,
+                    password: password,
+                    rememberMe: false
+                };
+                
+                const response = await fetch('http://localhost:10032/api/users/login', {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginRequest)
+                });
+                
+                console.log('JSON Login response status:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('JSON Login result:', result);
+                    addResult(`✅ JSON格式登录成功!<br/>用户: ${result.user?.username}<br/>消息: ${result.message || '无'}`, true);
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ JSON格式登录失败: ${response.status} - ${errorText}`, false);
+                }
+            } catch (error) {
+                addResult(`❌ JSON格式登录错误: ${error.message}`, false);
+                console.error('Error:', error);
+            }
+        }
+        
+        async function testLoginForm() {
+            try {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                addResult('开始测试表单格式登录（旧方式）...');
+                
+                const formData = new URLSearchParams();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                const response = await fetch('http://localhost:10032/api/users/login', {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData
+                });
+                
+                console.log('Form Login response status:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.text();
+                    console.log('Form Login result:', result);
+                    addResult(`✅ 表单格式登录成功: ${result}`, true);
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ 表单格式登录失败: ${response.status} - ${errorText}`, false);
+                }
+            } catch (error) {
+                addResult(`❌ 表单格式登录错误: ${error.message}`, false);
+                console.error('Error:', error);
+            }
+        }
+        
+        // 页面加载时的说明
+        window.onload = function() {
+            addResult('📝 测试说明：<br/>1. JSON格式登录是修复后的正确方式<br/>2. 表单格式登录是之前的错误方式<br/>3. 请确保后端服务正在运行在 localhost:10032');
+        }
+    </script>
+</body>
+</html>

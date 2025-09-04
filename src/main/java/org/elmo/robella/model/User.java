@@ -48,4 +48,10 @@ public class User {
     private String emailVerified;
     
     private String phoneVerified;
+    
+    private String githubId;
+    
+    private String provider;
+    
+    private String providerId;
 }

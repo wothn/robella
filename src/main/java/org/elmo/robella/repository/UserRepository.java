@@ -28,4 +28,12 @@ public interface UserRepository extends R2dbcRepository<User, Long> {
     Mono<Void> deleteByUsername(String username);
     
     Mono<Void> deleteByEmail(String email);
+    
+    Mono<User> findByGithubId(String githubId);
+    
+    Mono<Boolean> existsByGithubId(String githubId);
+    
+    Flux<User> findByProvider(String provider);
+    
+    Flux<User> findByProviderAndProviderId(String provider, String providerId);
 }

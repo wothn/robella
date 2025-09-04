@@ -38,4 +38,10 @@ public class UserResponse {
     private Boolean emailVerified;
     
     private Boolean phoneVerified;
+    
+    private String githubId;
+    
+    private String provider;
+    
+    private String providerId;
 }

@@ -1,5 +1,7 @@
 package org.elmo.robella.service;
 
+import org.elmo.robella.model.LoginRequest;
+import org.elmo.robella.model.LoginResponse;
 import org.elmo.robella.model.User;
 import org.elmo.robella.model.UserDTO;
 import org.elmo.robella.model.UserResponse;
@@ -174,11 +176,95 @@ public class UserService {
             .defaultIfEmpty(false);
     }
     
+    public Mono<LoginResponse> login(LoginRequest loginRequest) {
+        return userRepository.findByUsername(loginRequest.getUsername())
+            .switchIfEmpty(Mono.error(new IllegalArgumentException("用户名或密码错误")))
+            .flatMap(user -> {
+                // 检查用户是否激活
+                if (!user.getActive()) {
+                    return Mono.error(new IllegalArgumentException("用户账号已被停用"));
+                }
+                
+                // 验证密码
+                if (!BCrypt.checkpw(loginRequest.getPassword(), user.getPassword())) {
+                    return Mono.error(new IllegalArgumentException("用户名或密码错误"));
+                }
+                
+                // 更新最后登录时间
+                user.setLastLoginAt(LocalDateTime.now());
+                user.setUpdatedAt(LocalDateTime.now());
+                
+                return userRepository.save(user);
+            })
+            .map(user -> {
+                UserResponse userResponse = convertToResponse(user);
+                
+                return LoginResponse.builder()
+                    .user(userResponse)
+                    .message("登录成功")
+                    .loginTime(LocalDateTime.now())
+                    // 如果需要JWT token，可以在这里生成
+                    // .accessToken(jwtService.generateToken(user))
+                    // .expiresAt(LocalDateTime.now().plusHours(24))
+                    .build();
+            })
+            .doOnSuccess(response -> log.info("用户登录成功: {}", response.getUser().getUsername()))
+            .doOnError(error -> log.error("用户登录失败: {}", error.getMessage()));
+    }
+    
     private UserResponse convertToResponse(User user) {
         UserResponse response = new UserResponse();
         BeanUtils.copyProperties(user, response);
         response.setEmailVerified(Boolean.valueOf(user.getEmailVerified()));
         response.setPhoneVerified(Boolean.valueOf(user.getPhoneVerified()));
         return response;
+    }
+    
+    public Mono<User> getUserByGithubId(String githubId) {
+        return userRepository.findByGithubId(githubId);
+    }
+    
+    public Mono<UserResponse> createOAuthUser(User user) {
+        return userRepository.existsByUsername(user.getUsername())
+            .flatMap(existsByUsername -> {
+                if (existsByUsername) {
+                    return Mono.error(new IllegalArgumentException("用户名已存在"));
+                }
+                return userRepository.existsByEmail(user.getEmail());
+            })
+            .flatMap(existsByEmail -> {
+                if (existsByEmail) {
+                    return Mono.error(new IllegalArgumentException("邮箱已存在"));
+                }
+                
+                user.setCreatedAt(LocalDateTime.now());
+                user.setUpdatedAt(LocalDateTime.now());
+                user.setActive(true);
+                user.setRole("USER");
+                user.setEmailVerified("true");
+                
+                return userRepository.save(user);
+            })
+            .map(this::convertToResponse)
+            .doOnSuccess(u -> log.info("OAuth用户创建成功: {}", u.getUsername()))
+            .doOnError(error -> log.error("OAuth用户创建失败: {}", error.getMessage()));
+    }
+    
+    public Mono<LoginResponse> createOAuthLoginResponse(User user) {
+        user.setLastLoginAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        
+        return userRepository.save(user)
+            .map(savedUser -> {
+                UserResponse userResponse = convertToResponse(savedUser);
+                
+                return LoginResponse.builder()
+                    .user(userResponse)
+                    .message("GitHub登录成功")
+                    .loginTime(LocalDateTime.now())
+                    .build();
+            })
+            .doOnSuccess(response -> log.info("OAuth用户登录成功: {}", response.getUser().getUsername()))
+            .doOnError(error -> log.error("OAuth用户登录失败: {}", error.getMessage()));
     }
 }
