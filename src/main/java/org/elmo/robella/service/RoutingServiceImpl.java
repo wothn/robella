@@ -5,24 +5,35 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.client.ClientFactory;
 import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.config.ProviderConfig;
+import org.elmo.robella.model.Provider;
+import org.elmo.robella.model.Model;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.model.ModelInfo;
 import org.elmo.robella.model.openai.model.ModelListResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class RoutingServiceImpl implements RoutingService {
 
-    private final ProviderConfig providerConfig;
-    private final ClientFactory clientFactory;
+    @Autowired
+    private ProviderConfig providerConfig;
+    
+    @Autowired
+    private ClientFactory clientFactory;
+    
+    @Autowired
+    private ProviderService providerService;
     
     // 缓存适配器实例
     private final Map<String, ApiClient> adapterCache = new ConcurrentHashMap<>();
@@ -48,21 +59,26 @@ public class RoutingServiceImpl implements RoutingService {
      * 构建模型列表（内部方法）
      */
     private ModelListResponse buildModelList() {
-        // 获取所有提供商配置
-        Map<String, ProviderConfig.Provider> providers = getProviderConfigMap();
-        
-        // 从配置中收集所有模型
+        // 从数据库中获取所有活跃的模型
         ModelListResponse models = new ModelListResponse("list");
-
-        if (providers != null) {
-            for (var provider : providers.values()) {
-                if (provider.getModels() == null) {
-                    continue;
-                }
-                for (var model : provider.getModels()) {
-                    models.getData().add(new ModelInfo(model.getName(), "model", provider.getName()));
+        
+        try {
+            List<Provider> providers = providerService.getActiveProviders().collectList().block();
+            List<Model> allModels = providerService.getAllActiveModels().collectList().block();
+            
+            if (providers != null && allModels != null) {
+                for (Model model : allModels) {
+                    // 找到对应的provider
+                    for (Provider provider : providers) {
+                        if (model.getProviderId().equals(provider.getId())) {
+                            models.getData().add(new ModelInfo(model.getName(), "model", provider.getName()));
+                            break;
+                        }
+                    }
                 }
             }
+        } catch (Exception e) {
+            log.error("Failed to build model list from database", e);
         }
         
         return models;
@@ -71,33 +87,55 @@ public class RoutingServiceImpl implements RoutingService {
 
     @Override
     public String decideProviderByModel(String model) {
-        Map<String, ProviderConfig.Provider> providers = providerConfig.getProviders();
-        if (providers == null || model == null) return "openai";
-        for (ProviderConfig.Provider provider : providers.values()) {
-            if (provider != null && provider.getModels() != null) {
-                for (ProviderConfig.Model providerModel : provider.getModels()) {
-                    if (providerModel != null && model.equals(providerModel.getName())) {
-                        log.info("使用provider: {} for model: {}", provider.getName(), model);
-                        return provider.getName();
-                    }
+        if (model == null) return "openai";
+        
+        try {
+            // 从数据库查找模型对应的provider
+            List<Model> models = providerService.getAllActiveModels()
+                    .filter(m -> m.getName().equals(model))
+                    .collectList()
+                    .block();
+            
+            if (models != null && !models.isEmpty()) {
+                Model foundModel = models.get(0);
+                Provider provider = providerService.getProviderById(foundModel.getProviderId()).block();
+                if (provider != null) {
+                    log.info("使用provider: {} for model: {}", provider.getName(), model);
+                    return provider.getName();
                 }
             }
+        } catch (Exception e) {
+            log.error("Failed to decide provider by model from database", e);
         }
+        
         return "openai"; // 默认
     }
 
     @Override
     public ProviderConfig.Provider getProviderConfig(String providerName) {
-        Map<String, ProviderConfig.Provider> providers = providerConfig.getProviders();
-        if (providers == null) {
-            throw new IllegalStateException("Providers configuration is not loaded properly");
+        // 从数据库获取provider配置
+        try {
+            Provider provider = providerService.getActiveProviderByName(providerName).block();
+            if (provider != null) {
+                ProviderConfig.Provider config = new ProviderConfig.Provider();
+                config.setName(provider.getName());
+                config.setType(provider.getType());
+                config.setApiKey(provider.getApiKey());
+                config.setBaseUrl(provider.getBaseUrl());
+                config.setDeploymentName(provider.getDeploymentName());
+                return config;
+            }
+        } catch (Exception e) {
+            log.error("Failed to get provider config from database", e);
         }
-        return providers.get(providerName);
+        
+        throw new IllegalArgumentException("No configuration found for provider: " + providerName);
     }
     
     @Override
     public Map<String, ProviderConfig.Provider> getProviderConfigMap() {
-        return providerConfig.getProviders();
+        // 返回空map，因为我们现在使用数据库
+        return Map.of();
     }
     
     @Override
@@ -121,9 +159,13 @@ public class RoutingServiceImpl implements RoutingService {
     
     @Override
     public String getProviderType(String providerName) {
-        ProviderConfig.Provider provider = getProviderConfig(providerName);
-        if (provider != null && provider.getType() != null) {
-            return provider.getType();
+        try {
+            Provider provider = providerService.getActiveProviderByName(providerName).block();
+            if (provider != null && provider.getType() != null) {
+                return provider.getType();
+            }
+        } catch (Exception e) {
+            log.error("Failed to get provider type from database", e);
         }
         return "OpenAI"; // 默认类型
     }

@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { Layout, Menu } from 'antd'
+import { UserOutlined, SettingOutlined, ApiOutlined } from '@ant-design/icons'
 import Login from './components/Login'
 import UserManagement from './components/UserManagement'
+import ProviderManagement from './components/ProviderManagement'
 import AuthCallback from './components/AuthCallback'
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [currentMenu, setCurrentMenu] = useState('users')
   const location = useLocation()
 
   // 检查登录状态
@@ -58,32 +62,62 @@ function AppContent() {
     return <Login onLoginSuccess={handleLoginSuccess} />
   }
 
+  const { Header, Content, Sider } = Layout
+
+  const renderContent = () => {
+    switch (currentMenu) {
+      case 'users':
+        return <UserManagement />
+      case 'providers':
+        return <ProviderManagement />
+      default:
+        return <UserManagement />
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold">Robella 管理系统</h1>
-            </div>
-            <div className="flex items-center">
-              <button
-                onClick={handleLogout}
-                className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                退出登录
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>Robella 管理系统</h1>
+        <button
+          onClick={handleLogout}
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            color: '#666', 
+            cursor: 'pointer',
+            padding: '8px 16px',
+            borderRadius: '4px'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#333'}
+          onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+        >
+          退出登录
+        </button>
+      </Header>
       
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <UserManagement />
-        </div>
-      </main>
-    </div>
+      <Layout>
+        <Sider width={200} style={{ background: '#fff' }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[currentMenu]}
+            style={{ height: '100%', borderRight: 0 }}
+            onClick={(e) => setCurrentMenu(e.key)}
+          >
+            <Menu.Item key="users" icon={<UserOutlined />}>
+              用户管理
+            </Menu.Item>
+            <Menu.Item key="providers" icon={<ApiOutlined />}>
+              AI提供商管理
+            </Menu.Item>
+          </Menu>
+        </Sider>
+        
+        <Content style={{ padding: '24px', background: '#f0f2f5', margin: 0 }}>
+          {renderContent()}
+        </Content>
+      </Layout>
+    </Layout>
   )
 }
 

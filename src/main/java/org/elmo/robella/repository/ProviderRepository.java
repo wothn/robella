@@ -1,0 +1,13 @@
+package org.elmo.robella.repository;
+
+import org.elmo.robella.model.Provider;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+public interface ProviderRepository extends R2dbcRepository<Provider, Long> {
+    Flux<Provider> findByActiveTrue();
+    Mono<Provider> findByName(String name);
+    Mono<Provider> findByActiveTrueAndName(String name);
+    Flux<Provider> findByType(String type);
+}
