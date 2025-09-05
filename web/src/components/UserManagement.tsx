@@ -1,23 +1,36 @@
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
-  UserIcon,
-  UserPlusIcon, 
-  EditIcon, 
-  TrashIcon, 
-  CheckIcon, 
-  XIcon,
-  MailIcon,
-  CalendarIcon,
-  ShieldIcon
-} from 'lucide-react'
+  Card, 
+  Button, 
+  Tag, 
+  Table, 
+  Alert, 
+  Modal, 
+  Avatar, 
+  Select, 
+  Form,
+  Input,
+  Space,
+  Typography,
+  Popconfirm,
+  notification,
+  Spin
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { 
+  UserOutlined,
+  UserAddOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  CheckOutlined, 
+  CloseOutlined,
+  MailOutlined,
+  CalendarOutlined,
+  SecurityScanOutlined
+} from '@ant-design/icons'
+
+const { Title } = Typography
+const { Option } = Select
 
 interface User {
   id: number
@@ -30,6 +43,12 @@ interface User {
   createdAt: string
   updatedAt: string
   lastLoginAt?: string
+  avatar?: string
+  fullName?: string
+  phone?: string
+  githubId?: string
+  provider?: string
+  providerId?: string
 }
 
 interface UserFormData {
@@ -42,16 +61,11 @@ interface UserFormData {
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [formData, setFormData] = useState<UserFormData>({
-    username: '',
-    email: '',
-    password: '',
-    role: 'USER'
-  })
+  const [form] = Form.useForm()
 
   const API_BASE = '/api/users'
 
@@ -61,6 +75,7 @@ const UserManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
+      setLoading(true)
       const token = localStorage.getItem('accessToken')
       const response = await fetch(API_BASE, {
         headers: {
@@ -74,24 +89,19 @@ const UserManagement: React.FC = () => {
       
       const data = await response.json()
       setUsers(data)
+      setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取用户列表失败')
+      notification.error({
+        message: '错误',
+        description: err instanceof Error ? err.message : '获取用户列表失败'
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSubmit = async (values: UserFormData) => {
     try {
       const token = localStorage.getItem('accessToken')
       const url = editingUser ? `${API_BASE}/${editingUser.id}` : API_BASE
@@ -103,7 +113,7 @@ const UserManagement: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(values)
       })
       
       if (!response.ok) {
@@ -111,39 +121,43 @@ const UserManagement: React.FC = () => {
       }
       
       await fetchUsers()
+      
       if (editingUser) {
-        setShowEditDialog(false)
+        setShowEditModal(false)
         setEditingUser(null)
+        notification.success({
+          message: '成功',
+          description: '用户更新成功'
+        })
       } else {
-        setShowAddForm(false)
+        setShowAddModal(false)
+        notification.success({
+          message: '成功',
+          description: '用户创建成功'
+        })
       }
-      setFormData({
-        username: '',
-        email: '',
-        password: '',
-        role: 'USER'
-      })
+      
+      form.resetFields()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '操作失败')
+      notification.error({
+        message: '错误',
+        description: err instanceof Error ? err.message : '操作失败'
+      })
     }
   }
 
   const handleEdit = (user: User) => {
     setEditingUser(user)
-    setFormData({
+    form.setFieldsValue({
       username: user.username,
       email: user.email,
       password: '',
       role: user.role
     })
-    setShowEditDialog(true)
+    setShowEditModal(true)
   }
 
   const handleDelete = async (userId: number) => {
-    if (!confirm('确定要删除此用户吗？')) {
-      return
-    }
-    
     try {
       const token = localStorage.getItem('accessToken')
       const response = await fetch(`${API_BASE}/${userId}`, {
@@ -158,8 +172,15 @@ const UserManagement: React.FC = () => {
       }
       
       await fetchUsers()
+      notification.success({
+        message: '成功',
+        description: '用户删除成功'
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除用户失败')
+      notification.error({
+        message: '错误',
+        description: err instanceof Error ? err.message : '删除用户失败'
+      })
     }
   }
 
@@ -179,8 +200,15 @@ const UserManagement: React.FC = () => {
       }
       
       await fetchUsers()
+      notification.success({
+        message: '成功',
+        description: `用户${currentActive ? '停用' : '激活'}成功`
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : '操作失败')
+      notification.error({
+        message: '错误',
+        description: err instanceof Error ? err.message : '操作失败'
+      })
     }
   }
 
@@ -188,322 +216,312 @@ const UserManagement: React.FC = () => {
     return new Date(dateString).toLocaleString('zh-CN')
   }
 
-  const cancelAddForm = () => {
-    setShowAddForm(false)
-    setFormData({
-      username: '',
-      email: '',
-      password: '',
-      role: 'USER'
-    })
-  }
-
-  const cancelEditForm = () => {
-    setShowEditDialog(false)
-    setEditingUser(null)
-    setFormData({
-      username: '',
-      email: '',
-      password: '',
-      role: 'USER'
-    })
-  }
+  const columns: ColumnsType<User> = [
+    {
+      title: '用户信息',
+      key: 'userInfo',
+      render: (_, user) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Avatar 
+            size={40}
+            src={user.avatar}
+            icon={<UserOutlined />}
+          >
+            {user.username.charAt(0).toUpperCase()}
+          </Avatar>
+          <div>
+            <div style={{ fontWeight: 500 }}>{user.username}</div>
+            <div style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <MailOutlined style={{ fontSize: 12 }} />
+              {user.email}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '角色',
+      key: 'role',
+      render: (_, user) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <SecurityScanOutlined style={{ color: '#666' }} />
+          <Tag color={user.role === 'ADMIN' ? 'blue' : 'default'}>
+            {user.role === 'ADMIN' ? '管理员' : '普通用户'}
+          </Tag>
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      key: 'status',
+      render: (_, user) => (
+        <Tag color={user.active ? 'success' : 'error'}>
+          {user.active ? '活跃' : '已停用'}
+        </Tag>
+      ),
+    },
+    {
+      title: '创建时间',
+      key: 'createdAt',
+      render: (_, user) => (
+        <div style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <CalendarOutlined style={{ fontSize: 12 }} />
+          {formatDate(user.createdAt)}
+        </div>
+      ),
+    },
+    {
+      title: '最后登录',
+      key: 'lastLogin',
+      render: (_, user) => (
+        user.lastLoginAt ? (
+          <div style={{ fontSize: 12, color: '#666' }}>
+            {formatDate(user.lastLoginAt)}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: '#999' }}>从未登录</div>
+        )
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, user) => (
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(user)}
+          />
+          <Button
+            size="small"
+            type={user.active ? 'default' : 'primary'}
+            icon={user.active ? <CloseOutlined /> : <CheckOutlined />}
+            onClick={() => handleToggleActive(user.id, user.active)}
+          >
+            {user.active ? '停用' : '激活'}
+          </Button>
+          <Popconfirm
+            title="确定要删除此用户吗？"
+            onConfirm={() => handleDelete(user.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+        <Spin size="large" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div style={{ padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">用户管理</h1>
-          <p className="text-gray-600">管理系统用户和权限</p>
+          <Title level={2} style={{ margin: 0 }}>用户管理</Title>
+          <p style={{ color: '#666', margin: '8px 0 0 0' }}>管理系统用户和权限</p>
         </div>
         <Button 
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2"
+          type="primary"
+          icon={<UserAddOutlined />}
+          onClick={() => setShowAddModal(true)}
         >
-          <UserPlusIcon className="h-4 w-4" />
           添加用户
         </Button>
       </div>
 
       {error && (
-        <Alert>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {showAddForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserIcon className="h-5 w-5" />
-              添加用户
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    用户名
-                  </label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="请输入用户名"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    邮箱
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="请输入邮箱"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    密码
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="请输入密码"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    角色
-                  </label>
-                  <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="请选择角色" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-800">
-                      <SelectItem value="USER">普通用户</SelectItem>
-                      <SelectItem value="ADMIN">管理员</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit">
-                  创建用户
-                </Button>
-                <Button type="button" variant="outline" onClick={cancelAddForm}>
-                  取消
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <Alert
+          message={error}
+          type="error"
+          closable
+          onClose={() => setError(null)}
+          style={{ marginBottom: 16 }}
+        />
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>用户列表</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>用户信息</TableHead>
-                  <TableHead>角色</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead>创建时间</TableHead>
-                  <TableHead>最后登录</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                            {user.username.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{user.username}</div>
-                          <div className="text-sm text-gray-500 flex items-center gap-1">
-                            <MailIcon className="h-3 w-3" />
-                            {user.email}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <ShieldIcon className="h-4 w-4 text-gray-500" />
-                        <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
-                          {user.role === 'ADMIN' ? '管理员' : '普通用户'}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${user.active ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <span className={user.active ? 'text-green-600' : 'text-red-600'}>
-                          {user.active ? '活跃' : '已停用'}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <CalendarIcon className="h-3 w-3" />
-                        {formatDate(user.createdAt)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {user.lastLoginAt ? (
-                        <div className="text-sm text-gray-500">
-                          {formatDate(user.lastLoginAt)}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-400">从未登录</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(user)}
-                        >
-                          <EditIcon className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={user.active ? "destructive" : "default"}
-                          onClick={() => handleToggleActive(user.id, user.active)}
-                        >
-                          {user.active ? <XIcon className="h-4 w-4" /> : <CheckIcon className="h-4 w-4" />}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          
-          {users.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              暂无用户数据
-            </div>
-          )}
-        </CardContent>
+        <Table
+          columns={columns}
+          dataSource={users}
+          rowKey="id"
+          pagination={{
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+          }}
+          locale={{
+            emptyText: '暂无用户数据'
+          }}
+        />
       </Card>
 
-      {/* 编辑用户弹窗 */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[425px] bg-white dark:bg-gray-800">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserIcon className="h-5 w-5" />
-              编辑用户
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  用户名
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入用户名"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  邮箱
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入邮箱"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  密码 <span className="text-gray-500">(留空则不修改)</span>
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="留空则不修改密码"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  角色
-                </label>
-                <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="请选择角色" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800">
-                    <SelectItem value="USER">普通用户</SelectItem>
-                    <SelectItem value="ADMIN">管理员</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter className="flex gap-2">
-              <Button type="submit">
-                更新用户
-              </Button>
-              <Button type="button" variant="outline" onClick={cancelEditForm}>
+      {/* 添加用户弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <UserAddOutlined />
+            添加用户
+          </div>
+        }
+        open={showAddModal}
+        onCancel={() => {
+          setShowAddModal(false)
+          form.resetFields()
+        }}
+        footer={null}
+        destroyOnClose
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          style={{ marginTop: 16 }}
+        >
+          <Form.Item
+            name="username"
+            label="用户名"
+            rules={[{ required: true, message: '请输入用户名' }]}
+          >
+            <Input placeholder="请输入用户名" />
+          </Form.Item>
+          
+          <Form.Item
+            name="email"
+            label="邮箱"
+            rules={[
+              { required: true, message: '请输入邮箱' },
+              { type: 'email', message: '请输入有效的邮箱地址' }
+            ]}
+          >
+            <Input placeholder="请输入邮箱" />
+          </Form.Item>
+          
+          <Form.Item
+            name="password"
+            label="密码"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
+            <Input.Password placeholder="请输入密码" />
+          </Form.Item>
+          
+          <Form.Item
+            name="role"
+            label="角色"
+            initialValue="USER"
+            rules={[{ required: true, message: '请选择角色' }]}
+          >
+            <Select placeholder="请选择角色">
+              <Option value="USER">普通用户</Option>
+              <Option value="ADMIN">管理员</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={() => {
+                setShowAddModal(false)
+                form.resetFields()
+              }}>
                 取消
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              <Button type="primary" htmlType="submit">
+                创建用户
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 编辑用户弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <UserOutlined />
+            编辑用户
+          </div>
+        }
+        open={showEditModal}
+        onCancel={() => {
+          setShowEditModal(false)
+          setEditingUser(null)
+          form.resetFields()
+        }}
+        footer={null}
+        destroyOnClose
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          style={{ marginTop: 16 }}
+        >
+          <Form.Item
+            name="username"
+            label="用户名"
+            rules={[{ required: true, message: '请输入用户名' }]}
+          >
+            <Input placeholder="请输入用户名" />
+          </Form.Item>
+          
+          <Form.Item
+            name="email"
+            label="邮箱"
+            rules={[
+              { required: true, message: '请输入邮箱' },
+              { type: 'email', message: '请输入有效的邮箱地址' }
+            ]}
+          >
+            <Input placeholder="请输入邮箱" />
+          </Form.Item>
+          
+          <Form.Item
+            name="password"
+            label="密码"
+            extra="留空则不修改密码"
+          >
+            <Input.Password placeholder="留空则不修改密码" />
+          </Form.Item>
+          
+          <Form.Item
+            name="role"
+            label="角色"
+            rules={[{ required: true, message: '请选择角色' }]}
+          >
+            <Select placeholder="请选择角色">
+              <Option value="USER">普通用户</Option>
+              <Option value="ADMIN">管理员</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={() => {
+                setShowEditModal(false)
+                setEditingUser(null)
+                form.resetFields()
+              }}>
+                取消
+              </Button>
+              <Button type="primary" htmlType="submit">
+                更新用户
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

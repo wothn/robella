@@ -13,6 +13,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -30,6 +31,7 @@ public class AuthController {
     @GetMapping("/github/login")
     public Mono<ResponseEntity<String>> githubLogin(
             @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false, name = "frontRedirect") String frontRedirect,
             ServerWebExchange exchange) {
 
         String finalRedirectUri = redirectUri != null ? redirectUri
@@ -37,7 +39,8 @@ public class AuthController {
                         exchange.getRequest().getURI().getHost() + ":" +
                         exchange.getRequest().getURI().getPort() + "/api/auth/github/callback";
 
-        String authUrl = gitHubOAuthService.getAuthorizationUrl(finalRedirectUri);
+    // 使用 state 透传前端回跳地址（如 http://localhost:5173）
+    String authUrl = gitHubOAuthService.getAuthorizationUrl(finalRedirectUri, frontRedirect);
 
         return Mono.just(ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(authUrl))
@@ -48,6 +51,7 @@ public class AuthController {
     public Mono<ResponseEntity<Object>> githubCallback(
             @RequestParam String code,
             @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false) String state,
             ServerWebExchange exchange) {
 
         String finalRedirectUri = redirectUri != null ? redirectUri
@@ -55,7 +59,7 @@ public class AuthController {
                         exchange.getRequest().getURI().getHost() + ":" +
                         exchange.getRequest().getURI().getPort() + "/api/auth/github/callback";
 
-        return gitHubOAuthService.exchangeCodeForUser(code, finalRedirectUri)
+    return gitHubOAuthService.exchangeCodeForUser(code, finalRedirectUri)
                 .flatMap(user -> {
                     String jwtToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
                     return userService.createOAuthLoginResponse(user)
@@ -67,11 +71,16 @@ public class AuthController {
                             });
                 })
                 .map(loginResponse -> {
-                    String frontendRedirectUrl = "/auth/success?" +
-                            "token=" + URLEncoder.encode(loginResponse.getAccessToken(), StandardCharsets.UTF_8) +
-                            "&user=" + URLEncoder.encode(loginResponse.getUser().getUsername(), StandardCharsets.UTF_8)
-                            +
-                            "&message=" + URLEncoder.encode("GitHub登录成功", StandardCharsets.UTF_8);
+                    // 确保token不为null
+                    String token = loginResponse.getAccessToken();
+                    if (token == null) {
+                        throw new RuntimeException("JWT token generation failed");
+                    }
+                    // 优先从 state 还原前端站点，例如 http://localhost:5173
+            String frontBase = (state != null && !state.isBlank()) ? URLDecoder.decode(state, StandardCharsets.UTF_8) : "";
+                    String frontendRedirectUrl = (frontBase.isEmpty() ? "" : frontBase) + "/auth/success?" +
+                            "token=" + URLEncoder.encode(token, StandardCharsets.UTF_8) +
+                            "&user=" + URLEncoder.encode(loginResponse.getUser().getUsername(), StandardCharsets.UTF_8);
 
                     return ResponseEntity.status(HttpStatus.FOUND)
                             .location(URI.create(frontendRedirectUrl))
@@ -80,8 +89,9 @@ public class AuthController {
                 .onErrorResume(error -> {
                     log.error("GitHub登录失败: {}", error.getMessage());
                     String errorMessage = error.getMessage() != null ? error.getMessage() : "GitHub登录失败";
-                    String frontendErrorUrl = "/auth/error?message=" +
-                            URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
+                    String frontBase = (state != null && !state.isBlank()) ? URLDecoder.decode(state, StandardCharsets.UTF_8) : "";
+                    String frontendErrorUrl = (frontBase.isEmpty() ? "" : frontBase) + "/auth/error?" +
+                            "message=" + URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
 
                     return Mono.just(ResponseEntity.status(HttpStatus.FOUND)
                             .location(URI.create(frontendErrorUrl))

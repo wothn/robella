@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircleIcon, XCircleIcon } from 'lucide-react'
+import { Card, Spin, Result } from 'antd'
+import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 
 interface AuthCallbackProps {
   type: 'success' | 'error'
@@ -14,6 +14,7 @@ const AuthCallback: React.FC<AuthCallbackProps> = ({ type }) => {
     const urlParams = new URLSearchParams(window.location.search)
     const token = urlParams.get('token')
     const user = urlParams.get('user')
+    const error = urlParams.get('error')
 
     if (type === 'success' && token && user) {
       // 存储用户信息
@@ -27,58 +28,63 @@ const AuthCallback: React.FC<AuthCallbackProps> = ({ type }) => {
       }, 2000)
       
       return () => clearTimeout(timer)
+    } else if (type === 'error' || error) {
+      // 处理错误情况，可以选择显示错误信息
+      console.error('OAuth认证失败:', error)
     }
   }, [type, navigate])
 
   if (type === 'success') {
     return (
-      <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-blue-50 to-indigo-50 p-4">
-        <Card className="w-full max-w-md backdrop-blur-xl bg-white/80 border-white/50 shadow-xl">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <CheckCircleIcon className="h-16 w-16 text-green-500" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-green-600">登录成功！</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">正在跳转到主页面...</p>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-            </div>
-          </CardContent>
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%)',
+        padding: 16
+      }}>
+        <Card style={{ 
+          width: '100%', 
+          maxWidth: 400, 
+          textAlign: 'center',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+        }}>
+          <Result
+            icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+            title="登录成功！"
+            subTitle="正在跳转到主页面..."
+            extra={<Spin size="large" />}
+          />
         </Card>
       </div>
     )
   }
 
-  if (type === 'error') {
-    const urlParams = new URLSearchParams(window.location.search)
-    const errorMessage = urlParams.get('error') || '登录失败'
-
-    return (
-      <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-pink-50 to-rose-50 p-4">
-        <Card className="w-full max-w-md backdrop-blur-xl bg-white/80 border-white/50 shadow-xl">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <XCircleIcon className="h-16 w-16 text-red-500" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-red-600">登录失败</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-6">{decodeURIComponent(errorMessage)}</p>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition-colors"
-            >
-              返回登录页面
-            </button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  return null
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #fff1f0 0%, #ffe7e7 100%)',
+      padding: 16
+    }}>
+      <Card style={{ 
+        width: '100%', 
+        maxWidth: 400, 
+        textAlign: 'center',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+      }}>
+        <Result
+          status="error"
+          icon={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+          title="登录失败"
+          subTitle="认证过程中出现了问题，请重试"
+        />
+      </Card>
+    </div>
+  )
 }
 
 export default AuthCallback

@@ -21,16 +21,20 @@ function AppContent() {
   // 处理OAuth回调
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search)
+    const auth = urlParams.get('auth')
     const token = urlParams.get('token')
     const user = urlParams.get('user')
-    const errorMessage = urlParams.get('error')
+    const errorMessage = urlParams.get('message')
 
-    if (errorMessage) {
-      // 错误页面由AuthCallback组件处理
+    if (auth === 'error' && errorMessage) {
+      // 可以在这里显示错误信息
+      console.error('GitHub登录失败:', decodeURIComponent(errorMessage))
+      // 清除URL参数
+      window.history.replaceState({}, document.title, window.location.pathname)
       return
     }
 
-    if (token && user) {
+    if (auth === 'success' && token && user) {
       localStorage.setItem('user', JSON.stringify({ username: user }))
       localStorage.setItem('accessToken', token)
       setIsLoggedIn(true)

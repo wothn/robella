@@ -11,6 +11,8 @@ import org.springframework.web.reactive.function.BodyInserters;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Service
@@ -35,10 +37,14 @@ public class GitHubOAuthService {
     @Autowired
     private UserService userService;
 
-    public String getAuthorizationUrl(String redirectUri) {
-        return String.format(
-                "https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=user:email,read:user",
-                clientId, redirectUri);
+    public String getAuthorizationUrl(String redirectUri, String state) {
+    String encodedRedirect = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8);
+    String stateParam = state != null && !state.isEmpty()
+        ? "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8)
+        : "";
+    return String.format(
+        "https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=user:email,read:user%s",
+        clientId, encodedRedirect, stateParam);
     }
 
     public Mono<User> exchangeCodeForUser(String code, String redirectUri) {
