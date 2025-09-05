@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import Login from './components/Login'
 import UserManagement from './components/UserManagement'
 import AuthCallback from './components/AuthCallback'
-import './App.css'
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)

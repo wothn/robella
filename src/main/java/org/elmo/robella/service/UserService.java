@@ -6,7 +6,8 @@ import org.elmo.robella.model.User;
 import org.elmo.robella.model.UserDTO;
 import org.elmo.robella.model.UserResponse;
 import org.elmo.robella.repository.UserRepository;
-import cn.dev33.satoken.secure.BCrypt;
+import org.elmo.robella.util.JwtUtil;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -22,6 +23,8 @@ import java.time.LocalDateTime;
 public class UserService {
     
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     
     public Mono<UserResponse> createUser(UserDTO userDTO) {
         return userRepository.existsByUsername(userDTO.getUsername())
@@ -39,7 +42,7 @@ public class UserService {
                 User user = new User();
                 BeanUtils.copyProperties(userDTO, user);
                 
-                user.setPassword(BCrypt.hashpw(userDTO.getPassword()));
+                user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
                 user.setActive(true);
                 user.setRole("USER");
                 user.setEmailVerified("false");
@@ -112,7 +115,7 @@ public class UserService {
                 BeanUtils.copyProperties(userDTO, existingUser, "id", "password", "createdAt", "emailVerified", "phoneVerified");
                 
                 if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
-                    existingUser.setPassword(BCrypt.hashpw(userDTO.getPassword()));
+                    existingUser.setPassword(passwordEncoder.encode(userDTO.getPassword()));
                 }
                 
                 existingUser.setUpdatedAt(LocalDateTime.now());
@@ -171,7 +174,7 @@ public class UserService {
                 if (!user.getActive()) {
                     return Mono.just(false);
                 }
-                return Mono.just(BCrypt.checkpw(password, user.getPassword()));
+                return Mono.just(passwordEncoder.matches(password, user.getPassword()));
             })
             .defaultIfEmpty(false);
     }
@@ -186,7 +189,7 @@ public class UserService {
                 }
                 
                 // 验证密码
-                if (!BCrypt.checkpw(loginRequest.getPassword(), user.getPassword())) {
+                if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                     return Mono.error(new IllegalArgumentException("用户名或密码错误"));
                 }
                 
@@ -199,13 +202,15 @@ public class UserService {
             .map(user -> {
                 UserResponse userResponse = convertToResponse(user);
                 
+                // 生成JWT token
+                String jwtToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
+                
                 return LoginResponse.builder()
                     .user(userResponse)
                     .message("登录成功")
                     .loginTime(LocalDateTime.now())
-                    // 如果需要JWT token，可以在这里生成
-                    // .accessToken(jwtService.generateToken(user))
-                    // .expiresAt(LocalDateTime.now().plusHours(24))
+                    .accessToken(jwtToken)
+                    .expiresAt(jwtUtil.getExpirationTime(jwtToken))
                     .build();
             })
             .doOnSuccess(response -> log.info("用户登录成功: {}", response.getUser().getUsername()))
@@ -242,6 +247,8 @@ public class UserService {
                 user.setActive(true);
                 user.setRole("USER");
                 user.setEmailVerified("true");
+                // For OAuth users, set password to null since they don't have one
+                user.setPassword(null);
                 
                 return userRepository.save(user);
             })

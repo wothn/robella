@@ -1,5 +1,11 @@
--- 用户表创建脚本
-CREATE TABLE IF NOT EXISTS users (
+-- Migration script to update existing database schema for OAuth users
+-- Run this script to update existing databases that have NOT NULL constraint on password column
+
+-- Drop the existing table and recreate it with the correct schema
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Recreate the users table with nullable password
+CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
@@ -19,14 +25,14 @@ CREATE TABLE IF NOT EXISTS users (
     provider_id VARCHAR(100)
 );
 
--- 创建索引
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+-- Create indexes
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_active ON users(active);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_created_at ON users(created_at);
 
--- 添加注释
+-- Add comments
 COMMENT ON TABLE users IS '用户表';
 COMMENT ON COLUMN users.id IS '用户ID';
 COMMENT ON COLUMN users.username IS '用户名';

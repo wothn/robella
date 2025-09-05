@@ -14,8 +14,6 @@ const AuthCallback: React.FC<AuthCallbackProps> = ({ type }) => {
     const urlParams = new URLSearchParams(window.location.search)
     const token = urlParams.get('token')
     const user = urlParams.get('user')
-    const message = urlParams.get('message')
-    const errorMessage = urlParams.get('error')
 
     if (type === 'success' && token && user) {
       // 存储用户信息

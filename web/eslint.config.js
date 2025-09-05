@@ -27,6 +27,7 @@ export default [
         { allowConstantExport: true },
       ],
       'react/react-in-jsx-scope': 'off', // 不是必须的（对于 React 17+）
+      'react/prop-types': 'off', // Disable for TypeScript files
     },
     languageOptions: {
       ecmaVersion: 2020,

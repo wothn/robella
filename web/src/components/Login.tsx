@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { LockIcon, UserIcon, EyeIcon, EyeOffIcon, GithubIcon } from 'lucide-react'
 import { apiClient } from '@/lib/api'
+
+import { LockIcon, UserIcon, EyeIcon, EyeOffIcon, GithubIcon } from 'lucide-react'
 
 interface LoginFormData {
   username: string
@@ -30,7 +31,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     const urlParams = new URLSearchParams(window.location.search)
     const token = urlParams.get('token')
     const user = urlParams.get('user')
-    const message = urlParams.get('message')
     const errorMessage = urlParams.get('error')
 
     if (errorMessage) {
@@ -278,7 +278,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       </Card>
 
       {/* 自定义动画样式 */}
-      <style jsx>{`
+      <style>{`
         @keyframes blob {
           0% {
             transform: translate(0px, 0px) scale(1);

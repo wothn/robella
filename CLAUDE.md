@@ -152,6 +152,12 @@ Add new provider node in `application.yml` using existing type (`OpenAI` or `Ant
 - **Component Structure**: Use functional components with hooks
 - **TypeScript**: Always define types for props and state
 - **Styling**: Use Tailwind CSS utility classes and shadcn/ui components
+- **UI Components**: **PRIORITY ORDER** - Use shadcn/ui components first, only create custom components when shadcn/ui doesn't meet requirements
+- **Component Guidelines**: 
+  - First check shadcn/ui component library for needed components
+  - Use shadcn/ui components from `@/components/ui/` directory
+  - Only write custom components when shadcn/ui lacks the functionality
+  - Follow shadcn/ui patterns and conventions for consistency
 - **State Management**: Use React hooks (useState, useEffect) for local state
 - **Code Quality**: Run ESLint before commits
 - **Build**: Use Vite for fast development and optimized builds
