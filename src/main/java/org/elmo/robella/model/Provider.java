@@ -15,7 +15,7 @@ public class Provider {
     private String apiKey;
     private String baseUrl;
     private String deploymentName;
-    private Boolean active;
+    private Boolean enabled = true;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

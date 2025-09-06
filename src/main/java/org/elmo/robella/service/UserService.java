@@ -6,7 +6,7 @@ import org.elmo.robella.model.User;
 import org.elmo.robella.model.UserDTO;
 import org.elmo.robella.model.UserResponse;
 import org.elmo.robella.repository.UserRepository;
-import org.elmo.robella.util.JwtUtil;
+import org.elmo.robella.security.JwtTokenProvider;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 public class UserService {
     
     private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
+    private final JwtTokenProvider jwtTokenProvider;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     
     public Mono<UserResponse> createUser(UserDTO userDTO) {
@@ -203,14 +203,14 @@ public class UserService {
                 UserResponse userResponse = convertToResponse(user);
                 
                 // 生成JWT token
-                String jwtToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
+                String jwtToken = jwtTokenProvider.generateToken(user.getUsername(), user.getRole(), user.getId());
                 
                 return LoginResponse.builder()
                     .user(userResponse)
                     .message("登录成功")
                     .loginTime(LocalDateTime.now())
                     .accessToken(jwtToken)
-                    .expiresAt(jwtUtil.getExpirationTime(jwtToken))
+                    .expiresAt(jwtTokenProvider.getExpirationTime(jwtToken))
                     .build();
             })
             .doOnSuccess(response -> log.info("用户登录成功: {}", response.getUser().getUsername()))

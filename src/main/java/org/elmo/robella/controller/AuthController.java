@@ -3,11 +3,13 @@ package org.elmo.robella.controller;
 import org.elmo.robella.model.LoginResponse;
 import org.elmo.robella.service.GitHubOAuthService;
 import org.elmo.robella.service.UserService;
-import org.elmo.robella.util.JwtUtil;
+import org.elmo.robella.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -26,7 +28,7 @@ public class AuthController {
 
     private final GitHubOAuthService gitHubOAuthService;
     private final UserService userService;
-    private final JwtUtil jwtUtil;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @GetMapping("/github/login")
     public Mono<ResponseEntity<String>> githubLogin(
@@ -61,11 +63,11 @@ public class AuthController {
 
     return gitHubOAuthService.exchangeCodeForUser(code, finalRedirectUri)
                 .flatMap(user -> {
-                    String jwtToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
+                    String jwtToken = jwtTokenProvider.generateToken(user.getUsername(), user.getRole(), user.getId());
                     return userService.createOAuthLoginResponse(user)
                             .map(loginResponse -> {
                                 loginResponse.setAccessToken(jwtToken);
-                                loginResponse.setExpiresAt(jwtUtil.getExpirationTime(jwtToken));
+                                loginResponse.setExpiresAt(jwtTokenProvider.getExpirationTime(jwtToken));
                                 loginResponse.setLoginTime(LocalDateTime.now());
                                 return loginResponse;
                             });
@@ -100,24 +102,17 @@ public class AuthController {
     }
 
     @GetMapping("/github/user")
-    public Mono<ResponseEntity<LoginResponse>> getGitHubUser(@RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-        }
-
-        String token = authHeader.substring(7);
-
-        if (!jwtUtil.validateToken(token)) {
-            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-        }
-
-        String username = jwtUtil.extractUsername(token);
-        return userService.getUserByUsername(username)
+    @PreAuthorize("isAuthenticated()")
+    public Mono<ResponseEntity<LoginResponse>> getGitHubUser() {
+        return ReactiveSecurityContextHolder.getContext()
+                .flatMap(context -> {
+                    String username = context.getAuthentication().getName();
+                    return userService.getUserByUsername(username);
+                })
                 .map(user -> {
                     LoginResponse response = LoginResponse.builder()
                             .user(user)
-                            .accessToken(token)
-                            .expiresAt(jwtUtil.getExpirationTime(token))
+                            .accessToken(null)
                             .message("用户信息获取成功")
                             .build();
                     return ResponseEntity.ok(response);

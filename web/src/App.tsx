@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { Layout, Menu } from 'antd'
-import { UserOutlined, SettingOutlined, ApiOutlined } from '@ant-design/icons'
+import { UserOutlined, ApiOutlined } from '@ant-design/icons'
+import { AppProvider } from './contexts/AppContext'
 import Login from './components/Login'
 import UserManagement from './components/UserManagement'
-import ProviderManagement from './components/ProviderManagement'
+import ProviderModelManager from './components/ProviderModelManager'
 import AuthCallback from './components/AuthCallback'
 
 function AppContent() {
@@ -69,7 +70,7 @@ function AppContent() {
       case 'users':
         return <UserManagement />
       case 'providers':
-        return <ProviderManagement />
+        return <ProviderModelManager />
       default:
         return <UserManagement />
     }
@@ -108,7 +109,7 @@ function AppContent() {
               用户管理
             </Menu.Item>
             <Menu.Item key="providers" icon={<ApiOutlined />}>
-              AI提供商管理
+              提供商与模型
             </Menu.Item>
           </Menu>
         </Sider>
@@ -123,13 +124,15 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/auth/success" element={<AuthCallback type="success" />} />
-        <Route path="/auth/error" element={<AuthCallback type="error" />} />
-        <Route path="*" element={<AppContent />} />
-      </Routes>
-    </Router>
+    <AppProvider>
+      <Router>
+        <Routes>
+          <Route path="/auth/success" element={<AuthCallback type="success" />} />
+          <Route path="/auth/error" element={<AuthCallback type="error" />} />
+          <Route path="*" element={<AppContent />} />
+        </Routes>
+      </Router>
+    </AppProvider>
   )
 }
 

@@ -1,6 +1,7 @@
 package org.elmo.robella.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -54,8 +55,10 @@ public class Model {
     private LocalDateTime updatedAt;
     
     // Transient fields for JSON conversion
-    private transient List<ModelCapability> capabilitiesList;
-    private transient Pricing pricingInfo;
+    @Transient
+    private List<ModelCapability> capabilitiesList;
+    @Transient
+    private Pricing pricingInfo;
     
     private static final ObjectMapper objectMapper = new ObjectMapper();
     

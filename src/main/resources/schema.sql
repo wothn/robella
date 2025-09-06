@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS providers (
     api_key VARCHAR(500) NOT NULL,
     base_url VARCHAR(500) NOT NULL,
     deployment_name VARCHAR(100),
-    active BOOLEAN DEFAULT TRUE,
+    enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS models (
     provider_id BIGINT NOT NULL,
     name VARCHAR(100) NOT NULL,
     vendor_model VARCHAR(100) NOT NULL,
-    active BOOLEAN DEFAULT TRUE,
+    enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
@@ -54,13 +54,13 @@ CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 -- providers表索引
 CREATE INDEX IF NOT EXISTS idx_providers_name ON providers(name);
 CREATE INDEX IF NOT EXISTS idx_providers_type ON providers(type);
-CREATE INDEX IF NOT EXISTS idx_providers_active ON providers(active);
+CREATE INDEX IF NOT EXISTS idx_providers_enabled ON providers(enabled);
 CREATE INDEX IF NOT EXISTS idx_providers_created_at ON providers(created_at);
 
 -- models表索引
 CREATE INDEX IF NOT EXISTS idx_models_provider_id ON models(provider_id);
 CREATE INDEX IF NOT EXISTS idx_models_name ON models(name);
-CREATE INDEX IF NOT EXISTS idx_models_active ON models(active);
+CREATE INDEX IF NOT EXISTS idx_models_enabled ON models(enabled);
 CREATE INDEX IF NOT EXISTS idx_models_created_at ON models(created_at);
 
 -- 添加注释
@@ -91,7 +91,7 @@ COMMENT ON COLUMN providers.type IS '提供商类型';
 COMMENT ON COLUMN providers.api_key IS 'API密钥';
 COMMENT ON COLUMN providers.base_url IS '基础URL';
 COMMENT ON COLUMN providers.deployment_name IS '部署名称';
-COMMENT ON COLUMN providers.active IS '是否启用';
+COMMENT ON COLUMN providers.enabled IS '是否启用';
 COMMENT ON COLUMN providers.created_at IS '创建时间';
 COMMENT ON COLUMN providers.updated_at IS '更新时间';
 
@@ -101,6 +101,6 @@ COMMENT ON COLUMN models.id IS '模型ID';
 COMMENT ON COLUMN models.provider_id IS '提供商ID';
 COMMENT ON COLUMN models.name IS '模型名称';
 COMMENT ON COLUMN models.vendor_model IS '供应商模型名称';
-COMMENT ON COLUMN models.active IS '是否启用';
+COMMENT ON COLUMN models.enabled IS '是否启用';
 COMMENT ON COLUMN models.created_at IS '创建时间';
 COMMENT ON COLUMN models.updated_at IS '更新时间';

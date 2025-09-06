@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -29,6 +32,7 @@ public class UserController {
     private final UserService userService;
     
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Mono<ResponseEntity<UserResponse>> createUser(@Valid @RequestBody UserDTO userDTO) {
         return userService.createUser(userDTO)
             .map(createdUser -> ResponseEntity.status(HttpStatus.CREATED).body(createdUser))
@@ -69,6 +73,7 @@ public class UserController {
     }
     
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Flux<UserResponse> getAllUsers() {
         return userService.getAllUsers()
             .onErrorResume(e -> {
@@ -99,18 +104,31 @@ public class UserController {
     public Mono<ResponseEntity<UserResponse>> updateUser(
             @PathVariable @NotNull Long id,
             @Valid @RequestBody UserDTO userDTO) {
-        return userService.updateUser(id, userDTO)
-            .map(ResponseEntity::ok)
-            .onErrorResume(e -> {
-                log.error("更新用户失败: {}", e.getMessage());
-                if (e instanceof IllegalArgumentException) {
-                    return Mono.just(ResponseEntity.badRequest().build());
-                }
-                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
-            });
+        return ReactiveSecurityContextHolder.getContext()
+                .flatMap(context -> {
+                    Authentication auth = context.getAuthentication();
+                    String currentUser = auth.getName();
+                    
+                    return userService.getUserByUsername(currentUser)
+                            .flatMap(currentUserObj -> {
+                                if (!currentUserObj.getRole().equals("ADMIN") && !currentUserObj.getId().equals(id)) {
+                                    return Mono.error(new IllegalArgumentException("无权限修改其他用户信息"));
+                                }
+                                return userService.updateUser(id, userDTO);
+                            })
+                            .map(ResponseEntity::ok)
+                            .onErrorResume(e -> {
+                                log.error("更新用户失败: {}", e.getMessage());
+                                if (e instanceof IllegalArgumentException) {
+                                    return Mono.just(ResponseEntity.badRequest().build());
+                                }
+                                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+                            });
+                });
     }
     
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Mono<ResponseEntity<Void>> deleteUser(@PathVariable @NotNull Long id) {
         return userService.deleteUser(id)
             .thenReturn(ResponseEntity.noContent().<Void>build())
@@ -121,6 +139,7 @@ public class UserController {
     }
     
     @PutMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
     public Mono<ResponseEntity<UserResponse>> activateUser(@PathVariable @NotNull Long id) {
         return userService.activateUser(id)
             .map(ResponseEntity::ok)
@@ -131,6 +150,7 @@ public class UserController {
     }
     
     @PutMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     public Mono<ResponseEntity<UserResponse>> deactivateUser(@PathVariable @NotNull Long id) {
         return userService.deactivateUser(id)
             .map(ResponseEntity::ok)

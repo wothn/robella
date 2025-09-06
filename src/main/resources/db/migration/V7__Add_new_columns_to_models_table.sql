@@ -23,14 +23,6 @@ ALTER TABLE models ADD COLUMN IF NOT EXISTS cached_output_price DECIMAL(10, 6);
 -- 添加supported_text_delta字段（可选）
 ALTER TABLE models ADD COLUMN IF NOT EXISTS supported_text_delta BOOLEAN DEFAULT FALSE;
 
--- 重命名active字段为enabled（如果尚未重命名）
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'models' AND column_name = 'active') AND
-       NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'models' AND column_name = 'enabled') THEN
-        ALTER TABLE models RENAME COLUMN active TO enabled;
-    END IF;
-END $$;
 
 -- 创建新字段的索引
 CREATE INDEX IF NOT EXISTS idx_models_group ON models(group_name);

@@ -2,7 +2,6 @@ package org.elmo.robella.service.transform;
 
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
-import org.elmo.robella.model.internal.UnifiedStreamChunk;
 
 /**
  * 单一厂商类型转换器。每个厂商需提供四个方向的转换，不处理流式转换：

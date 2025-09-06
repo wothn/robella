@@ -6,8 +6,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface ProviderRepository extends R2dbcRepository<Provider, Long> {
-    Flux<Provider> findByActiveTrue();
+    Flux<Provider> findByEnabledTrue();
     Mono<Provider> findByName(String name);
-    Mono<Provider> findByActiveTrueAndName(String name);
+    Mono<Provider> findByEnabledTrueAndName(String name);
     Flux<Provider> findByType(String type);
 }

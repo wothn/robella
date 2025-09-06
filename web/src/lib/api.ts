@@ -16,13 +16,22 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
+    // 获取token并添加到请求头
+    const token = localStorage.getItem('accessToken')
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options.headers as Record<string, string>,
+    }
+    
+    // 如果有token且不是登录请求，添加Authorization头
+    if (token && !endpoint.includes('/login')) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    
     const config: RequestInit = {
       mode: 'cors',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       ...options,
     }
 
@@ -128,43 +137,81 @@ class ApiClient {
   async deactivateUser(id: number): Promise<User> {
     return this.put(`/users/${id}/deactivate`)
   }
+
+  // ================= Provider & Model Management =================
+  // 获取所有 Provider
+  async getProviders(): Promise<Provider[]> {
+    return this.get('/providers')
+  }
+
+  // 获取激活 Provider
+  async getActiveProviders(): Promise<Provider[]> {
+    return this.get('/providers/active')
+  }
+
+  // 创建 Provider
+  async createProvider(data: Partial<Provider>): Promise<Provider> {
+    return this.post('/providers', data)
+  }
+
+  // 更新 Provider（全量）
+  async updateProvider(id: number, data: Partial<Provider>): Promise<Provider> {
+    return this.put(`/providers/${id}`, data)
+  }
+
+  // 局部更新 Provider
+  async patchProvider(id: number, data: Partial<Provider>): Promise<Provider> {
+    return this.request(`/providers/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+  }
+
+  // 删除 Provider
+  async deleteProvider(id: number): Promise<void> {
+    return this.delete(`/providers/${id}`)
+  }
+
+  // 获取某 Provider 的所有模型
+  async getModelsByProvider(providerId: number): Promise<Model[]> {
+    return this.get(`/providers/${providerId}/models`)
+  }
+
+  // 获取某 Provider 激活模型
+  async getActiveModelsByProvider(providerId: number): Promise<Model[]> {
+    return this.get(`/providers/${providerId}/models/active`)
+  }
+
+  // 创建模型
+  async createModel(providerId: number, data: Partial<Model>): Promise<Model> {
+    return this.post(`/providers/${providerId}/models`, data)
+  }
+
+  // 更新模型
+  async updateModel(modelId: number, data: Partial<Model>): Promise<Model> {
+    return this.put(`/providers/models/${modelId}`, data)
+  }
+
+  // 局部更新模型
+  async patchModel(modelId: number, data: Partial<Model>): Promise<Model> {
+    return this.request(`/providers/models/${modelId}`, { method: 'PATCH', body: JSON.stringify(data) })
+  }
+
+  // 删除模型
+  async deleteModel(modelId: number): Promise<void> {
+    return this.delete(`/providers/models/${modelId}`)
+  }
 }
 
 // 创建API客户端实例
 export const apiClient = new ApiClient()
 
-// 导出类型定义
-export interface User {
-  id: number
-  username: string
-  email: string
-  fullName: string
-  avatar?: string | null
-  phone?: string | null
-  active: boolean
-  role: string
-  createdAt: string
-  updatedAt: string
-  lastLoginAt?: string | null
-  emailVerified: boolean
-  phoneVerified: boolean
-}
-
-export interface LoginResponse {
-  user: User
-  accessToken?: string
-  refreshToken?: string
-  expiresAt?: string
-  loginTime: string
-  message?: string
-  sessionId?: string
-}
-
-export interface CreateUserRequest {
-  username: string
-  email: string
-  password: string
-  role?: string
-}
+// 导入类型定义
+import type {
+  User,
+  LoginResponse,
+  CreateUserRequest,
+  Provider,
+  Model,
+  CreateProviderRequest,
+  CreateModelRequest
+} from '../types'
 
 export default ApiClient
