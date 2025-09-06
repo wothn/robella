@@ -24,8 +24,13 @@ public class ProviderService {
     }
     
     public Flux<Provider> getActiveProviders() {
-        return providerRepository.findByActiveTrue();
+        return providerRepository.findByEnabledTrue();
     }
+    
+    public Flux<Provider> getEnabledProviders() {
+        return providerRepository.findByEnabledTrue();
+    }
+    
     
     public Mono<Provider> getProviderById(Long id) {
         return providerRepository.findById(id);
@@ -38,7 +43,7 @@ public class ProviderService {
     public Mono<Provider> createProvider(Provider provider) {
         provider.setCreatedAt(LocalDateTime.now());
         provider.setUpdatedAt(LocalDateTime.now());
-        provider.setActive(true);
+        provider.setEnabled(true);
         return providerRepository.save(provider);
     }
     
@@ -50,7 +55,7 @@ public class ProviderService {
                     existingProvider.setApiKey(provider.getApiKey());
                     existingProvider.setBaseUrl(provider.getBaseUrl());
                     existingProvider.setDeploymentName(provider.getDeploymentName());
-                    existingProvider.setActive(provider.getActive());
+                    existingProvider.setEnabled(provider.getEnabled());
                     existingProvider.setUpdatedAt(LocalDateTime.now());
                     return providerRepository.save(existingProvider);
                 });
@@ -64,7 +69,7 @@ public class ProviderService {
                     if (provider.getApiKey() != null) existingProvider.setApiKey(provider.getApiKey());
                     if (provider.getBaseUrl() != null) existingProvider.setBaseUrl(provider.getBaseUrl());
                     if (provider.getDeploymentName() != null) existingProvider.setDeploymentName(provider.getDeploymentName());
-                    if (provider.getActive() != null) existingProvider.setActive(provider.getActive());
+                    if (provider.getEnabled() != null) existingProvider.setEnabled(provider.getEnabled());
                     existingProvider.setUpdatedAt(LocalDateTime.now());
                     return providerRepository.save(existingProvider);
                 });
@@ -86,7 +91,7 @@ public class ProviderService {
     }
     
     public Flux<Model> getActiveModelsByProviderId(Long providerId) {
-        return modelRepository.findByProviderIdAndActiveTrue(providerId);
+        return modelRepository.findByProviderIdAndEnabledTrue(providerId);
     }
     
     public Mono<Model> getModelById(Long id) {
@@ -96,7 +101,7 @@ public class ProviderService {
     public Mono<Model> createModel(Model model) {
         model.setCreatedAt(LocalDateTime.now());
         model.setUpdatedAt(LocalDateTime.now());
-        model.setActive(true);
+        model.setEnabled(true);
         return modelRepository.save(model);
     }
     
@@ -105,8 +110,18 @@ public class ProviderService {
                 .flatMap(existingModel -> {
                     existingModel.setProviderId(model.getProviderId());
                     existingModel.setName(model.getName());
+                    existingModel.setGroup(model.getGroup());
+                    existingModel.setOwnedBy(model.getOwnedBy());
+                    existingModel.setDescription(model.getDescription());
+                    existingModel.setCapabilities(model.getCapabilities());
+                    existingModel.setInputPerMillionTokens(model.getInputPerMillionTokens());
+                    existingModel.setOutputPerMillionTokens(model.getOutputPerMillionTokens());
+                    existingModel.setCurrencySymbol(model.getCurrencySymbol());
+                    existingModel.setCachedInputPrice(model.getCachedInputPrice());
+                    existingModel.setCachedOutputPrice(model.getCachedOutputPrice());
+                    existingModel.setSupportedTextDelta(model.getSupportedTextDelta());
                     existingModel.setVendorModel(model.getVendorModel());
-                    existingModel.setActive(model.getActive());
+                    existingModel.setEnabled(model.getEnabled());
                     existingModel.setUpdatedAt(LocalDateTime.now());
                     return modelRepository.save(existingModel);
                 });
@@ -117,8 +132,18 @@ public class ProviderService {
                 .flatMap(existingModel -> {
                     if (model.getProviderId() != null) existingModel.setProviderId(model.getProviderId());
                     if (model.getName() != null) existingModel.setName(model.getName());
+                    if (model.getGroup() != null) existingModel.setGroup(model.getGroup());
+                    if (model.getOwnedBy() != null) existingModel.setOwnedBy(model.getOwnedBy());
+                    if (model.getDescription() != null) existingModel.setDescription(model.getDescription());
+                    if (model.getCapabilities() != null) existingModel.setCapabilities(model.getCapabilities());
+                    if (model.getInputPerMillionTokens() != null) existingModel.setInputPerMillionTokens(model.getInputPerMillionTokens());
+                    if (model.getOutputPerMillionTokens() != null) existingModel.setOutputPerMillionTokens(model.getOutputPerMillionTokens());
+                    if (model.getCurrencySymbol() != null) existingModel.setCurrencySymbol(model.getCurrencySymbol());
+                    if (model.getCachedInputPrice() != null) existingModel.setCachedInputPrice(model.getCachedInputPrice());
+                    if (model.getCachedOutputPrice() != null) existingModel.setCachedOutputPrice(model.getCachedOutputPrice());
+                    if (model.getSupportedTextDelta() != null) existingModel.setSupportedTextDelta(model.getSupportedTextDelta());
                     if (model.getVendorModel() != null) existingModel.setVendorModel(model.getVendorModel());
-                    if (model.getActive() != null) existingModel.setActive(model.getActive());
+                    if (model.getEnabled() != null) existingModel.setEnabled(model.getEnabled());
                     existingModel.setUpdatedAt(LocalDateTime.now());
                     return modelRepository.save(existingModel);
                 });
@@ -129,10 +154,35 @@ public class ProviderService {
     }
     
     public Flux<Model> getAllActiveModels() {
-        return modelRepository.findByActiveTrue();
+        return modelRepository.findByEnabledTrue();
+    }
+    
+    // New methods for enhanced model features
+    public Flux<Model> getActiveModelsByGroup(String group) {
+        return modelRepository.findByGroupAndEnabledTrue(group);
+    }
+    
+    public Flux<Model> getActiveModelsWithTextDelta() {
+        return modelRepository.findBySupportedTextDeltaTrueAndEnabledTrue();
+    }
+    
+    public Flux<Model> getActiveModelsByOwner(String ownedBy) {
+        return modelRepository.findByOwnedByAndEnabledTrue(ownedBy);
+    }
+    
+    public Flux<Model> getActiveModelsByGroupAndTextDelta(String group) {
+        return modelRepository.findByGroupAndSupportedTextDeltaTrueAndEnabledTrue(group);
+    }
+    
+    public Flux<Model> getActiveModelsByCapability(String capability) {
+        return modelRepository.findByCapabilitiesContainingAndEnabledTrue(capability);
+    }
+    
+    public Flux<Model> getActiveModelsByGroupAndProvider(String group, Long providerId) {
+        return modelRepository.findByGroupAndProviderIdAndEnabledTrue(group, providerId);
     }
     
     public Mono<Provider> getActiveProviderByName(String name) {
-        return providerRepository.findByActiveTrueAndName(name);
+        return providerRepository.findByEnabledTrueAndName(name);
     }
 }
