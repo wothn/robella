@@ -201,30 +201,17 @@ public class UserController {
 
     @GetMapping("/me")
     public Mono<ResponseEntity<UserResponse>> getCurrentUser(ServerWebExchange exchange) {
-        return Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
-                .filter(authHeader -> authHeader.startsWith("Bearer "))
-                .map(authHeader -> authHeader.substring(7))
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("访问令牌不存在")))
-                .filter(token -> !token.isBlank())
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("访问令牌为空")))
-                .flatMap(token -> {
-                    if (!jwtUtil.validateToken(token)) {
-                        return Mono.error(new IllegalArgumentException("无效的访问令牌"));
-                    }
-                    String username = jwtUtil.extractUsername(token);
-                    return userService.getUserByUsername(username);
-                })
-                .map(ResponseEntity::ok)
-                .onErrorResume(IllegalArgumentException.class, e -> {
-                    log.warn("客户端错误: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-                })
-                .onErrorResume(Exception.class, e -> {
-                    log.error("服务器内部错误: {}", e.getMessage());
+        String username = exchange.getAttribute("username");
+
+        if (username == null) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+
+        return userService.getUserByUsername(username).map(ResponseEntity::ok)
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build())).onErrorResume(e -> {
+                    log.error("获取当前用户失败: {}", e.getMessage());
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
                 });
     }
-
-    
 
 }
