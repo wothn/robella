@@ -1,46 +1,53 @@
 package org.elmo.robella.service;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+
+import org.elmo.robella.client.ClientFactory;
 import org.elmo.robella.client.ApiClient;
-import org.elmo.robella.config.ProviderConfig;
-import org.elmo.robella.model.openai.core.ChatCompletionRequest;
-import org.elmo.robella.model.openai.model.ModelListResponse;
+import org.elmo.robella.model.entity.VendorModel;
+import org.elmo.robella.repository.ModelRepository;
+import org.elmo.robella.repository.VendorModelRepository;
+import org.springframework.stereotype.Service;
 
-import java.util.Map;
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class RoutingService {
 
-public interface RoutingService {
+    private final ClientFactory clientFactory;
+    private final ProviderService providerService;
+    private final VendorModelRepository vendorModelRepository;
+    private final ModelRepository modelRepository;
+
+    public Mono<VendorModel> selectVendor(String modelName) {
+        return modelRepository.findByName(modelName)
+            .flatMap(model -> vendorModelRepository.findByModelId(model.getId())
+                .filter(VendorModel::getEnabled)
+                .next()
+            );
+    }
 
     /**
-     * 根据模型名称决定提供商
+     * Get client by model name
      */
-    String decideProviderByModel(String model);
+    public Mono<ApiClient> getClientByModel(String modelName) {
+        return selectVendor(modelName)
+            .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
+                .map(provider -> clientFactory.getClient(provider.getName())));
+    }
 
     /**
-     * 获取提供商配置
+     * Get provider type by provider name
      */
-    ProviderConfig.Provider getProviderConfig(String providerName);
-    
-    /**
-     * 获取所有提供商配置
-     */
-    Map<String, ProviderConfig.Provider> getProviderConfigMap();
-    
-    /**
-     * 获取提供商适配器
-     */
-    ApiClient getClient(String providerName);
-    
-    /**
-     * 获取可用模型列表（带缓存）
-     */
-    ModelListResponse getAvailableModels();
-    
-    /**
-     * 刷新模型缓存
-     */
-    void refreshModelCache();
-    
-    /**
-     * 获取提供商类型
-     */
-    String getProviderType(String providerName);
+    public String getProviderType(String providerName) {
+        return providerService.getProviderByName(providerName)
+            .map(provider -> provider.getType())
+            .block();
+    }
+
+
+
+
 }

@@ -3,11 +3,10 @@ package org.elmo.robella.service.transform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.elmo.robella.config.ProviderType;
 import org.elmo.robella.model.internal.*;
-import org.elmo.robella.util.ConfigUtils;
 
 import org.elmo.robella.model.anthropic.core.*;
+import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.util.AnthropicTransformUtils;
 
 import org.elmo.robella.model.openai.core.Choice;
@@ -26,21 +25,20 @@ import java.util.UUID;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class AnthropicTransform implements VendorTransform {
-
-    private final ConfigUtils configUtils;
+public class AnthropicTransform implements VendorTransform<AnthropicChatRequest, AnthropicMessage> {
 
 
     @Override
-    public String type() {
-        return ProviderType.Anthropic.getName();
+    public EndpointType type() {
+        return EndpointType.Anthropic;
     }
 
     @Override
-    public UnifiedChatRequest vendorRequestToUnified(Object vendorRequest) {
-        if (!(vendorRequest instanceof AnthropicChatRequest req)) {
+    public UnifiedChatRequest vendorRequestToUnified(AnthropicChatRequest vendorRequest) {
+        if (vendorRequest == null) {
             return null;
         }
+        AnthropicChatRequest req = vendorRequest;
 
         UnifiedChatRequest unifiedRequest = new UnifiedChatRequest();
         unifiedRequest.setModel(req.getModel());
@@ -84,7 +82,7 @@ public class AnthropicTransform implements VendorTransform {
     }
 
     @Override
-    public Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
+    public AnthropicChatRequest unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
         AnthropicChatRequest anthropicRequest = new AnthropicChatRequest();
         anthropicRequest.setModel(unifiedRequest.getModel());
         anthropicRequest.setStream(unifiedRequest.getStream());
@@ -124,10 +122,11 @@ public class AnthropicTransform implements VendorTransform {
 
 
     @Override
-    public UnifiedChatResponse vendorResponseToUnified(Object vendorResponse) {
-        if (!(vendorResponse instanceof AnthropicMessage message)) {
+    public UnifiedChatResponse vendorResponseToUnified(AnthropicMessage vendorResponse) {
+        if (vendorResponse == null) {
             return null;
         }
+        AnthropicMessage message = vendorResponse;
 
         UnifiedChatResponse unifiedResponse = new UnifiedChatResponse();
         unifiedResponse.setId(message.getId());
@@ -168,7 +167,7 @@ public class AnthropicTransform implements VendorTransform {
 
 
     @Override
-    public Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse) {
+    public AnthropicMessage unifiedToVendorResponse(UnifiedChatResponse unifiedResponse) {
         if (unifiedResponse == null || unifiedResponse.getChoices() == null || unifiedResponse.getChoices().isEmpty()) {
             return null;
         }

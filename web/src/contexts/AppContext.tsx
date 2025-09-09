@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react'
+import { createContext, useContext, useReducer, type Dispatch } from 'react'
+import type { ReactNode } from 'react'
 import type { Provider, Model } from '../types'
 
 interface AppState {
@@ -132,7 +133,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
 const AppContext = createContext<{
   state: AppState
-  dispatch: React.Dispatch<AppAction>
+  dispatch: Dispatch<AppAction>
 } | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {

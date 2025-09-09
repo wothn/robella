@@ -2,16 +2,14 @@ package org.elmo.robella.client.openai;
 
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.client.ApiClient;
-import org.elmo.robella.config.ProviderConfig;
-import org.elmo.robella.config.ProviderType;
+import org.elmo.robella.model.common.EndpointType;
+import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.config.WebClientProperties;
-import org.elmo.robella.exception.AuthenticationException;
 import org.elmo.robella.exception.ProviderException;
 import org.elmo.robella.exception.QuotaExceededException;
 import org.elmo.robella.exception.RateLimitException;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
-import org.elmo.robella.model.openai.model.ModelInfo;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.util.JsonUtils;
 import org.springframework.http.HttpHeaders;
@@ -22,9 +20,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 
 
 @Slf4j
@@ -32,14 +27,14 @@ public class OpenAIClient implements ApiClient {
 
     private static final String SSE_DONE_MARKER = "[DONE]";
 
-    private final ProviderConfig.Provider config;
+    private final Provider provider;
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
 
-    public OpenAIClient(ProviderConfig.Provider config, WebClient webClient, WebClientProperties webClientProperties) {
-        this.config = config;
+    public OpenAIClient(Provider provider, WebClient webClient, WebClientProperties webClientProperties) {
+        this.provider = provider;
         this.webClient = webClient.mutate()
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + config.getApiKey())
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + provider.getApiKey())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader(HttpHeaders.USER_AGENT, "Robella")
                 .build();
@@ -57,7 +52,7 @@ public class OpenAIClient implements ApiClient {
 
         // 发送请求
         if (log.isDebugEnabled()) {
-            log.debug("[OpenAIClient] chatCompletion start provider={} model={} stream=false", config.getName(), openaiRequest.getModel());
+            log.debug("[OpenAIClient] chatCompletion start provider={} model={} stream=false", provider.getName(), openaiRequest.getModel());
             try {
                 String requestJson = JsonUtils.toJson(openaiRequest);
                 log.debug("[OpenAIClient] chatCompletion request: {}", requestJson);
@@ -83,9 +78,9 @@ public class OpenAIClient implements ApiClient {
                 .onErrorMap(ex -> mapToProviderException(ex, "OpenAI API call"))
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
-                        log.debug("[OpenAIClient] chatCompletion success provider={} model={}", config.getName(), openaiRequest.getModel());
+                        log.debug("[OpenAIClient] chatCompletion success provider={} model={}", provider.getName(), openaiRequest.getModel());
                 })
-                .doOnError(err -> log.debug("[OpenAIClient] chatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
+                .doOnError(err -> log.debug("[OpenAIClient] chatCompletion error provider={} model={} msg={}", provider.getName(), openaiRequest.getModel(), err.toString()));
     }
 
     @Override
@@ -103,7 +98,7 @@ public class OpenAIClient implements ApiClient {
         Duration streamTimeout = Duration.ofMillis((long) (webClientProperties.getTimeout().getRead().toMillis() * multiplier));
 
         if (log.isDebugEnabled()) {
-            log.debug("[OpenAIClient] streamChatCompletion start provider={} model={} stream=true", config.getName(), openaiRequest.getModel());
+            log.debug("[OpenAIClient] streamChatCompletion start provider={} model={} stream=true", provider.getName(), openaiRequest.getModel());
         }
 
         return webClient.post()
@@ -120,7 +115,7 @@ public class OpenAIClient implements ApiClient {
                         log.trace("[OpenAIClient] stream chunk: {}", chunk);
                     }
                 })
-                .doOnError(err -> log.debug("[OpenAIClient] streamChatCompletion error provider={} model={} msg={}", config.getName(), openaiRequest.getModel(), err.toString()));
+                .doOnError(err -> log.debug("[OpenAIClient] streamChatCompletion error provider={} model={} msg={}", provider.getName(), openaiRequest.getModel(), err.toString()));
     }
 
 
@@ -150,11 +145,7 @@ public class OpenAIClient implements ApiClient {
     }
 
     private String buildChatCompletionsUrl() {
-        String baseUrl = config.getBaseUrl();
-        if (config.getProviderType() == ProviderType.AzureOpenAI && config.getDeploymentName() != null) {
-            String apiVersion = config.getApiVersion() != null ? config.getApiVersion() : "2024-02-15-preview";
-            return baseUrl + "/deployments/" + config.getDeploymentName() + "/chat/completions?api-version=" + apiVersion;
-        }
+        String baseUrl = provider.getBaseUrl();
         return baseUrl + "/chat/completions";
     }
 
@@ -168,8 +159,8 @@ public class OpenAIClient implements ApiClient {
                 body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
 
         return switch (status) {
-            case 401 -> new AuthenticationException("Invalid API key or authentication failed", ex);
-            case 402 -> new AuthenticationException("Access forbidden - check permissions", ex);
+            case 401 -> new ProviderException("Invalid API key or authentication failed", ex);
+            case 402 -> new ProviderException("Access forbidden - check permissions", ex);
             case 429 -> {
                 if (body.contains("quota")) {
                     yield new QuotaExceededException("API quota exceeded", ex);
@@ -187,16 +178,6 @@ public class OpenAIClient implements ApiClient {
     }
 
 
-    private List<ModelInfo> getConfiguredModelInfos() {
-        if (config.getModels() == null) return Collections.emptyList();
-        return config.getModels().stream().map(m -> {
-            ModelInfo info = new ModelInfo();
-            info.setId(m.getName());
-            info.setObject("model");
-            info.setOwnedBy(config.getName());
-            return info;
-        }).toList();
-    }
 
     /**
      * 解析流数据

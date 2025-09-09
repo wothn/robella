@@ -1,6 +1,6 @@
 package org.elmo.robella.repository;
 
-import org.elmo.robella.model.User;
+import org.elmo.robella.model.entity.User;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
@@ -33,7 +33,4 @@ public interface UserRepository extends R2dbcRepository<User, Long> {
     
     Mono<Boolean> existsByGithubId(String githubId);
     
-    Flux<User> findByProvider(String provider);
-    
-    Flux<User> findByProviderAndProviderId(String provider, String providerId);
-}
+    }

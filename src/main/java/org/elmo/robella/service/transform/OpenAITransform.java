@@ -3,12 +3,11 @@ package org.elmo.robella.service.transform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.elmo.robella.config.ProviderType;
+import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
-import org.elmo.robella.util.ConfigUtils;
 import org.elmo.robella.util.JsonUtils;
 import org.elmo.robella.util.OpenAITransformUtils;
 
@@ -19,19 +18,19 @@ import java.util.*;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class OpenAITransform implements VendorTransform {
-    
-    private final ConfigUtils configUtils;
+public class OpenAITransform implements VendorTransform<ChatCompletionRequest, ChatCompletionResponse> {
+
     @Override
-    public String type() {
-        return ProviderType.OpenAI.getName();
+    public EndpointType type() {
+        return EndpointType.OpenAI;
     }
 
     @Override
-    public UnifiedChatRequest vendorRequestToUnified(Object vendorRequest) {
-        if (!(vendorRequest instanceof ChatCompletionRequest req)) {
+    public UnifiedChatRequest vendorRequestToUnified(ChatCompletionRequest vendorRequest) {
+        if (vendorRequest == null) {
             return null;
         }
+        ChatCompletionRequest req = vendorRequest;
 
         // 使用工具类获取已设置基础字段的对象
         UnifiedChatRequest unifiedRequest = new UnifiedChatRequest();
@@ -52,7 +51,7 @@ public class OpenAITransform implements VendorTransform {
 
         // 获取配置的thinkingField
         if (unifiedRequest.getTempFields() != null) {
-            String thinkingField = configUtils.getThinkingField(unifiedRequest.getProviderName(), unifiedRequest.getModel());
+            String thinkingField = "thinking";
             unifiedRequest.getTempFields().put("config_thinking", thinkingField);
         }
 
@@ -78,7 +77,7 @@ public class OpenAITransform implements VendorTransform {
     }
 
     @Override
-    public Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
+    public ChatCompletionRequest unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
 
         ChatCompletionRequest chatRequest = new ChatCompletionRequest();
         OpenAITransformUtils.convertUnifiedToBase(unifiedRequest, chatRequest);
@@ -118,10 +117,11 @@ public class OpenAITransform implements VendorTransform {
     }
 
     @Override
-    public UnifiedChatResponse vendorResponseToUnified(Object vendorResponse) {
-        if (!(vendorResponse instanceof ChatCompletionResponse resp)) {
+    public UnifiedChatResponse vendorResponseToUnified(ChatCompletionResponse vendorResponse) {
+        if (vendorResponse == null) {
             return null;
         }
+        ChatCompletionResponse resp = vendorResponse;
 
         UnifiedChatResponse unifiedResponse = new UnifiedChatResponse();
         unifiedResponse.setId(resp.getId());
@@ -143,7 +143,7 @@ public class OpenAITransform implements VendorTransform {
     }
 
     @Override
-    public Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse) {
+    public ChatCompletionResponse unifiedToVendorResponse(UnifiedChatResponse unifiedResponse) {
         if (unifiedResponse == null) {
             return null;
         }

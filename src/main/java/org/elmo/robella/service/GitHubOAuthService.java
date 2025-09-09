@@ -1,104 +1,88 @@
 package org.elmo.robella.service;
 
-import org.elmo.robella.model.User;
-import org.elmo.robella.model.UserResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.elmo.robella.model.common.Role;
+import org.elmo.robella.model.dto.AuthTokens;
+import org.elmo.robella.model.dto.GitHubUserInfo;
+import org.elmo.robella.model.dto.GithubAccessTokenResponse;
+import org.elmo.robella.model.entity.User;
+import org.elmo.robella.model.response.LoginResponse;
+import org.elmo.robella.repository.UserRepository;
+import org.elmo.robella.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.BodyInserters;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class GitHubOAuthService {
 
-    @Value("${spring.security.oauth2.client.registration.github.client-id}")
+    private final WebClient webClient;
+    private final Map<String, String> stateStore = new ConcurrentHashMap<>();
+    private final UserService userService;
+    private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+
+    @Value("${github.oauth.client-id}")
     private String clientId;
 
-    @Value("${spring.security.oauth2.client.registration.github.client-secret}")
+    @Value("${github.oauth.client-secret}")
     private String clientSecret;
 
-    @Value("${spring.security.oauth2.client.provider.github.token-uri}")
-    private String tokenUri;
+    @Value("${github.oauth.redirect-uri}")
+    private String redirectUri;
 
-    @Value("${spring.security.oauth2.client.provider.github.user-info-uri}")
-    private String userInfoUri;
+    @Value("${github.oauth.scope}")
+    private String scope;
 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
+    @Value("${github.oauth.auth-url}")
+    private String authUrl;
 
-    @Autowired
-    private UserService userService;
+    @Value("${github.oauth.token-url}")
+    private String tokenUrl;
 
-    public String getAuthorizationUrl(String redirectUri, String state) {
-    String encodedRedirect = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8);
-    String stateParam = state != null && !state.isEmpty()
-        ? "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8)
-        : "";
-    return String.format(
-        "https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=user:email,read:user%s",
-        clientId, encodedRedirect, stateParam);
+    @Value("${github.oauth.user-url}")
+    private String userUrl;
+
+    public String generateAuthorizationUrl() {
+        String state = generateState();
+        stateStore.put(state, Instant.now().toString());
+
+        return String.format("%s?client_id=%s&redirect_uri=%s&scope=%s&state=%s",
+                authUrl, clientId, redirectUri, scope, state);
     }
 
-    public Mono<User> exchangeCodeForUser(String code, String redirectUri) {
-        return exchangeCodeForAccessToken(code, redirectUri)
+    public Mono<LoginResponse> handleOAuthCallback(String code, String state) {
+        if (!validateState(state)) {
+            return Mono.error(new IllegalArgumentException("Invalid or expired state parameter"));
+        }
+
+        stateStore.remove(state);
+
+        // 获取access token
+        return getAccessToken(code, state)
                 .flatMap(this::getUserInfo)
-                .flatMap(this::findOrCreateUser);
+                .flatMap(this::processGitHubUser)
+                .doOnSuccess(response -> log.info("GitHub OAuth login successful"))
+                .doOnError(error -> log.error("GitHub OAuth login failed: {}", error.getMessage()));
     }
 
-    private Mono<String> exchangeCodeForAccessToken(String code, String redirectUri) {
-        return webClientBuilder.build()
-                .post()
-                .uri(tokenUri)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .header("Accept", "application/json") // 添加这一行来获取JSON响应
-                .body(BodyInserters.fromFormData("client_id", clientId)
-                        .with("client_secret", clientSecret)
-                        .with("code", code)
-                        .with("redirect_uri", redirectUri)
-                        .with("grant_type", "authorization_code"))
-                .retrieve()
-                .bodyToMono(Map.class) // 直接解析为Map
-                .doOnSuccess(response -> log.info("GitHub token response: {}", response))
-                .map(response -> {
-                    String accessToken = (String) response.get("access_token");
-                    if (accessToken == null) {
-                        throw new RuntimeException("Access token not found in response: " + response);
-                    }
-                    return accessToken;
-                })
-                .doOnSuccess(token -> log.info("Successfully obtained access token from GitHub"))
-                .doOnError(error -> log.error("Failed to obtain access token from GitHub: {}", error.getMessage()));
-    }
-
-    @SuppressWarnings("unchecked")
-    private Mono<Map<String, Object>> getUserInfo(String accessToken) {
-        return webClientBuilder.build()
-                .get()
-                .uri(userInfoUri)
-                .header("Authorization", "Bearer " + accessToken)
-                .header("User-Agent", "Robella")
-                .retrieve()
-                .bodyToMono(Map.class)
-                .map(map -> (Map<String, Object>) map)
-                .doOnSuccess(userInfo -> log.info("Successfully obtained user info from GitHub: {}", userInfo))
-                .doOnError(error -> log.error("Failed to obtain user info from GitHub: {}", error.getMessage()))
-                .onErrorMap(ex -> new RuntimeException("Failed to get user info from GitHub: " + ex.getMessage(), ex));
-    }
-
-    private Mono<User> findOrCreateUser(Map<String, Object> userInfo) {
-        String githubId = String.valueOf(userInfo.get("id"));
-        String username = (String) userInfo.get("login");
-        String email = (String) userInfo.get("email");
-        String name = (String) userInfo.get("name");
-        String avatar = (String) userInfo.get("avatar_url");
+    private Mono<LoginResponse> processGitHubUser(GitHubUserInfo userInfo) {
+        String githubId = String.valueOf(userInfo.getId());
+        String username = userInfo.getLogin();
+        String email = userInfo.getEmail();
+        String name = userInfo.getName();
+        String avatar = userInfo.getAvatarUrl();
 
         final String finalEmail = (email == null || email.trim().isEmpty()) ? username + "@github.local" : email;
         final String finalName = (name == null || name.trim().isEmpty()) ? username : name;
@@ -108,41 +92,76 @@ public class GitHubOAuthService {
                     User newUser = User.builder()
                             .username(username)
                             .email(finalEmail)
-                            .fullName(finalName)
+                            .displayName(finalName)
                             .avatar(avatar)
                             .githubId(githubId)
-                            .provider("github")
-                            .providerId(githubId)
                             .active(true)
-                            .role("USER")
-                            .emailVerified("true")
+                            .role(Role.USER)
+                            .password(null) // OAuth用户没有密码
+                            .createdAt(java.time.LocalDateTime.now())
+                            .updatedAt(java.time.LocalDateTime.now())
                             .build();
-
-                    return userService.createOAuthUser(newUser)
-                            .map(this::convertToUser);
+                    
+                    return userRepository.save(newUser);
                 }))
-                .doOnSuccess(user -> log.info("Successfully found or created user for GitHub user: {}", username))
-                .doOnError(error -> log.error("Failed to find or create user for GitHub user {}: {}", username,
-                        error.getMessage()));
+                .flatMap(user -> {
+                    user.setLastLoginAt(java.time.LocalDateTime.now());
+                    return userRepository.save(user);
+                })
+                .flatMap(user -> {
+                    String accessToken = jwtUtil.generateAccessToken(user);
+                    String refreshToken = jwtUtil.generateRefreshToken(user);
+                    
+                    AuthTokens tokens = new AuthTokens();
+                    tokens.setAccessToken(accessToken);
+                    tokens.setRefreshToken(refreshToken);
+                    
+                    return Mono.just(new LoginResponse(accessToken));
+                });
     }
 
-    private User convertToUser(UserResponse userResponse) {
-        return User.builder()
-                .id(userResponse.getId())
-                .username(userResponse.getUsername())
-                .email(userResponse.getEmail())
-                .fullName(userResponse.getFullName())
-                .avatar(userResponse.getAvatar())
-                .githubId(userResponse.getGithubId())
-                .provider(userResponse.getProvider())
-                .providerId(userResponse.getProviderId())
-                .active(userResponse.getActive())
-                .role(userResponse.getRole())
-                .createdAt(userResponse.getCreatedAt())
-                .updatedAt(userResponse.getUpdatedAt())
-                .lastLoginAt(userResponse.getLastLoginAt())
-                .emailVerified(String.valueOf(userResponse.getEmailVerified()))
-                .phoneVerified(String.valueOf(userResponse.getPhoneVerified()))
-                .build();
+    private boolean validateState(String state) {
+        String timestamp = stateStore.remove(state);
+        if (timestamp == null) {
+            return false;
+        }
+
+        java.time.Instant stateTime = java.time.Instant.parse(timestamp);
+        java.time.Instant now = java.time.Instant.now();
+        java.time.Duration duration = java.time.Duration.between(stateTime, now);
+
+        return duration.toMinutes() < 10;
+    }
+
+    /**
+     * 生成随机的state参数
+     */
+    private String generateState() {
+        return UUID.randomUUID().toString();
+    }
+
+    public Mono<String> getAccessToken(String code, String state) {
+        return webClient.post()
+                .uri(tokenUrl)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .accept(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of(
+                        "client_id", clientId,
+                        "client_secret", clientSecret,
+                        "code", code,
+                        "redirect_uri", redirectUri,
+                        "grant_type", "authorization_code"))
+                .retrieve()
+                .bodyToMono(GithubAccessTokenResponse.class)
+                .map(GithubAccessTokenResponse::getAccessToken);
+    }
+
+    public Mono<GitHubUserInfo> getUserInfo(String accessToken) {
+        return webClient.get()
+                .uri(userUrl)
+                .header("Authorization", "Bearer " + accessToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .bodyToMono(GitHubUserInfo.class);
     }
 }

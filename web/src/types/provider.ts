@@ -11,15 +11,17 @@ export interface Provider {
   updatedAt?: string
 }
 
-export enum ModelCapability {
-  TEXT,
-  VISION,
-  REASONING,
-  FUNCTION_CALLING,
-  EMBEDDING,
-  WEB_SEARCH,
-  RERANKING
-}
+export const ModelCapability = {
+  TEXT: 'TEXT',
+  VISION: 'VISION',
+  REASONING: 'REASONING',
+  FUNCTION_CALLING: 'FUNCTION_CALLING',
+  EMBEDDING: 'EMBEDDING',
+  WEB_SEARCH: 'WEB_SEARCH',
+  RERANKING: 'RERANKING'
+} as const;
+
+export type ModelCapability = typeof ModelCapability[keyof typeof ModelCapability];
 
 export interface Pricing {
   inputPerMillionTokens?: number

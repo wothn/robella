@@ -82,10 +82,11 @@ ENV/
 src/main/resources/application.yml
 
 # AI tools
-.roo/
-.clinerules/
+.roo
+.clinerules
 .claude/
 .claude/settings.local.json
+.trae
 
 # Development tools
 .sonar/

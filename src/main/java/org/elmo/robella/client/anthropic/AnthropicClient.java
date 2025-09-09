@@ -2,9 +2,8 @@ package org.elmo.robella.client.anthropic;
 
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.client.ApiClient;
-import org.elmo.robella.config.ProviderConfig;
+import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.config.WebClientProperties;
-import org.elmo.robella.exception.AuthenticationException;
 import org.elmo.robella.exception.ProviderException;
 import org.elmo.robella.exception.QuotaExceededException;
 import org.elmo.robella.exception.RateLimitException;
@@ -12,6 +11,7 @@ import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
 import org.elmo.robella.model.openai.model.ModelInfo;
+import org.elmo.robella.service.ProviderService;
 import org.elmo.robella.util.JsonUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -33,14 +33,16 @@ public class AnthropicClient implements ApiClient {
 
     private static final String SSE_DATA_PREFIX = "data: ";
 
-    private final ProviderConfig.Provider config;
+    private final Provider config;
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
+    private final ProviderService providerService;
     private static final String ANTHROPIC_VERSION = "2023-06-01";
 
-    public AnthropicClient(ProviderConfig.Provider config,
+    public AnthropicClient(Provider config,
                            WebClient baseClient,
                            WebClientProperties webClientProperties) {
+        this.providerService = null; // This would need to be injected properly
         this.config = config;
         this.webClient = baseClient.mutate()
                 .defaultHeader("x-api-key", config.getApiKey())
@@ -143,15 +145,9 @@ public class AnthropicClient implements ApiClient {
     }
 
     private List<ModelInfo> getConfiguredModelInfos() {
-        if (config.getModels() == null)
-            return Collections.emptyList();
-        return config.getModels().stream().map(m -> {
-            ModelInfo info = new ModelInfo();
-            info.setId(m.getName());
-            info.setObject("model");
-            info.setOwnedBy(config.getName());
-            return info;
-        }).toList();
+        // Since we're using database models, this method should be handled by the service layer
+        // For now, return empty list as this is not used in the current flow
+        return Collections.emptyList();
     }
 
     private AnthropicStreamEvent parseStreamRaw(String raw) {
@@ -182,8 +178,8 @@ public class AnthropicClient implements ApiClient {
         String errorMessage = String.format("Anthropic API error: %d %s%s", status, ex.getStatusText(),
                 body.isEmpty() ? "" : " - " + (body.length() > 200 ? body.substring(0, 200) + "..." : body));
         return switch (status) {
-            case 401 -> new AuthenticationException("Invalid API key or authentication failed", ex);
-            case 402 -> new AuthenticationException("Access forbidden - check permissions", ex);
+            case 401 -> new ProviderException("Invalid API key or authentication failed", ex);
+            case 402 -> new ProviderException("Access forbidden - check permissions", ex);
             case 429 -> {
                 if (body.contains("quota"))
                     yield new QuotaExceededException("API quota exceeded", ex);

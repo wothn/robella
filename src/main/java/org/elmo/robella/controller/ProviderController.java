@@ -1,7 +1,8 @@
 package org.elmo.robella.controller;
 
-import org.elmo.robella.model.Provider;
-import org.elmo.robella.model.Model;
+
+import org.elmo.robella.model.entity.Model;
+import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.service.ProviderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +25,7 @@ public class ProviderController {
     
     @GetMapping("/active")
     public Flux<Provider> getActiveProviders() {
-        return providerService.getActiveProviders();
+        return providerService.getEnabledProviders();
     }
     
     @GetMapping("/{id}")
@@ -73,7 +74,6 @@ public class ProviderController {
     
     @PostMapping("/{id}/models")
         public Mono<ResponseEntity<Model>> createModel(@PathVariable Long id, @RequestBody Model model) {
-        model.setProviderId(id);
         return providerService.createModel(model)
                 .map(savedModel -> ResponseEntity.ok(savedModel));
     }

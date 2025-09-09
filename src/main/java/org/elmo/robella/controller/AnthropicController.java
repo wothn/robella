@@ -3,15 +3,16 @@ package org.elmo.robella.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.elmo.robella.config.ProviderType;
+
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
 import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
+import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.service.ForwardingService;
-import org.elmo.robella.service.transform.TransformService;
+import org.elmo.robella.service.transform.VendorTransformFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +31,7 @@ import reactor.core.publisher.Flux;
 public class AnthropicController {
 
     private final ForwardingService forwardingService;
-    private final TransformService transformService;
+    private final VendorTransformFactory vendorTransformFactory;
 
     /**
      * Anthropic Messages API 端点
@@ -42,43 +43,18 @@ public class AnthropicController {
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<?>> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
-        log.info("Received Anthropic request: {}", request);
-
-        // 将 Anthropic 请求转换为内部统一格式（使用端点格式）
-        UnifiedChatRequest unified = transformService.endpointRequestToUnified(request, ProviderType.Anthropic.getName());
-        log.info("Transformed Unified request: {}", unified);
-
-        boolean stream = Boolean.TRUE.equals(request.getStream());
-        if (stream) {
-            // 使用带端点族转换的流式接口
-            var rawFlux = forwardingService.streamUnified(unified, null, ProviderType.Anthropic.getName());
-
-            Flux<ServerSentEvent<String>> sseFlux = rawFlux.map(eventData -> {
-                // 解析eventData获取事件类型
-                String eventType = extractEventType(eventData);
-                if (isValidAnthropicEventType(eventType)) {
-                    return ServerSentEvent.builder(eventData)
-                            .event(eventType)
-                            .build();
-                }
-
-                return ServerSentEvent.builder(eventData)
-                        .event(eventType)
-                        .build();
-            });
-
+        // 转换请求为统一格式
+        UnifiedChatRequest unifiedRequest = vendorTransformFactory.vendorRequestToUnified(EndpointType.Anthropic, request);
+        
+        if (Boolean.TRUE.equals(request.getStream())) {
+            // 处理流式响应
             return Mono.just(ResponseEntity.ok()
                     .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .body(sseFlux));
+                    .body(forwardingService.streamUnified(unifiedRequest, EndpointType.Anthropic)));
         } else {
-            // 非流式响应
-            return forwardingService.forwardUnified(unified, null)
-                    .map(unifiedResponse -> {
-                        // 将统一响应转换回 Anthropic 格式（无论后端provider是什么）
-                        AnthropicMessage response = (AnthropicMessage) transformService
-                                .unifiedToEndpointResponse(unifiedResponse, ProviderType.Anthropic.getName());
-                        return ResponseEntity.ok(response);
-                    });
+            // 处理非流式响应
+            return forwardingService.forwardUnified(unifiedRequest, EndpointType.Anthropic)
+                    .map(response -> ResponseEntity.ok().body(response));
         }
     }
 

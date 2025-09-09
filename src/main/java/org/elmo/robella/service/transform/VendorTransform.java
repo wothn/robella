@@ -1,5 +1,6 @@
 package org.elmo.robella.service.transform;
 
+import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 
@@ -10,17 +11,19 @@ import org.elmo.robella.model.internal.UnifiedChatResponse;
  * 3. 厂商响应 -> Unified
  * 4. Unified -> 厂商响应
  *
+ * @param <V> 厂商请求类型
+ * @param <R> 厂商响应类型
  */
-public interface VendorTransform {
+public interface VendorTransform<V, R> {
     /** 返回该转换器支持的 ProviderType 名称（枚举 name）。 */
-    String type();
+    EndpointType type();
 
     // 厂商请求 -> Unified
-    UnifiedChatRequest vendorRequestToUnified(Object vendorRequest);
+    UnifiedChatRequest vendorRequestToUnified(V vendorRequest);
     // Unified -> 厂商请求
-    Object unifiedToVendorRequest(UnifiedChatRequest unifiedRequest);
+    V unifiedToVendorRequest(UnifiedChatRequest unifiedRequest);
     // 厂商响应 -> Unified
-    UnifiedChatResponse vendorResponseToUnified(Object vendorResponse);
+    UnifiedChatResponse vendorResponseToUnified(R vendorResponse);
     // Unified -> 厂商响应
-    Object unifiedToVendorResponse(UnifiedChatResponse unifiedResponse);
+    R unifiedToVendorResponse(UnifiedChatResponse unifiedResponse);
 }

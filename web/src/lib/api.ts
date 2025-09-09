@@ -16,16 +16,9 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
-    // 获取token并添加到请求头
-    const token = localStorage.getItem('accessToken')
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...options.headers as Record<string, string>,
-    }
-    
-    // 如果有token且不是登录请求，添加Authorization头
-    if (token && !endpoint.includes('/login')) {
-      headers['Authorization'] = `Bearer ${token}`
     }
     
     const config: RequestInit = {
@@ -200,18 +193,15 @@ class ApiClient {
   }
 }
 
-// 创建API客户端实例
-export const apiClient = new ApiClient()
-
 // 导入类型定义
 import type {
   User,
   LoginResponse,
-  CreateUserRequest,
   Provider,
-  Model,
-  CreateProviderRequest,
-  CreateModelRequest
+  Model
 } from '../types'
+
+// 创建API客户端实例
+export const apiClient = new ApiClient()
 
 export default ApiClient

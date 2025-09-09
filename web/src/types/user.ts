@@ -16,12 +16,10 @@ export interface User {
 
 export interface LoginResponse {
   user: User
-  accessToken?: string
-  refreshToken?: string
-  expiresAt?: string
+  sessionId: string
   loginTime: string
   message?: string
-  sessionId?: string
+  success?: boolean
 }
 
 export interface CreateUserRequest {
