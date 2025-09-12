@@ -59,16 +59,16 @@ export function VendorModelsList({
                   <div className="text-xs text-gray-500">
                     <strong>定价:</strong> 
                     {model.inputPerMillionTokens && (
-                      <span>输入: {parseFloat(model.inputPerMillionTokens).toFixed(6)} {model.currency || 'USD'}/M tokens</span>
+                      <span>输入: {parseFloat(model.inputPerMillionTokens).toFixed(4)} {model.currency || 'USD'}/M tokens</span>
                     )}
                     {model.outputPerMillionTokens && (
-                      <span> 输出: {parseFloat(model.outputPerMillionTokens).toFixed(6)} {model.currency || 'USD'}/M tokens</span>
+                      <span> 输出: {parseFloat(model.outputPerMillionTokens).toFixed(4)} {model.currency || 'USD'}/M tokens</span>
                     )}
                     {model.cachedInputPrice && (
-                      <span> 缓存输入: {parseFloat(model.cachedInputPrice).toFixed(6)} {model.currency || 'USD'}</span>
+                      <span> 缓存输入: {parseFloat(model.cachedInputPrice).toFixed(4)} {model.currency || 'USD'}</span>
                     )}
                     {model.cachedOutputPrice && (
-                      <span> 缓存输出: {parseFloat(model.cachedOutputPrice).toFixed(6)} {model.currency || 'USD'}</span>
+                      <span> 缓存输出: {parseFloat(model.cachedOutputPrice).toFixed(4)} {model.currency || 'USD'}</span>
                     )}
                   </div>
                 )}
