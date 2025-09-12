@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useModels } from '@/hooks/use-models'
 import type { Model, ModelCapability, CreateModelRequest, UpdateModelRequest } from '@/types/model'
 
@@ -152,7 +153,7 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? '编辑模型' : '创建新模型'}
@@ -165,8 +166,9 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <ScrollArea className="flex-1">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pr-4">
             {/* 错误信息显示 */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
@@ -338,6 +340,7 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
             </DialogFooter>
           </form>
         </Form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

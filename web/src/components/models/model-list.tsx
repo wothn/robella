@@ -30,11 +30,12 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ModelFormDialog } from './model-form-dialog'
+import { ModelConfigDialog } from './model-config-dialog'
 import { useModels } from '@/hooks/use-models'
+import { useModelBindings } from '@/hooks/use-model-bindings'
 import type { Model, ModelCapability } from '@/types/model'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { log } from 'console'
 
 interface ModelListProps {
   models: Model[]
@@ -68,8 +69,13 @@ const capabilityNames: Record<ModelCapability, string> = {
 
 export function ModelList({ models, loading, error, onRefresh, onViewDetails }: ModelListProps) {
   const [editingModel, setEditingModel] = useState<Model | null>(null)
+  const [configModel, setConfigModel] = useState<Model | null>(null)
   const [deleteModelId, setDeleteModelId] = useState<number | null>(null)
   const { publishModel, unpublishModel, deleteModel } = useModels()
+  
+  // 获取模型绑定状态
+  const modelIds = models.map(m => m.id)
+  const { bindings, refetch: refetchBindings } = useModelBindings(modelIds)
 
   // 处理发布/取消发布
   const handleTogglePublish = async (model: Model) => {
@@ -96,6 +102,12 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
     } catch (error) {
       console.error('删除模型失败:', error)
     }
+  }
+
+  // 处理配置成功后的刷新
+  const handleConfigSuccess = () => {
+    onRefresh()
+    refetchBindings()
   }
 
   // 格式化时间
@@ -192,6 +204,11 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
                     >
                       {model.published ? '已发布' : '草稿'}
                     </Badge>
+                    {bindings[model.id] > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {bindings[model.id]} 个绑定
+                      </Badge>
+                    )}
                   </CardDescription>
                 </div>
                 <DropdownMenu>
@@ -231,8 +248,7 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
                       )}
                     </DropdownMenuItem>
                     <DropdownMenuItem data-no-card-click="true" onClick={() => {
-                      // TODO: 实现配置功能
-                      console.log('配置模型:', model.name)
+                      setConfigModel(model)
                     }}>
                       <Settings className="h-4 w-4 mr-2" />
                       配置
@@ -306,6 +322,14 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
           setEditingModel(null)
           onRefresh()
         }}
+      />
+
+      {/* 配置对话框 */}
+      <ModelConfigDialog
+        model={configModel}
+        open={!!configModel}
+        onOpenChange={(open) => !open && setConfigModel(null)}
+        onSuccess={handleConfigSuccess}
       />
 
       {/* 删除确认对话框 */}

@@ -114,6 +114,21 @@ export function VendorModelModal({
         } as CreateVendorModelRequest
 
     onSubmit(data)
+    
+    // Clear form data immediately after submission for new models
+    if (!vendorModel) {
+      setFormData({
+        vendorModelName: '',
+        description: '',
+        inputPerMillionTokens: '',
+        outputPerMillionTokens: '',
+        currency: '',
+        cachedInputPrice: '',
+        cachedOutputPrice: '',
+        enabled: true
+      })
+    }
+    
     setOpen(false)
   }
 

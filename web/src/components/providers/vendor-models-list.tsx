@@ -1,11 +1,22 @@
 'use client'
 
+import { useState } from 'react'
 import { VendorModel } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Bot, Trash2 } from 'lucide-react'
 import { VendorModelModal } from '@/components/vendor-model-modal'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface VendorModelsListProps {
   vendorModels: VendorModel[]
@@ -20,9 +31,16 @@ export function VendorModelsList({
   onUpdateModel,
   onDeleteModel
 }: VendorModelsListProps) {
-  const handleDeleteVendorModel = async (modelId: number) => {
-    if (!confirm('确定要删除这个Vendor Model吗？')) return
-    await onDeleteModel(modelId)
+  const [deleteModelId, setDeleteModelId] = useState<number | null>(null)
+
+  const handleDeleteVendorModel = async () => {
+    if (!deleteModelId) return
+    try {
+      await onDeleteModel(deleteModelId)
+      setDeleteModelId(null)
+    } catch (error) {
+      console.error('删除Vendor Model失败:', error)
+    }
   }
 
   if (vendorModels.length === 0) {
@@ -40,57 +58,77 @@ export function VendorModelsList({
   }
 
   return (
-    <div className="grid gap-4">
-      {vendorModels.map((model) => (
-        <Card key={model.id}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <h4 className="font-medium">{model.vendorModelName}</h4>
-                  <Badge variant={model.enabled ? 'default' : 'secondary'}>
-                    {model.enabled ? '启用' : '禁用'}
-                  </Badge>
-                </div>
-                {model.description && (
-                  <p className="text-sm text-gray-600 mb-2">{model.description}</p>
-                )}
-                {(model.inputPerMillionTokens || model.outputPerMillionTokens) && (
-                  <div className="text-xs text-gray-500">
-                    <strong>定价:</strong> 
-                    {model.inputPerMillionTokens && (
-                      <span>输入: {parseFloat(model.inputPerMillionTokens).toFixed(4)} {model.currency || 'USD'}/M tokens</span>
-                    )}
-                    {model.outputPerMillionTokens && (
-                      <span> 输出: {parseFloat(model.outputPerMillionTokens).toFixed(4)} {model.currency || 'USD'}/M tokens</span>
-                    )}
-                    {model.cachedInputPrice && (
-                      <span> 缓存输入: {parseFloat(model.cachedInputPrice).toFixed(4)} {model.currency || 'USD'}</span>
-                    )}
-                    {model.cachedOutputPrice && (
-                      <span> 缓存输出: {parseFloat(model.cachedOutputPrice).toFixed(4)} {model.currency || 'USD'}</span>
-                    )}
+    <>
+      <div className="grid gap-4">
+        {vendorModels.map((model) => (
+          <Card key={model.id}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <h4 className="font-medium">{model.vendorModelName}</h4>
+                    <Badge variant={model.enabled ? 'default' : 'secondary'}>
+                      {model.enabled ? '启用' : '禁用'}
+                    </Badge>
                   </div>
-                )}
+                  {model.description && (
+                    <p className="text-sm text-gray-600 mb-2">{model.description}</p>
+                  )}
+                  {(model.inputPerMillionTokens || model.outputPerMillionTokens) && (
+                    <div className="text-xs text-gray-500">
+                      <strong>定价:</strong> 
+                      {model.inputPerMillionTokens && (
+                        <span>输入: {parseFloat(model.inputPerMillionTokens).toFixed(4)} {model.currency || 'USD'}/M tokens</span>
+                      )}
+                      {model.outputPerMillionTokens && (
+                        <span> 输出: {parseFloat(model.outputPerMillionTokens).toFixed(4)} {model.currency || 'USD'}/M tokens</span>
+                      )}
+                      {model.cachedInputPrice && (
+                        <span> 缓存输入: {parseFloat(model.cachedInputPrice).toFixed(4)} {model.currency || 'USD'}</span>
+                      )}
+                      {model.cachedOutputPrice && (
+                        <span> 缓存输出: {parseFloat(model.cachedOutputPrice).toFixed(4)} {model.currency || 'USD'}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <VendorModelModal
+                    vendorModel={model}
+                    providerId={providerId}
+                    onSubmit={(data) => onUpdateModel(model.id, data)}
+                  />
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => setDeleteModelId(model.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <VendorModelModal
-                  vendorModel={model}
-                  providerId={providerId}
-                  onSubmit={(data) => onUpdateModel(model.id, data)}
-                />
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={() => handleDeleteVendorModel(model.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* 删除确认对话框 */}
+      <AlertDialog open={!!deleteModelId} onOpenChange={() => setDeleteModelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将永久删除该Vendor Model，且无法撤销。确定要继续吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteVendorModel} className="bg-red-600 hover:bg-red-700">
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

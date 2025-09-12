@@ -103,6 +103,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export const schema = z.object({
   id: z.number(),
@@ -488,9 +489,10 @@ export function DataTable({
       </div>
       <TabsContent
         value="outline"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        className="relative flex flex-col gap-4 overflow-hidden px-4 lg:px-6"
       >
-        <div className="overflow-hidden rounded-lg border">
+        <ScrollArea className="flex-1">
+          <div className="overflow-hidden rounded-lg border">
           <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
@@ -541,6 +543,7 @@ export function DataTable({
             </Table>
           </DndContext>
         </div>
+        </ScrollArea>
         <div className="flex items-center justify-between px-4">
           <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
@@ -675,7 +678,8 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
             Showing total visitors for the last 6 months
           </SheetDescription>
         </SheetHeader>
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto py-4 text-sm">
+        <ScrollArea className="flex-1">
+          <div className="flex flex-col gap-4 py-4 pr-4 text-sm">
           {!isMobile && (
             <>
               <ChartContainer config={chartConfig}>
@@ -805,7 +809,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               </Select>
             </div>
           </form>
-        </div>
+        </ScrollArea>
         <SheetFooter className="mt-auto flex gap-2 sm:flex-col sm:space-x-0">
           <Button className="w-full">Submit</Button>
           <SheetClose asChild>
