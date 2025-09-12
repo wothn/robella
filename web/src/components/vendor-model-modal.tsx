@@ -37,6 +37,27 @@ export function VendorModelModal({
   })
   const [open, setOpen] = useState(isOpen || false)
 
+  // Reset form when modal closes (for new models)
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen)
+    if (!newOpen && !vendorModel) {
+      // Reset form when closing modal for creating new model
+      setFormData({
+        vendorModelName: '',
+        description: '',
+        inputPerMillionTokens: '',
+        outputPerMillionTokens: '',
+        currency: '',
+        cachedInputPrice: '',
+        cachedOutputPrice: '',
+        enabled: true
+      })
+    }
+    if (!newOpen) {
+      onClose?.()
+    }
+  }
+
   // Update form data when vendorModel changes
   useEffect(() => {
     if (vendorModel) {
@@ -94,16 +115,14 @@ export function VendorModelModal({
 
     onSubmit(data)
     setOpen(false)
-    onClose?.()
   }
 
   const handleCancel = () => {
     setOpen(false)
-    onClose?.()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {vendorModel ? (
           <Button variant="outline" size="sm">
