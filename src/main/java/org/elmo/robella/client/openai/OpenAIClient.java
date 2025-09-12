@@ -2,7 +2,6 @@ package org.elmo.robella.client.openai;
 
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.client.ApiClient;
-import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.config.WebClientProperties;
 import org.elmo.robella.exception.ProviderException;

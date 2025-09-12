@@ -3,11 +3,10 @@ package org.elmo.robella.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.elmo.robella.model.common.Role;
-import org.elmo.robella.model.dto.AuthTokens;
 import org.elmo.robella.model.dto.GitHubUserInfo;
 import org.elmo.robella.model.dto.GithubAccessTokenResponse;
 import org.elmo.robella.model.entity.User;
+import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.repository.UserRepository;
 import org.elmo.robella.util.JwtUtil;
@@ -67,8 +66,6 @@ public class GitHubOAuthService {
             return Mono.error(new IllegalArgumentException("Invalid or expired state parameter"));
         }
 
-        stateStore.remove(state);
-
         // 获取access token
         return getAccessToken(code, state)
                 .flatMap(this::getUserInfo)
@@ -112,16 +109,12 @@ public class GitHubOAuthService {
                     String accessToken = jwtUtil.generateAccessToken(user);
                     String refreshToken = jwtUtil.generateRefreshToken(user);
                     
-                    AuthTokens tokens = new AuthTokens();
-                    tokens.setAccessToken(accessToken);
-                    tokens.setRefreshToken(refreshToken);
-                    
-                    return Mono.just(new LoginResponse(accessToken));
+                    return Mono.just(new LoginResponse(accessToken, refreshToken));
                 });
     }
 
     private boolean validateState(String state) {
-        String timestamp = stateStore.remove(state);
+        String timestamp = stateStore.get(state);
         if (timestamp == null) {
             return false;
         }
@@ -130,7 +123,14 @@ public class GitHubOAuthService {
         java.time.Instant now = java.time.Instant.now();
         java.time.Duration duration = java.time.Duration.between(stateTime, now);
 
-        return duration.toMinutes() < 10;
+        boolean isValid = duration.toMinutes() < 10;
+        
+        // Only remove state if it's valid (prevent replay attacks)
+        if (isValid) {
+            stateStore.remove(state);
+        }
+        
+        return isValid;
     }
 
     /**
@@ -145,12 +145,11 @@ public class GitHubOAuthService {
                 .uri(tokenUrl)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .accept(MediaType.APPLICATION_JSON)
-                .bodyValue(Map.of(
-                        "client_id", clientId,
-                        "client_secret", clientSecret,
-                        "code", code,
-                        "redirect_uri", redirectUri,
-                        "grant_type", "authorization_code"))
+                .bodyValue("client_id=" + clientId + 
+                          "&client_secret=" + clientSecret + 
+                          "&code=" + code + 
+                          "&redirect_uri=" + redirectUri + 
+                          "&grant_type=authorization_code")
                 .retrieve()
                 .bodyToMono(GithubAccessTokenResponse.class)
                 .map(GithubAccessTokenResponse::getAccessToken);

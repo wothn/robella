@@ -3,10 +3,8 @@ package org.elmo.robella.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.service.GitHubOAuthService;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ServerWebExchange;
@@ -32,18 +30,43 @@ public class GitHubOAuthController {
     }
 
     @GetMapping("/callback")
-    public Mono<ResponseEntity<LoginResponse>> callback(
-            @RequestParam String code,
-            @RequestParam String state,
+    public Mono<Void> callback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
             ServerWebExchange exchange) {
         
+        if (code == null || state == null) {
+            log.warn("GitHub OAuth callback called without required parameters");
+            return redirectToError(exchange);
+        }
+        
         return gitHubOAuthService.handleOAuthCallback(code, state)
-                .map(ResponseEntity::ok)
+                .flatMap(loginResponse -> {
+                    // 生成JWT token并添加到重定向URL的参数中，确保URL编码
+                    try {
+                        String encodedToken = java.net.URLEncoder.encode(loginResponse.getAccessToken(), "UTF-8");
+                        String encodedRefreshToken = java.net.URLEncoder.encode(loginResponse.getRefreshToken(), "UTF-8");
+                        String redirectUrl = "http://localhost:5173/auth/success?token=" + encodedToken + "&refreshToken=" + encodedRefreshToken;
+                        ServerHttpResponse response = exchange.getResponse();
+                        response.setStatusCode(HttpStatus.FOUND);
+                        response.getHeaders().setLocation(URI.create(redirectUrl));
+                        return response.setComplete();
+                    } catch (java.io.UnsupportedEncodingException e) {
+                        log.error("URL encoding failed: {}", e.getMessage());
+                        return redirectToError(exchange);
+                    }
+                })
                 .onErrorResume(e -> {
                     log.error("GitHub OAuth callback error: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+                    return redirectToError(exchange);
                 });
-        
+    }
+    
+    private Mono<Void> redirectToError(ServerWebExchange exchange) {
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.FOUND);
+        response.getHeaders().setLocation(URI.create("http://localhost:5173/auth/error"));
+        return response.setComplete();
     }
 
 }

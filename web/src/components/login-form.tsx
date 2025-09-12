@@ -17,7 +17,7 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -29,7 +29,7 @@ export function LoginForm({
     setIsLoading(true)
 
     try {
-      await login(email, password)
+      await login(username, password)
     } catch (error) {
       setError(error instanceof Error ? error.message : "登录失败")
     } finally {
@@ -43,7 +43,7 @@ export function LoginForm({
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Welcome back</CardTitle>
           <CardDescription>
-            Login with your GitHub account or email
+            Login with your GitHub account or username
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -81,14 +81,14 @@ export function LoginForm({
               
               <div className="grid gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="username">Username</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
+                    id="username"
+                    type="text"
+                    placeholder="Enter your username"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     disabled={isLoading}
                   />
                 </div>

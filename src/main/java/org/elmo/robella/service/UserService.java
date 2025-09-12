@@ -1,8 +1,8 @@
 package org.elmo.robella.service;
 
-import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.dto.AuthTokens;
 import org.elmo.robella.model.entity.User;
+import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
@@ -17,7 +17,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -65,12 +64,7 @@ public class UserService {
             .switchIfEmpty(Mono.error(new IllegalArgumentException("用户不存在")));
     }
     
-    public Mono<UserResponse> getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-            .map(this::convertToResponse)
-            .switchIfEmpty(Mono.error(new IllegalArgumentException("用户不存在")));
-    }
-    
+      
     public Flux<UserResponse> getAllUsers() {
         return userRepository.findAll()
             .map(this::convertToResponse);
@@ -148,18 +142,7 @@ public class UserService {
             .map(this::convertToResponse);
     }
     
-    
-    public Mono<Boolean> validateUser(String username, String password) {
-        return userRepository.findByUsername(username)
-            .flatMap(user -> {
-                if (!user.getActive()) {
-                    return Mono.just(false);
-                }
-                return Mono.just(passwordEncoder.matches(password, user.getPassword()));
-            })
-            .defaultIfEmpty(false);
-    }
-    
+      
     public Mono<AuthTokens> login(LoginRequest loginRequest) {
         return userRepository.findByUsername(loginRequest.getUsername())
             .flatMap(user -> {
@@ -193,19 +176,13 @@ public class UserService {
                     return Mono.error(new RuntimeException("用户已被禁用"));
                 }
                 String newAccessToken = jwtUtil.generateAccessToken(user);
-                LoginResponse response = new LoginResponse(newAccessToken);
+                String newRefreshToken = jwtUtil.generateRefreshToken(user);
+                LoginResponse response = new LoginResponse(newAccessToken, newRefreshToken);
                 return Mono.just(response);
             })
             .switchIfEmpty(Mono.error(new RuntimeException("用户不存在")));
     }
     
-    public Mono<Void> logout(String username) {
-        return userRepository.findByUsername(username)
-            .flatMap(user -> {
-                user.setUpdatedAt(LocalDateTime.now());
-                return userRepository.save(user).then();
-            });
-    }
     
     private AuthTokens createAuthTokens(String accessToken, String refreshToken) {
         AuthTokens tokens = new AuthTokens();
@@ -222,76 +199,5 @@ public class UserService {
     
     public Mono<User> getUserByGithubId(String githubId) {
         return userRepository.findByGithubId(githubId);
-    }
-    
-    public Mono<UserResponse> createOAuthUser(User user) {
-        return userRepository.existsByUsername(user.getUsername())
-            .flatMap(existsByUsername -> {
-                if (existsByUsername) {
-                    return Mono.error(new IllegalArgumentException("用户名已存在"));
-                }
-                return userRepository.existsByEmail(user.getEmail());
-            })
-            .flatMap(existsByEmail -> {
-                if (existsByEmail) {
-                    return Mono.error(new IllegalArgumentException("邮箱已存在"));
-                }
-                
-                user.setCreatedAt(LocalDateTime.now());
-                user.setUpdatedAt(LocalDateTime.now());
-                user.setActive(true);
-                user.setRole(Role.GUEST);
-                // For OAuth users, set password to null since they don't have one
-                user.setPassword(null);
-                
-                return userRepository.save(user);
-            })
-            .map(this::convertToResponse)
-            .doOnSuccess(u -> log.info("OAuth用户创建成功: {}", u.getUsername()))
-            .doOnError(error -> log.error("OAuth用户创建失败: {}", error.getMessage()));
-    }
-    
-    // OAuth登录响应逻辑已移至 AuthService
-    
-    public Mono<String> updatePassword(Long userId, String newPassword) {
-        return userRepository.findById(userId)
-            .switchIfEmpty(Mono.error(new IllegalArgumentException("用户不存在")))
-            .flatMap(user -> {
-                user.setPassword(newPassword);
-                user.setUpdatedAt(LocalDateTime.now());
-                return userRepository.save(user);
-            })
-            .map(user -> "密码更新成功")
-            .doOnSuccess(v -> log.info("密码更新成功: {}", userId))
-            .doOnError(error -> log.error("密码更新失败: {}", error.getMessage()));
-    }
-    
-    public Mono<User> processGitHubOAuthUser(Map<String, Object> attributes) {
-        String githubId = String.valueOf(attributes.get("id"));
-        String username = (String) attributes.get("login");
-        String email = (String) attributes.get("email");
-        String name = (String) attributes.get("name");
-        String avatar = (String) attributes.get("avatar_url");
-        
-        final String finalEmail = (email == null || email.trim().isEmpty()) ? username + "@github.local" : email;
-        final String finalName = (name == null || name.trim().isEmpty()) ? username : name;
-        
-        return getUserByGithubId(githubId)
-            .switchIfEmpty(Mono.defer(() -> {
-                User newUser = User.builder()
-                    .username(username)
-                    .email(finalEmail)
-                    .displayName(finalName)
-                    .avatar(avatar)
-                    .githubId(githubId)
-                    .githubId(githubId)
-                    .active(true)
-                    .role(Role.USER)
-                    .build();
-                
-                return userRepository.save(newUser);
-            }))
-            .doOnSuccess(user -> log.info("Successfully found or created user for GitHub user: {}", username))
-            .doOnError(error -> log.error("Failed to find or create user for GitHub user {}: {}", username, error.getMessage()));
     }
 }

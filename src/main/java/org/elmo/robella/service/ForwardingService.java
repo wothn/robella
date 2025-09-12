@@ -28,7 +28,7 @@ public class ForwardingService {
     private final VendorTransformFactory vendorTransformFactory;
 
     public Mono<ModelListResponse> listModels() {
-        return modelRepository.findByIsPublishedTrue()
+        return modelRepository.findByPublishedTrue()
             .map(model -> {
                 ModelInfo modelInfo = new ModelInfo();
                 modelInfo.setId(model.getName());

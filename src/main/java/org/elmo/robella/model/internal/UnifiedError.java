@@ -1,6 +1,5 @@
 package org.elmo.robella.model.internal;
 
-import lombok.Builder;
 import lombok.Data;
 
 @Data

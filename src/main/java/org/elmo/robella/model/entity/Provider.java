@@ -7,7 +7,6 @@ import org.springframework.data.relational.core.mapping.Table;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import java.time.LocalDateTime;
-import java.util.Map;
 
 @Data
 @Table("provider")
@@ -19,7 +18,7 @@ public class Provider {
     private String type;
     private String baseUrl;
     private String apiKey;
-    private Map<String, Object> config;
+    private String config;
     private Boolean enabled;
     @CreatedDate
     private LocalDateTime createdAt;

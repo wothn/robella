@@ -5,16 +5,12 @@ import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
-import org.elmo.robella.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ServerWebExchange;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -22,9 +18,6 @@ import reactor.core.publisher.Mono;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Email;
-import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 
 import java.util.Map;
 
@@ -36,7 +29,6 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
-    private final JwtUtil jwtUtil;
 
     @PostMapping
     public Mono<ResponseEntity<UserResponse>> createUser(@Valid @RequestBody User user) {
@@ -68,15 +60,6 @@ public class UserController {
                 });
     }
 
-    @GetMapping("/email/{email}")
-    public Mono<ResponseEntity<UserResponse>> getUserByEmail(@PathVariable @NotBlank @Email String email) {
-        return userService.getUserByEmail(email)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("获取用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.notFound().build());
-                });
-    }
 
     @GetMapping
     public Flux<UserResponse> getAllUsers() {
@@ -143,18 +126,9 @@ public class UserController {
             @Valid @RequestBody LoginRequest loginRequest) {
 
         return userService.login(loginRequest)
-                .flatMap(tokens -> {
-                    ResponseCookie cookie = ResponseCookie.from("refreshToken", tokens.getRefreshToken())
-                            .httpOnly(true)
-                            .secure(true)
-                            .sameSite("Lax")
-                            .path("/api/user/refresh")
-                            .maxAge(jwtUtil.getRefreshTokenExpiration())
-                            .build();
-                    LoginResponse loginResponse = new LoginResponse(tokens.getAccessToken());
-                    return Mono.just(ResponseEntity.ok()
-                            .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                            .body(loginResponse));
+                .map(tokens -> {
+                    LoginResponse loginResponse = new LoginResponse(tokens.getAccessToken(), tokens.getRefreshToken());
+                    return ResponseEntity.ok(loginResponse);
                 })
                 .onErrorResume(e -> {
                     log.error("登录失败: {}", e.getMessage());
@@ -162,28 +136,9 @@ public class UserController {
                 });
     }
 
-    @PostMapping("/logout")
-    public Mono<ResponseEntity<Void>> logout(ServerWebExchange exchange) {
-
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("Lax")
-                .path("/api/user/refresh")
-                .maxAge(0) // 设置 Max-Age=0 指示浏览器立即删除此cookie
-                .build();
-
-        return Mono.just(
-                ResponseEntity.ok()
-                        .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                        .build() // 这里构建的是 ResponseEntity<Void>
-        );
-    }
-
     @PostMapping("/refresh")
-    public Mono<ResponseEntity<LoginResponse>> refreshToken(ServerWebExchange exchange) {
-        return Mono.justOrEmpty(exchange.getRequest().getCookies().getFirst("refreshToken"))
-                .map(cookie -> cookie.getValue())
+    public Mono<ResponseEntity<LoginResponse>> refreshToken(@RequestBody Map<String, String> request) {
+        return Mono.justOrEmpty(request.get("refreshToken"))
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("刷新令牌不存在")))
                 .filter(token -> !token.isBlank())
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("刷新令牌为空")))
@@ -200,18 +155,21 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public Mono<ResponseEntity<UserResponse>> getCurrentUser(ServerWebExchange exchange) {
-        String username = exchange.getAttribute("username");
+    public Mono<ResponseEntity<UserResponse>> getCurrentUser() {
+        return Mono.deferContextual(contextView -> {
+            String username = contextView.get("username");
+            
+            if (username == null) {
+                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).<UserResponse>build());
+            }
+            log.info("当前用户: {}", username);
 
-        if (username == null) {
-            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-        }
-
-        return userService.getUserByUsername(username).map(ResponseEntity::ok)
-                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build())).onErrorResume(e -> {
-                    log.error("获取当前用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
-                });
+            return userService.getUserByUsername(username).map(ResponseEntity::ok)
+                    .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).<UserResponse>build()));
+        }).onErrorResume(e -> {
+            log.error("获取当前用户失败: {}", e.getMessage());
+            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<UserResponse>build());
+        });
     }
 
 }

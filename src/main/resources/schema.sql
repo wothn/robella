@@ -4,44 +4,59 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) DEFAULT NULL,
-    full_name VARCHAR(100),
+    display_name VARCHAR(100),
     avatar VARCHAR(500),
-    phone VARCHAR(20),
     active BOOLEAN DEFAULT TRUE,
-    role VARCHAR(50) DEFAULT 'USER',
+    role INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login_at TIMESTAMP,
-    email_verified VARCHAR(5) DEFAULT 'false',
-    phone_verified VARCHAR(5) DEFAULT 'false',
-    github_id VARCHAR(100),
-    provider VARCHAR(50) DEFAULT 'local',
-    provider_id VARCHAR(100)
+    github_id VARCHAR(100)
 );
 
 -- AI提供商表
-CREATE TABLE IF NOT EXISTS providers (
+CREATE TABLE IF NOT EXISTS provider (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     type VARCHAR(50) NOT NULL,
-    api_key VARCHAR(500) NOT NULL,
-    base_url VARCHAR(500) NOT NULL,
-    deployment_name VARCHAR(100),
+    base_url VARCHAR(500),
+    api_key VARCHAR(500),
+    config TEXT,
     enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- AI模型表
-CREATE TABLE IF NOT EXISTS models (
+CREATE TABLE IF NOT EXISTS model (
     id BIGSERIAL PRIMARY KEY,
-    provider_id BIGINT NOT NULL,
     name VARCHAR(100) NOT NULL,
-    vendor_model VARCHAR(100) NOT NULL,
+    description TEXT,
+    organization VARCHAR(100),
+    capabilities JSONB,
+    context_window INTEGER,
+    published BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 供应商模型表
+CREATE TABLE IF NOT EXISTS vendor_model (
+    id BIGSERIAL PRIMARY KEY,
+    model_id BIGINT NOT NULL,
+    provider_id BIGINT NOT NULL,
+    vendor_model_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    input_per_million_tokens DECIMAL(19, 6),
+    output_per_million_tokens DECIMAL(19, 6),
+    currency VARCHAR(10),
+    cached_input_price DECIMAL(19, 6),
+    cached_output_price DECIMAL(19, 6),
     enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
+    FOREIGN KEY (model_id) REFERENCES model(id) ON DELETE CASCADE,
+    FOREIGN KEY (provider_id) REFERENCES provider(id) ON DELETE CASCADE
 );
 
 -- 创建索引
@@ -50,18 +65,26 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id);
 
--- providers表索引
-CREATE INDEX IF NOT EXISTS idx_providers_name ON providers(name);
-CREATE INDEX IF NOT EXISTS idx_providers_type ON providers(type);
-CREATE INDEX IF NOT EXISTS idx_providers_enabled ON providers(enabled);
-CREATE INDEX IF NOT EXISTS idx_providers_created_at ON providers(created_at);
+-- provider表索引
+CREATE INDEX IF NOT EXISTS idx_provider_name ON provider(name);
+CREATE INDEX IF NOT EXISTS idx_provider_type ON provider(type);
+CREATE INDEX IF NOT EXISTS idx_provider_enabled ON provider(enabled);
+CREATE INDEX IF NOT EXISTS idx_provider_created_at ON provider(created_at);
 
--- models表索引
-CREATE INDEX IF NOT EXISTS idx_models_provider_id ON models(provider_id);
-CREATE INDEX IF NOT EXISTS idx_models_name ON models(name);
-CREATE INDEX IF NOT EXISTS idx_models_enabled ON models(enabled);
-CREATE INDEX IF NOT EXISTS idx_models_created_at ON models(created_at);
+-- model表索引
+CREATE INDEX IF NOT EXISTS idx_model_name ON model(name);
+CREATE INDEX IF NOT EXISTS idx_model_organization ON model(organization);
+CREATE INDEX IF NOT EXISTS idx_model_published ON model(published);
+CREATE INDEX IF NOT EXISTS idx_model_created_at ON model(created_at);
+
+-- vendor_model表索引
+CREATE INDEX IF NOT EXISTS idx_vendor_model_model_id ON vendor_model(model_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_model_provider_id ON vendor_model(provider_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_model_vendor_model_name ON vendor_model(vendor_model_name);
+CREATE INDEX IF NOT EXISTS idx_vendor_model_enabled ON vendor_model(enabled);
+CREATE INDEX IF NOT EXISTS idx_vendor_model_created_at ON vendor_model(created_at);
 
 -- 添加注释
 COMMENT ON TABLE users IS '用户表';
@@ -69,38 +92,51 @@ COMMENT ON COLUMN users.id IS '用户ID';
 COMMENT ON COLUMN users.username IS '用户名';
 COMMENT ON COLUMN users.email IS '邮箱';
 COMMENT ON COLUMN users.password IS '密码';
-COMMENT ON COLUMN users.full_name IS '全名';
+COMMENT ON COLUMN users.display_name IS '显示名称';
 COMMENT ON COLUMN users.avatar IS '头像URL';
-COMMENT ON COLUMN users.phone IS '手机号';
 COMMENT ON COLUMN users.active IS '是否活跃';
 COMMENT ON COLUMN users.role IS '角色';
 COMMENT ON COLUMN users.created_at IS '创建时间';
 COMMENT ON COLUMN users.updated_at IS '更新时间';
 COMMENT ON COLUMN users.last_login_at IS '最后登录时间';
-COMMENT ON COLUMN users.email_verified IS '邮箱是否验证';
-COMMENT ON COLUMN users.phone_verified IS '手机是否验证';
 COMMENT ON COLUMN users.github_id IS 'GitHub用户ID';
-COMMENT ON COLUMN users.provider IS '登录提供商';
-COMMENT ON COLUMN users.provider_id IS '提供商用户ID';
 
--- providers表注释
-COMMENT ON TABLE providers IS 'AI提供商配置表';
-COMMENT ON COLUMN providers.id IS '提供商ID';
-COMMENT ON COLUMN providers.name IS '提供商名称';
-COMMENT ON COLUMN providers.type IS '提供商类型';
-COMMENT ON COLUMN providers.api_key IS 'API密钥';
-COMMENT ON COLUMN providers.base_url IS '基础URL';
-COMMENT ON COLUMN providers.deployment_name IS '部署名称';
-COMMENT ON COLUMN providers.enabled IS '是否启用';
-COMMENT ON COLUMN providers.created_at IS '创建时间';
-COMMENT ON COLUMN providers.updated_at IS '更新时间';
+-- provider表注释
+COMMENT ON TABLE provider IS 'AI提供商配置表';
+COMMENT ON COLUMN provider.id IS '提供商ID';
+COMMENT ON COLUMN provider.name IS '提供商名称';
+COMMENT ON COLUMN provider.type IS '提供商类型';
+COMMENT ON COLUMN provider.base_url IS '基础URL';
+COMMENT ON COLUMN provider.api_key IS 'API密钥';
+COMMENT ON COLUMN provider.config IS '配置信息';
+COMMENT ON COLUMN provider.enabled IS '是否启用';
+COMMENT ON COLUMN provider.created_at IS '创建时间';
+COMMENT ON COLUMN provider.updated_at IS '更新时间';
 
--- models表注释
-COMMENT ON TABLE models IS 'AI模型配置表';
-COMMENT ON COLUMN models.id IS '模型ID';
-COMMENT ON COLUMN models.provider_id IS '提供商ID';
-COMMENT ON COLUMN models.name IS '模型名称';
-COMMENT ON COLUMN models.vendor_model IS '供应商模型名称';
-COMMENT ON COLUMN models.enabled IS '是否启用';
-COMMENT ON COLUMN models.created_at IS '创建时间';
-COMMENT ON COLUMN models.updated_at IS '更新时间';
+-- model表注释
+COMMENT ON TABLE model IS 'AI模型表';
+COMMENT ON COLUMN model.id IS '模型ID';
+COMMENT ON COLUMN model.name IS '模型名称';
+COMMENT ON COLUMN model.description IS '模型描述';
+COMMENT ON COLUMN model.organization IS '组织';
+COMMENT ON COLUMN model.capabilities IS '能力';
+COMMENT ON COLUMN model.context_window IS '上下文窗口';
+COMMENT ON COLUMN model.published IS '是否发布';
+COMMENT ON COLUMN model.created_at IS '创建时间';
+COMMENT ON COLUMN model.updated_at IS '更新时间';
+
+-- vendor_model表注释
+COMMENT ON TABLE vendor_model IS '供应商模型表';
+COMMENT ON COLUMN vendor_model.id IS '供应商模型ID';
+COMMENT ON COLUMN vendor_model.model_id IS '模型ID';
+COMMENT ON COLUMN vendor_model.provider_id IS '提供商ID';
+COMMENT ON COLUMN vendor_model.vendor_model_name IS '供应商模型名称';
+COMMENT ON COLUMN vendor_model.description IS '描述';
+COMMENT ON COLUMN vendor_model.input_per_million_tokens IS '每百万输入令牌价格';
+    COMMENT ON COLUMN vendor_model.output_per_million_tokens IS '每百万输出令牌价格';
+    COMMENT ON COLUMN vendor_model.currency IS '货币类型';
+    COMMENT ON COLUMN vendor_model.cached_input_price IS '缓存输入价格';
+    COMMENT ON COLUMN vendor_model.cached_output_price IS '缓存输出价格';
+COMMENT ON COLUMN vendor_model.enabled IS '是否启用';
+COMMENT ON COLUMN vendor_model.created_at IS '创建时间';
+COMMENT ON COLUMN vendor_model.updated_at IS '更新时间';

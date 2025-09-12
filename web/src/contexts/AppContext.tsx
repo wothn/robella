@@ -82,7 +82,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         )
       }
     
-    case 'DELETE_PROVIDER':
+    case 'DELETE_PROVIDER': {
       const newModels = { ...state.models }
       delete newModels[action.payload]
       return {
@@ -91,8 +91,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
         models: newModels,
         currentProviderId: state.currentProviderId === action.payload ? null : state.currentProviderId
       }
+    }
     
-    case 'ADD_MODEL':
+    case 'ADD_MODEL': {
       const providerId = action.payload.providerId
       return {
         ...state,
@@ -101,8 +102,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
           [providerId]: [...(state.models[providerId] || []), action.payload.model]
         }
       }
+    }
     
-    case 'UPDATE_MODEL':
+    case 'UPDATE_MODEL': {
       const updatedModels = { ...state.models }
       for (const providerId in updatedModels) {
         updatedModels[providerId] = updatedModels[providerId].map(m =>
@@ -113,8 +115,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         models: updatedModels
       }
+    }
     
-    case 'DELETE_MODEL':
+    case 'DELETE_MODEL': {
       const finalModels = { ...state.models }
       for (const providerId in finalModels) {
         finalModels[providerId] = finalModels[providerId].filter(m =>
@@ -125,6 +128,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         models: finalModels
       }
+    }
     
     default:
       return state

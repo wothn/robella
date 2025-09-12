@@ -1,15 +1,23 @@
 package org.elmo.robella.interceptor;
 
 import org.elmo.robella.util.JwtUtil;
+import org.elmo.robella.model.common.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+import org.springframework.lang.NonNull;
+import reactor.util.context.Context;
+
+import java.nio.charset.StandardCharsets;
 
 @Component
 @RequiredArgsConstructor
@@ -19,7 +27,8 @@ public class AuthenticationInterceptor implements WebFilter {
     private final JwtUtil jwtUtil;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+    @NonNull
+    public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
@@ -32,37 +41,53 @@ public class AuthenticationInterceptor implements WebFilter {
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.warn("Missing or invalid Authorization header for path: {}", path);
-            return Mono.error(new RuntimeException("Missing or invalid Authorization header"));
+            return handleUnauthorized(exchange, "Missing or invalid Authorization header");
         }
 
         String token = authHeader.substring(7);
         if (token.isBlank()) {
             log.warn("Empty JWT token for path: {}", path);
-            return Mono.error(new RuntimeException("Empty JWT token"));
+            return handleUnauthorized(exchange, "Empty JWT token");
         }
 
         // 验证JWT令牌
         if (!jwtUtil.validateToken(token)) {
             log.warn("Invalid JWT token for path: {}", path);
-            return Mono.error(new RuntimeException("Invalid JWT token"));
+            return handleUnauthorized(exchange, "Invalid JWT token");
         }
 
-        // 提取用户信息并添加到请求属性
+        // 提取用户信息并添加到Reactor上下文
         try {
             String username = jwtUtil.extractUsername(token);
-            Integer role = jwtUtil.extractRole(token);
+            Role role = jwtUtil.extractRole(token);
             
-            exchange.getAttributes().put("username", username);
-            exchange.getAttributes().put("role", role);
-            exchange.getAttributes().put("token", token);
+            // 创建Reactor上下文包含用户信息
+            Context userContext = Context.of(
+                "username", username,
+                "role", role.getValue(),
+                "token", token,
+                "userId", jwtUtil.extractClaim(token, claims -> claims.get("userId", Long.class))
+            );
             
             log.debug("JWT validation successful for user: {} on path: {}", username, path);
+            
+            // 将上下文传递给下一个过滤器
+            return chain.filter(exchange)
+                .contextWrite(userContext);
         } catch (Exception e) {
             log.error("Error extracting claims from JWT token: {}", e.getMessage());
-            return Mono.error(new RuntimeException("Error processing JWT token"));
+            return handleUnauthorized(exchange, "Error processing JWT token");
         }
+    }
 
-        return chain.filter(exchange);
+    private Mono<Void> handleUnauthorized(ServerWebExchange exchange, String message) {
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.UNAUTHORIZED);
+        response.getHeaders().add("Content-Type", "application/json");
+        
+        String body = String.format("{\"error\":{\"type\":\"authentication_error\",\"message\":\"%s\"}}", message);
+        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
+        return response.writeWith(Mono.just(buffer));
     }
 
     private boolean isPublicEndpoint(String path) {
@@ -70,10 +95,12 @@ public class AuthenticationInterceptor implements WebFilter {
                path.startsWith("/api/users/register") ||
                path.startsWith("/api/users/refresh") ||
                path.startsWith("/api/health") ||
+               path.startsWith("/api/oauth/github") ||
                path.startsWith("/actuator") ||
                path.startsWith("/webjars") ||
                path.startsWith("/swagger-ui") ||
                path.startsWith("/v3/api-docs")||
-               path.startsWith("/api/v1");
+               path.startsWith("/api/v1") ||
+               path.equals("/favicon.ico");
     }
 }

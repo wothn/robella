@@ -5,7 +5,6 @@ import org.elmo.robella.model.openai.core.Choice;
 import org.elmo.robella.model.openai.core.Usage;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 统一的流式增量数据结构

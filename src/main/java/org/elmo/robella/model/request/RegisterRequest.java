@@ -19,7 +19,7 @@ public class RegisterRequest {
     
     private String confirmPassword;
     
-    private String fullName;
+    private String displayName;
     
     private String phone;
 }

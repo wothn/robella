@@ -7,7 +7,7 @@ export interface ApiResponse<T> {
 export interface ApiError {
   message: string
   status: number
-  details?: any
+  details?: Record<string, unknown>
 }
 
 export interface PaginatedResponse<T> {

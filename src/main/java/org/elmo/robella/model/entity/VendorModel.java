@@ -5,9 +5,13 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Map;
 
 @Data
 @Table("vendor_model")
@@ -19,7 +23,15 @@ public class VendorModel {
     private Long providerId;
     private String vendorModelName;
     private String description;
-    private Map<String, Object> pricing;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private BigDecimal inputPerMillionTokens;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private BigDecimal outputPerMillionTokens;
+    private String currency;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private BigDecimal cachedInputPrice;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private BigDecimal cachedOutputPrice;
     private Boolean enabled;
     @CreatedDate
     private LocalDateTime createdAt;

@@ -1,24 +1,24 @@
+"use client"
+
 import * as React from "react"
 import {
-  ArrowUpCircleIcon,
-  BarChartIcon,
-  CameraIcon,
-  ClipboardListIcon,
-  DatabaseIcon,
-  FileCodeIcon,
-  FileIcon,
-  FileTextIcon,
-  FolderIcon,
-  HelpCircleIcon,
-  LayoutDashboardIcon,
-  ListIcon,
-  SearchIcon,
-  SettingsIcon,
-  UsersIcon,
+  BookOpen,
+  Bot,
+  Command,
+  Frame,
+  LifeBuoy,
+  Map,
+  PieChart,
+  Send,
+  Settings2,
+  SquareTerminal,
+  Users,
+  Server,
+  Home,
 } from "lucide-react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
+import { NavProjects } from "@/components/nav-projects"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -40,73 +40,128 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
-      icon: LayoutDashboardIcon,
+      url: "/dashboard",
+      icon: Home,
     },
     {
-      title: "Lifecycle",
+      title: "Playground",
       url: "#",
-      icon: ListIcon,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: BarChartIcon,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: FolderIcon,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: UsersIcon,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: CameraIcon,
+      icon: SquareTerminal,
       isActive: true,
-      url: "#",
       items: [
         {
-          title: "Active Proposals",
+          title: "History",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Starred",
+          url: "#",
+        },
+        {
+          title: "Settings",
           url: "#",
         },
       ],
     },
     {
-      title: "Proposal",
-      icon: FileTextIcon,
-      url: "#",
+      title: "Models",
+      url: "/models",
+      icon: Bot,
       items: [
         {
-          title: "Active Proposals",
+          title: "All Models",
+          url: "/models",
+        },
+        {
+          title: "Model Capabilities",
+          url: "/models/capabilities",
+        },
+        {
+          title: "Model Vendors",
+          url: "/models/vendors",
+        },
+      ],
+    },
+    {
+      title: "Documentation",
+      url: "#",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Introduction",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Get Started",
+          url: "#",
+        },
+        {
+          title: "Tutorials",
+          url: "#",
+        },
+        {
+          title: "Changelog",
           url: "#",
         },
       ],
     },
     {
-      title: "Prompts",
-      icon: FileCodeIcon,
-      url: "#",
+      title: "Users",
+      url: "/users",
+      icon: Users,
       items: [
         {
-          title: "Active Proposals",
+          title: "All Users",
+          url: "/users",
+        },
+        {
+          title: "User Roles",
+          url: "/users/roles",
+        },
+        {
+          title: "User Permissions",
+          url: "/users/permissions",
+        },
+      ],
+    },
+    {
+      title: "Providers",
+      url: "/providers",
+      icon: Server,
+      items: [
+        {
+          title: "All Providers",
+          url: "/providers",
+        },
+        {
+          title: "Provider Types",
+          url: "/providers/types",
+        },
+        {
+          title: "Provider Models",
+          url: "/providers/models",
+        },
+      ],
+    },
+    {
+      title: "Settings",
+      url: "#",
+      icon: Settings2,
+      items: [
+        {
+          title: "General",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Team",
+          url: "#",
+        },
+        {
+          title: "Billing",
+          url: "#",
+        },
+        {
+          title: "Limits",
           url: "#",
         },
       ],
@@ -114,53 +169,50 @@ const data = {
   ],
   navSecondary: [
     {
-      title: "Settings",
+      title: "Support",
       url: "#",
-      icon: SettingsIcon,
+      icon: LifeBuoy,
     },
     {
-      title: "Get Help",
+      title: "Feedback",
       url: "#",
-      icon: HelpCircleIcon,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: SearchIcon,
+      icon: Send,
     },
   ],
-  documents: [
+  projects: [
     {
-      name: "Data Library",
+      name: "Design Engineering",
       url: "#",
-      icon: DatabaseIcon,
+      icon: Frame,
     },
     {
-      name: "Reports",
+      name: "Sales & Marketing",
       url: "#",
-      icon: ClipboardListIcon,
+      icon: PieChart,
     },
     {
-      name: "Word Assistant",
+      name: "Travel",
       url: "#",
-      icon: FileIcon,
+      icon: Map,
     },
   ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar variant="inset" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
+            <SidebarMenuButton size="lg" asChild>
               <a href="#">
-                <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Command className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">Acme Inc</span>
+                  <span className="truncate text-xs">Enterprise</span>
+                </div>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -168,7 +220,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        <NavProjects projects={data.projects} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

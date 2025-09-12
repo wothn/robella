@@ -7,8 +7,6 @@ import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
-import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
-import org.elmo.robella.util.JsonUtils;
 import org.elmo.robella.util.OpenAITransformUtils;
 
 import java.util.*;

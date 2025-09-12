@@ -13,7 +13,7 @@ export default function AuthErrorPage() {
   }, [navigate])
 
   const params = new URLSearchParams(window.location.search)
-  const errorMessage = params.get('message') || '登录失败，请重试'
+  const errorMessage = params.get('error') || '登录失败，请重试'
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

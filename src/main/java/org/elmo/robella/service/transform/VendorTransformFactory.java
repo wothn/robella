@@ -54,7 +54,6 @@ public class VendorTransformFactory {
         return ((VendorTransform<?, R>) get(type)).vendorResponseToUnified(vendorResponse);
     }
 
-    @SuppressWarnings("unchecked")
     public VendorTransform<?, ?> get(EndpointType type) {
         VendorTransform<?, ?> transform = transformMap.get(type);
         if (transform != null) {

@@ -1,5 +1,8 @@
 package org.elmo.robella.model.common;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum Role {
     GUEST(0),
     USER(1),
@@ -12,10 +15,12 @@ public enum Role {
         this.value = value;
     }
 
+    @JsonValue
     public int getValue() {
         return value;
     }
 
+    @JsonCreator
     public static Role fromValue(int value) {
         for (Role role : Role.values()) {
             if (role.value == value) {

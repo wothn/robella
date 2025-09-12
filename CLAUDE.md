@@ -2,77 +2,155 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Build and Development Commands
+## Project Overview
 
-### Backend (Java/Spring Boot)
-**Build**: `mvn clean package`
-**Test**: `mvn compile`
-**Run**: `java -jar target/robella-1.0.0.jar`
-**Dev Mode**: `mvn spring-boot:run`
+Robella is an AI API gateway that provides unified access to multiple AI service providers (OpenAI, Anthropic/Claude, Gemini, Qwen, etc.). It offers standardized OpenAI-compatible API endpoints with flexible routing strategies and provider management.
 
-### Frontend (React/TypeScript)
-**Install Dependencies**: `cd web && npm install`
-**Dev Server**: `cd web && npm run dev`
-**Build**: `cd web && npm run build`
-**Lint**: `cd web && npm run lint`
+## Architecture
 
-## Architecture Overview
+### Backend (Java Spring webflux)
+- **Framework**: Spring Boot 3.2.5 with WebFlux for reactive programming
+- **Database**: PostgreSQL with R2DBC for reactive database access
+- **Authentication**: JWT-based authentication with GitHub OAuth support
+- **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`)
+- **Key Components**:
+  - `OpenAIController.java:27` - Main OpenAI-compatible API endpoint
+  - `AnthropicController.java` - Anthropic API compatibility layer
+  - `RoutingService.java:24` - Dynamic model-to-provider routing
+  - `ForwardingService.java` - Request forwarding to AI providers
+  - `VendorTransformFactory` - Request/response transformation between vendor formats
 
-Robella is a Spring Boot WebFlux reactive AI API aggregation gateway that unifies multiple AI providers (OpenAI, Anthropic, etc.) into standardized API interfaces with advanced streaming capabilities and user management features.
+### Frontend (React + TypeScript)
+- **Framework**: React 18.3.1 with TypeScript
+- **Build Tool**: Vite
+- **UI Library**: Shadcn UI components with Radix UI primitives
+- **Styling**: Tailwind CSS
+- **Key Features**:
+  - User authentication (JWT + GitHub OAuth)
+  - Provider management interface
+  - Model configuration and routing
+  - Dashboard with usage analytics
 
+### Database Schema
+- **Users**: Authentication and role management
+- **Providers**: AI service provider configurations
+- **Models**: Available AI models with capabilities and pricing
+- **VendorModels**: Mapping between models and providers
 
-**Database Layer**:
-- PostgreSQL with R2DBC reactive driver
-- Connection pooling with `r2dbc-pool`
-- Schema initialization via `schema.sql` and test data via `data.sql`
-- User entity with reactive repository pattern
+## Development Commands
 
+### Backend
+```bash
+# Build the project
+mvn clean package
 
-### Database & User Management
-- **Reactive Database**: PostgreSQL with R2DBC driver for non-blocking database access
-- **User Entity**: Complete user model with authentication, profile, and verification fields
-- **Repository Pattern**: Reactive repository with `Flux`/`Mono` return types
-- **Connection Pool**: Configured pool with 5-20 connections, 30m idle timeout, 60m lifetime
-- **Initialization**: Automatic schema creation and test data insertion via Spring SQL initialization
+# Run the application
+java -jar target/robella-1.0.0.jar
 
+# Development mode
+mvn spring-boot:run
 
+# Compile only
+mvn compile
 
+# Test (when tests are implemented)
+mvn test
+```
 
-### Frontend (React/TypeScript)
-- **Components**: `web/src/components/` (React components)
-- **Main App**: `web/src/App.tsx` (main application component)
-- **Entry Point**: `web/src/main.tsx` (application entry)
-- **Configuration**: `web/package.json` (dependencies), `web/vite.config.ts` (build config), `web/tailwind.config.js` (styling)
+### Frontend
+```bash
+# Navigate to web directory
+cd web
 
+# Install dependencies
+npm install
 
-## Development Guidelines
-### Backend (Java)
-- **Reactive Programming**: Always use WebFlux `Mono/Flux`, avoid blocking operations
-- **Stream Session Management**: Each stream transformation requires unique session ID
-- **Error Handling**: Wrap exceptions as `ProviderException`, use reactive error operators
-- **Type Safety**: Ensure consistent `ProviderType` enum values across config and factory switches
-- **Security**: Never hardcode API keys, use `${ENV_VAR}` placeholders
-- **Testing**: Use JUnit 5 with Reactor Test for reactive stream testing
-- **Logging**: Use `log.debug`/`log.trace` levels, especially for stream state transitions
-- **Database Access**: Use R2DBC reactive repositories, avoid blocking JDBC operations
+# Development server
+npm run dev
 
-### Frontend (React/TypeScript)
-- **Component Structure**: Use functional components with hooks
-- **TypeScript**: Always define types for props and state
-- **State Management**: Use React hooks (useState, useEffect) for local state
-- **Code Quality**: Run ESLint before commits
-- **Build**: Use Vite for fast development and optimized builds
+# Build for production
+npm run build
 
-## Database Configuration
-- **Connection**: `r2dbc:postgresql://localhost:5432/robella`
-- **Credentials**: Environment variables `POSTGRES_USERNAME` and `POSTGRES_PASSWORD`
-- **Initialization**: Automatic schema creation via `schema.sql` and test data via `data.sql`
-- **Pool Settings**: 5 initial connections, 20 max, 30m idle timeout, 60m lifetime
+# Lint code
+npm run lint
 
-## Debugging Stream Processing
-- **Session Tracking**: Each stream has UUID session ID in logs
-- **Transform Layers**: Monitor both vendor→unified and unified→endpoint conversions
-- **Empty Chunk Filtering**: Check for null/empty chunks being filtered in `ForwardingService`
-- **WebFlux Debugging**: Enable `reactor.netty.http.client: DEBUG` for network-level issues
-- **Stream State**: Monitor session-based state management in transformers
-- **Database Debugging**: Enable R2DBC logging for database query tracking
+# Type check
+tsc --noEmit
+
+# Preview production build
+npm run preview
+```
+
+## Configuration
+
+### Environment Variables
+```bash
+# Database
+POSTGRES_USERNAME=postgres
+POSTGRES_PASSWORD=your_password
+
+# JWT
+JWT_SECRET=your_jwt_secret_key
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+GITHUB_REDIRECT_URI=http://localhost:10032/api/oauth/github/callback
+
+# AI Provider API Keys
+OPENAI_API_KEY=your_openai_key
+CLAUDE_API_KEY=your_claude_key
+GEMINI_API_KEY=your_gemini_key
+QWEN_API_KEY=your_qwen_key
+```
+
+### Key Configuration Files
+- `src/main/resources/application.yml` - Main application configuration
+- `src/main/resources/schema.sql` - Database schema definition
+- `web/vite.config.ts` - Frontend build configuration
+
+## API Endpoints
+
+### OpenAI Compatible
+- `POST /v1/chat/completions` - Chat completions (streaming supported)
+- `GET /v1/models` - List available models
+
+### Authentication
+- `POST /api/users/login` - User login
+- `POST /api/users/register` - User registration
+- `GET /api/users/me` - Get current user
+- `POST /api/oauth/github/login` - GitHub OAuth initiation
+- `GET /api/oauth/github/callback` - GitHub OAuth callback
+
+### Management
+- `GET /api/providers` - List providers
+- `POST /api/providers` - Create provider
+- `PUT /api/providers/{id}` - Update provider
+- `GET /api/providers/{id}/models` - List provider models
+
+## Key Patterns
+
+### Request Flow
+1. Request arrives at OpenAI-compatible endpoint
+2. `VendorTransformFactory` converts to unified format
+3. `RoutingService` selects appropriate provider based on model
+4. `ForwardingService` forwards request to provider
+5. Response transformed back to OpenAI format
+
+### Authentication
+- JWT tokens with refresh token rotation
+- GitHub OAuth integration
+- Role-based access control (Admin/User)
+
+### Database Access
+- R2DBC for reactive database operations
+- Flyway for database migrations (currently disabled)
+- Repository pattern with reactive return types (Mono/Flux)
+
+## Important Notes
+
+- The application runs on port 10032 by default
+- WebFlux is used throughout for reactive programming
+- All database operations return reactive types (Mono/Flux)
+- The frontend is a separate React application in the `/web` directory
+- Provider configurations are stored in the database and can be managed through the UI

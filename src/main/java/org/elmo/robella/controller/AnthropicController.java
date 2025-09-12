@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
-import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
 import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
 import org.elmo.robella.model.common.EndpointType;
@@ -16,9 +15,7 @@ import org.elmo.robella.service.transform.VendorTransformFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Flux;
 
 /**
  * Anthropic Messages API 控制器

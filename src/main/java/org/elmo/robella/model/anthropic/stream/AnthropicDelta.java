@@ -4,9 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
-import org.elmo.robella.model.anthropic.core.AnthropicUsage;
-
-import java.util.Map;
 
 /**
  * Anthropic 增量数据

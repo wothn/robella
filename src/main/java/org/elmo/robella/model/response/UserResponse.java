@@ -19,7 +19,7 @@ public class UserResponse {
     
     private String email;
     
-    private String fullName;
+    private String displayName;
     
     private String avatar;
     
@@ -27,7 +27,7 @@ public class UserResponse {
     
     private Boolean active;
     
-    private String role;
+    private Integer role;
     
     private LocalDateTime createdAt;
     
@@ -35,13 +35,5 @@ public class UserResponse {
     
     private LocalDateTime lastLoginAt;
     
-    private Boolean emailVerified;
-    
-    private Boolean phoneVerified;
-    
     private String githubId;
-    
-    private String provider;
-    
-    private String providerId;
 }

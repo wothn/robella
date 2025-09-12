@@ -1,0 +1,220 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { VendorModel, CreateVendorModelRequest, UpdateVendorModelRequest } from '@/types'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Bot, Plus, Edit } from 'lucide-react'
+
+interface VendorModelModalProps {
+  vendorModel?: VendorModel
+  providerId: number
+  onSubmit: (data: CreateVendorModelRequest | UpdateVendorModelRequest) => void
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export function VendorModelModal({
+  vendorModel,
+  providerId,
+  onSubmit,
+  isOpen,
+  onClose
+}: VendorModelModalProps) {
+  const [formData, setFormData] = useState({
+    vendorModelName: '',
+    description: '',
+    inputPerMillionTokens: '',
+    outputPerMillionTokens: '',
+    currency: '',
+    cachedInputPrice: '',
+    cachedOutputPrice: '',
+    enabled: true
+  })
+  const [open, setOpen] = useState(isOpen || false)
+
+  // Update form data when vendorModel changes
+  useEffect(() => {
+    if (vendorModel) {
+      setFormData({
+        vendorModelName: vendorModel.vendorModelName || '',
+        description: vendorModel.description || '',
+        inputPerMillionTokens: vendorModel.inputPerMillionTokens || '',
+        outputPerMillionTokens: vendorModel.outputPerMillionTokens || '',
+        currency: vendorModel.currency || '',
+        cachedInputPrice: vendorModel.cachedInputPrice || '',
+        cachedOutputPrice: vendorModel.cachedOutputPrice || '',
+        enabled: vendorModel.enabled ?? true
+      })
+    } else {
+      // Reset form when no vendorModel (for creating new)
+      setFormData({
+        vendorModelName: '',
+        description: '',
+        inputPerMillionTokens: '',
+        outputPerMillionTokens: '',
+        currency: '',
+        cachedInputPrice: '',
+        cachedOutputPrice: '',
+        enabled: true
+      })
+    }
+  }, [vendorModel])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const data = vendorModel 
+      ? {
+          providerId: vendorModel.providerId,
+          vendorModelName: formData.vendorModelName,
+          description: formData.description || undefined,
+          inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
+          outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
+          currency: formData.currency || undefined,
+          cachedInputPrice: formData.cachedInputPrice || undefined,
+          cachedOutputPrice: formData.cachedOutputPrice || undefined,
+          enabled: formData.enabled
+        } as UpdateVendorModelRequest
+      : {
+          providerId,
+          vendorModelName: formData.vendorModelName,
+          description: formData.description || undefined,
+          inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
+          outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
+          currency: formData.currency || undefined,
+          cachedInputPrice: formData.cachedInputPrice || undefined,
+          cachedOutputPrice: formData.cachedOutputPrice || undefined,
+          enabled: formData.enabled
+        } as CreateVendorModelRequest
+
+    onSubmit(data)
+    setOpen(false)
+    onClose?.()
+  }
+
+  const handleCancel = () => {
+    setOpen(false)
+    onClose?.()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {vendorModel ? (
+          <Button variant="outline" size="sm">
+            <Edit className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            添加模型
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            {vendorModel ? '编辑 Vendor Model' : '添加 Vendor Model'}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="vendorModelName">模型名称 *</Label>
+            <Input
+              id="vendorModelName"
+              value={formData.vendorModelName}
+              onChange={(e) => setFormData({ ...formData, vendorModelName: e.target.value })}
+              placeholder="例如: gpt-4, claude-3-sonnet-20240229"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">描述</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="模型描述..."
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="inputPerMillionTokens">输入价格 (每百万tokens)</Label>
+            <Input
+              id="inputPerMillionTokens"
+              value={formData.inputPerMillionTokens}
+              onChange={(e) => setFormData({ ...formData, inputPerMillionTokens: e.target.value })}
+              placeholder="例如: 0.01"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="outputPerMillionTokens">输出价格 (每百万tokens)</Label>
+            <Input
+              id="outputPerMillionTokens"
+              value={formData.outputPerMillionTokens}
+              onChange={(e) => setFormData({ ...formData, outputPerMillionTokens: e.target.value })}
+              placeholder="例如: 0.03"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="currency">货币</Label>
+            <Input
+              id="currency"
+              value={formData.currency}
+              onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+              placeholder="例如: USD"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cachedInputPrice">缓存输入价格</Label>
+            <Input
+              id="cachedInputPrice"
+              value={formData.cachedInputPrice}
+              onChange={(e) => setFormData({ ...formData, cachedInputPrice: e.target.value })}
+              placeholder="例如: 0.005"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cachedOutputPrice">缓存输出价格</Label>
+            <Input
+              id="cachedOutputPrice"
+              value={formData.cachedOutputPrice}
+              onChange={(e) => setFormData({ ...formData, cachedOutputPrice: e.target.value })}
+              placeholder="例如: 0.015"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="enabled"
+              checked={formData.enabled}
+              onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
+            />
+            <Label htmlFor="enabled">启用</Label>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              取消
+            </Button>
+            <Button type="submit">
+              {vendorModel ? '更新' : '创建'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -1,58 +1,156 @@
-# Robella AI Gateway - 架构文档
+# CLAUDE.md
 
-## 构建与开发
-**构建**: `mvn clean package`
-**运行**: `java -jar target/robella-1.0.0.jar`
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 架构概览
-Robella是基于Spring Boot WebFlux的响应式AI API聚合网关，统一多个AI提供商(OpenAI、Anthropic、Gemini等)的标准化API接口。
+## Project Overview
 
-### 核心架构
-**数据流**: `HTTP请求 → Controller → ForwardingService → RoutingService → AIApiClient → 厂商API → TransformService`
+Robella is an AI API gateway that provides unified access to multiple AI service providers (OpenAI, Anthropic/Claude, Gemini, Qwen, etc.). It offers standardized OpenAI-compatible API endpoints with flexible routing strategies and provider management.
 
-**核心服务**:
-- `ForwardingServiceImpl` - 请求分发入口，处理模型映射和流响应过滤
-- `RoutingServiceImpl` - 模型→提供商路由决策，适配器实例缓存
-- `TransformServiceImpl` - 通过VendorTransformRegistry路由到特定厂商转换器
+## Architecture
 
-**设计原则**:
-- 端点格式分离(OpenAI格式独立于后端提供商类型)
-- 统一转换层使用`UnifiedChatRequest/Response/StreamChunk`作为内部中间格式
-- 使用WebFlux `Mono/Flux`进行响应式流处理
+### Backend (Java Spring webflux)
+- **Framework**: Spring Boot 3.2.5 with WebFlux for reactive programming
+- **Database**: PostgreSQL with R2DBC for reactive database access
+- **Authentication**: JWT-based authentication with GitHub OAuth support
+- **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`)
+- **Key Components**:
+  - `OpenAIController.java:27` - Main OpenAI-compatible API endpoint
+  - `AnthropicController.java` - Anthropic API compatibility layer
+  - `RoutingService.java:24` - Dynamic model-to-provider routing
+  - `ForwardingService.java` - Request forwarding to AI providers
+  - `VendorTransformFactory` - Request/response transformation between vendor formats
 
-### 提供商/适配器系统
-- **接口**: `AIApiClient`定义契约(`chatCompletion()`, `streamChatCompletion()`)
-- **工厂**: `ClientFactory.createClient()`基于`ProviderType`枚举创建实例
-- **内置适配器**:
-  - `OpenAIClient`: 处理OpenAI及兼容提供商(DeepSeek、ModelScope、AIHubMix)
-  - `AnthropicClient`: Anthropic Messages API，处理SSE流式传输
+### Frontend (React + TypeScript)
+- **Framework**: React 18.3.1 with TypeScript
+- **Build Tool**: Vite
+- **UI Library**: Shadcn UI components with Radix UI primitives
+- **Styling**: Tailwind CSS
+- **Key Features**:
+  - User authentication (JWT + GitHub OAuth)
+  - Provider management interface
+  - Model configuration and routing
+  - Dashboard with usage analytics
 
-### 配置与路由
-- **配置文件**: `application.yml`中的`providers:`部分绑定到`ProviderConfig`
-- **提供商结构**: `name, type, api-key, base-url, deploymentName?, models[]{name, vendor-model}`
-- **路由策略**: `RoutingServiceImpl.decideProviderByModel()`线性扫描所有提供商模型进行匹配
-- **环境变量**: API密钥使用`${ENV_VAR}`占位符
+### Database Schema
+- **Users**: Authentication and role management
+- **Providers**: AI service provider configurations
+- **Models**: Available AI models with capabilities and pricing
+- **VendorModels**: Mapping between models and providers
 
-### 错误处理
-- 所有下游HTTP异常包装为`ProviderException`
-- 使用WebFlux `onErrorMap`和`onErrorResume`进行响应式错误处理
+## Development Commands
 
-## 关键特性
-1. **统一内部格式**: 所有提供商数据转换为统一格式进行内部处理
-3. **状态转换**: 当端点家族不同时，状态转换器维护会话状态
-4. **响应式处理**: 充分利用Reactor的`Flux`进行流处理
-5. **灵活路由**: 基于模型名称的提供商选择，支持模型名称映射
+### Backend
+```bash
+# Build the project
+mvn clean package
 
-## 关键文件
-- **服务**: `service/ForwardingServiceImpl`, `service/RoutingServiceImpl`, `service/TransformServiceImpl`
-- **转换器**: `service/transform/*VendorTransform`, `VendorTransformRegistry`
-- **客户端**: `client/*Client`, `ClientFactory`
-- **配置**: `config/ProviderConfig`, `config/ProviderType`, `application.yml`
-- **控制器**: `controller/OpenAIController`, `controller/AnthropicController`
+# Run the application
+java -jar target/robella-1.0.0.jar
 
-## 开发指南
-- **安全**: 永不硬编码API密钥，使用环境变量占位符
-- **类型一致性**: 确保配置类型与枚举值匹配
-- **响应式编程**: 使用WebFlux `Mono/Flux`，避免阻塞操作
-- **错误处理**: 在适配器中使用`onErrorMap`包装异常
-- **日志**: 使用`log.debug`/`log.trace`避免日志噪音
+# Development mode
+mvn spring-boot:run
+
+# Compile only
+mvn compile
+
+# Test (when tests are implemented)
+mvn test
+```
+
+### Frontend
+```bash
+# Navigate to web directory
+cd web
+
+# Install dependencies
+npm install
+
+# Development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Lint code
+npm run lint
+
+# Type check
+tsc --noEmit
+
+# Preview production build
+npm run preview
+```
+
+## Configuration
+
+### Environment Variables
+```bash
+# Database
+POSTGRES_USERNAME=postgres
+POSTGRES_PASSWORD=your_password
+
+# JWT
+JWT_SECRET=your_jwt_secret_key
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+GITHUB_REDIRECT_URI=http://localhost:10032/api/oauth/github/callback
+
+# AI Provider API Keys
+OPENAI_API_KEY=your_openai_key
+CLAUDE_API_KEY=your_claude_key
+GEMINI_API_KEY=your_gemini_key
+QWEN_API_KEY=your_qwen_key
+```
+
+### Key Configuration Files
+- `src/main/resources/application.yml` - Main application configuration
+- `src/main/resources/schema.sql` - Database schema definition
+- `web/vite.config.ts` - Frontend build configuration
+
+## API Endpoints
+
+### OpenAI Compatible
+- `POST /v1/chat/completions` - Chat completions (streaming supported)
+- `GET /v1/models` - List available models
+
+### Authentication
+- `POST /api/users/login` - User login
+- `POST /api/users/register` - User registration
+- `GET /api/users/me` - Get current user
+- `POST /api/oauth/github/login` - GitHub OAuth initiation
+- `GET /api/oauth/github/callback` - GitHub OAuth callback
+
+### Management
+- `GET /api/providers` - List providers
+- `POST /api/providers` - Create provider
+- `PUT /api/providers/{id}` - Update provider
+- `GET /api/providers/{id}/models` - List provider models
+
+## Key Patterns
+
+### Request Flow
+1. Request arrives at OpenAI-compatible endpoint
+2. `VendorTransformFactory` converts to unified format
+3. `RoutingService` selects appropriate provider based on model
+4. `ForwardingService` forwards request to provider
+5. Response transformed back to OpenAI format
+
+### Authentication
+- JWT tokens with refresh token rotation
+- GitHub OAuth integration
+- Role-based access control (Admin/User)
+
+### Database Access
+- R2DBC for reactive database operations
+- Flyway for database migrations (currently disabled)
+- Repository pattern with reactive return types (Mono/Flux)
+
+## Important Notes
+
+- The application runs on port 10032 by default
+- WebFlux is used throughout for reactive programming
+- All database operations return reactive types (Mono/Flux)
+- The frontend is a separate React application in the `/web` directory
+- Provider configurations are stored in the database and can be managed through the UI
