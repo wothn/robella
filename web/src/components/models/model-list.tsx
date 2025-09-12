@@ -34,6 +34,7 @@ import { useModels } from '@/hooks/use-models'
 import type { Model, ModelCapability } from '@/types/model'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { log } from 'console'
 
 interface ModelListProps {
   models: Model[]
@@ -167,10 +168,15 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {models.map((model) => (
-          <Card 
-            key={model.id} 
+          <Card
+            key={model.id}
             className="group hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => onViewDetails(model.id)}
+            // 仅当点击区域未标记为 no-card-click 时触发详情
+            onClick={(e) => {
+              const target = e.target as HTMLElement
+              if (target.closest('[data-no-card-click="true"]')) return
+              onViewDetails(model.id)
+            }}
           >
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -190,21 +196,28 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
+                      data-no-card-click="true"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setEditingModel(model)}>
+                  <DropdownMenuContent 
+                    align="end"
+                    className="w-48 min-w-[8rem]"
+                  >
+                    <DropdownMenuItem data-no-card-click="true" onClick={() => {
+                      setEditingModel(model)
+                    }}>
                       <Edit className="h-4 w-4 mr-2" />
                       编辑
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleTogglePublish(model)}>
+                    <DropdownMenuItem data-no-card-click="true" onClick={() => {
+                      handleTogglePublish(model)
+                    }}>
                       {model.published ? (
                         <>
                           <EyeOff className="h-4 w-4 mr-2" />
@@ -217,17 +230,25 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
                         </>
                       )}
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem data-no-card-click="true" onClick={() => {
+                      // TODO: 实现配置功能
+                      console.log('配置模型:', model.name)
+                    }}>
                       <Settings className="h-4 w-4 mr-2" />
                       配置
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onViewDetails(model.id)}>
+                    <DropdownMenuItem data-no-card-click="true" onClick={() => {
+                      onViewDetails(model.id)
+                    }}>
                       <ExternalLink className="h-4 w-4 mr-2" />
                       详情
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => setDeleteModelId(model.id)}
+                    <DropdownMenuItem
+                      data-no-card-click="true"
+                      onClick={() => {
+                        setDeleteModelId(model.id)
+                      }}
                       className="text-red-600"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />

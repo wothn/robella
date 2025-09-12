@@ -41,10 +41,3 @@ export interface UpdateVendorModelRequest {
   cachedOutputPrice?: string
   enabled?: boolean
 }
-
-export interface ModelFilters {
-  query?: string
-  organization?: string
-  capability?: string
-  published?: boolean
-}

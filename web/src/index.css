@@ -120,3 +120,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Radix UI dropdown menu CSS variables */
+:root {
+  --radix-dropdown-menu-content-available-height: var(--radix-popper-available-height, 300px);
+  --radix-dropdown-menu-content-transform-origin: var(--radix-popper-transform-origin, top);
+}
