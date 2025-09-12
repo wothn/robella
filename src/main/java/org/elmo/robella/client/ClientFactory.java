@@ -36,7 +36,7 @@ public class ClientFactory {
         // 获取提供商信息
         Provider provider = providerRepository.findByName(providerName).block();
         // 创建新的客户端实例
-        EndpointType type = EndpointType.valueOf(provider.getType());
+        EndpointType type = provider.getType();
         log.debug("Creating client for provider: {}, type: {}", providerName, type);
         
         client = switch (type) {

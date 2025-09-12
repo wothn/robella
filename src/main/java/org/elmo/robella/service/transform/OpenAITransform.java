@@ -8,6 +8,7 @@ import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.util.OpenAITransformUtils;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 
@@ -15,6 +16,7 @@ import java.util.*;
  * OpenAI 及 OpenAI 兼容（DeepSeek、ModelScope、AIHubMix、Azure OpenAI）转换实现。不处理流式转换。
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class OpenAITransform implements VendorTransform<ChatCompletionRequest, ChatCompletionResponse> {
 

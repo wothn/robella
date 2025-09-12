@@ -10,7 +10,8 @@ import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
 import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.openai.model.ModelListResponse;
-import org.elmo.robella.service.ForwardingService;
+import org.elmo.robella.service.UnifiedService;
+import org.elmo.robella.service.RoutingService;
 import org.elmo.robella.service.transform.VendorTransformFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,8 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class AnthropicController {
 
-    private final ForwardingService forwardingService;
+    private final UnifiedService forwardingService;
+    private final RoutingService routingService;
     private final VendorTransformFactory vendorTransformFactory;
 
     /**
@@ -40,19 +42,28 @@ public class AnthropicController {
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<?>> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
-        // 转换请求为统一格式
-        UnifiedChatRequest unifiedRequest = vendorTransformFactory.vendorRequestToUnified(EndpointType.Anthropic, request);
+        String originalModelName = request.getModel();
         
-        if (Boolean.TRUE.equals(request.getStream())) {
-            // 处理流式响应
-            return Mono.just(ResponseEntity.ok()
-                    .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .body(forwardingService.streamUnified(unifiedRequest, EndpointType.Anthropic)));
-        } else {
-            // 处理非流式响应
-            return forwardingService.forwardUnified(unifiedRequest, EndpointType.Anthropic)
-                    .map(response -> ResponseEntity.ok().body(response));
-        }
+        // 首先进行模型映射，获取供应商模型名称
+        return routingService.mapToVendorModelName(originalModelName)
+                .flatMap(vendorModelName -> {
+                    // 更新请求中的模型名称为供应商模型名称
+                    request.setModel(vendorModelName);
+                    
+                    // 转换请求为统一格式
+                    UnifiedChatRequest unifiedRequest = vendorTransformFactory.vendorRequestToUnified(EndpointType.Anthropic, request);
+                    
+                    if (Boolean.TRUE.equals(request.getStream())) {
+                        // 处理流式响应
+                        return Mono.just(ResponseEntity.ok()
+                                .contentType(MediaType.TEXT_EVENT_STREAM)
+                                .body(forwardingService.streamUnified(unifiedRequest, EndpointType.Anthropic)));
+                    } else {
+                        // 处理非流式响应
+                        return forwardingService.forwardUnified(unifiedRequest, EndpointType.Anthropic)
+                                .map(response -> ResponseEntity.ok().body(response));
+                    }
+                });
     }
 
     /**

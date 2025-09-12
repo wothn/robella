@@ -7,6 +7,7 @@ import org.springframework.data.relational.core.mapping.Table;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import java.time.LocalDateTime;
+import org.elmo.robella.model.common.EndpointType;
 
 @Data
 @Table("provider")
@@ -15,7 +16,7 @@ public class Provider {
     @Id
     private Long id;
     private String name;
-    private String type;
+    private EndpointType type;
     private String baseUrl;
     private String apiKey;
     private String config;

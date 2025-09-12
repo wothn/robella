@@ -17,7 +17,7 @@ Robella is an AI API gateway that provides unified access to multiple AI service
   - `OpenAIController.java:27` - Main OpenAI-compatible API endpoint
   - `AnthropicController.java` - Anthropic API compatibility layer
   - `RoutingService.java:24` - Dynamic model-to-provider routing
-  - `ForwardingService.java` - Request forwarding to AI providers
+  - `UnifiedService.java` - Request forwarding to AI providers
   - `VendorTransformFactory` - Request/response transformation between vendor formats
 
 ### Frontend (React + TypeScript)
@@ -134,7 +134,7 @@ QWEN_API_KEY=your_qwen_key
 1. Request arrives at OpenAI-compatible endpoint
 2. `VendorTransformFactory` converts to unified format
 3. `RoutingService` selects appropriate provider based on model
-4. `ForwardingService` forwards request to provider
+4. `UnifiedService` forwards request to provider
 5. Response transformed back to OpenAI format
 
 ### Authentication
