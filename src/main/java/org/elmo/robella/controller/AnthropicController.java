@@ -16,9 +16,12 @@ import org.elmo.robella.service.UnifiedService;
 import org.elmo.robella.service.RoutingService;
 import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
 import org.elmo.robella.service.transform.VendorTransform;
+import org.elmo.robella.util.JsonUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -60,9 +63,19 @@ public class AnthropicController {
                     if (Boolean.TRUE.equals(request.getStream())) {
                         // 处理流式响应
                         String uuid = UUID.randomUUID().toString();
+                        Flux<ServerSentEvent<String>> sseStream = unifiedToAnthropicStreamTransformer.transform(
+                            unifiedService.sendStreamRequest(unifiedRequest), uuid)
+                            .mapNotNull(event -> {
+                                String eventType = extractEventType(event);
+                                String eventData = JsonUtils.toJson(event);
+                                return ServerSentEvent.<String>builder()
+                                        .event(eventType)
+                                        .data(eventData)
+                                        .build();
+                            });
                         return Mono.just(ResponseEntity.ok()
                                 .contentType(MediaType.TEXT_EVENT_STREAM)
-                                .body(unifiedToAnthropicStreamTransformer.transform(unifiedService.sendStreamRequest(unifiedRequest), uuid))
+                                .body(sseStream)
                         );
                     } else {
                         // 处理非流式响应
@@ -91,5 +104,46 @@ public class AnthropicController {
                 .toList();
 
         return new AnthropicModelListResponse(anthropicModels);
+    }
+
+    /**
+     * 从事件对象中提取事件类型
+     */
+    private String extractEventType(Object event) {
+        if (event == null) {
+            return "unknown";
+        }
+        
+        String className = event.getClass().getSimpleName();
+        // 将类名转换为事件类型
+        switch (className) {
+            case "AnthropicMessageStartEvent":
+                return "message_start";
+            case "AnthropicContentBlockStartEvent":
+                return "content_block_start";
+            case "AnthropicContentBlockDeltaEvent":
+                return "content_block_delta";
+            case "AnthropicContentBlockStopEvent":
+                return "content_block_stop";
+            case "AnthropicMessageDeltaEvent":
+                return "message_delta";
+            case "AnthropicMessageStopEvent":
+                return "message_stop";
+            case "AnthropicPingEvent":
+                return "ping";
+            case "AnthropicErrorEvent":
+                return "error";
+            default:
+                // 尝试从对象属性中获取类型
+                try {
+                    var typeField = event.getClass().getDeclaredField("type");
+                    typeField.setAccessible(true);
+                    Object typeValue = typeField.get(event);
+                    return typeValue != null ? typeValue.toString() : "unknown";
+                } catch (Exception e) {
+                    log.debug("无法从事件对象中提取类型: {}", className);
+                    return "unknown";
+                }
+        }
     }
 }
