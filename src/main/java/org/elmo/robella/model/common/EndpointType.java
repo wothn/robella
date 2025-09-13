@@ -7,8 +7,8 @@ import lombok.Getter;
  */
 @Getter
 public enum EndpointType {
-    OpenAI("OpenAI"),
-    Anthropic("Anthropic");
+    OPENAI("OPENAI"),
+    ANTHROPIC("ANTHROPIC");
 
     private final String name;
 

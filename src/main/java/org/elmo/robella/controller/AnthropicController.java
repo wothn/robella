@@ -4,15 +4,18 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.UUID;
+
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
+import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
 import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
-import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.service.UnifiedService;
 import org.elmo.robella.service.RoutingService;
-import org.elmo.robella.service.transform.VendorTransformFactory;
+import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
+import org.elmo.robella.service.transform.VendorTransform;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,9 +31,10 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class AnthropicController {
 
-    private final UnifiedService forwardingService;
+    private final UnifiedService unifiedService;
     private final RoutingService routingService;
-    private final VendorTransformFactory vendorTransformFactory;
+    private final VendorTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
+    private final UnifiedToEndpointStreamTransformer<Object> unifiedToAnthropicStreamTransformer;
 
     /**
      * Anthropic Messages API 端点
@@ -51,16 +55,18 @@ public class AnthropicController {
                     request.setModel(vendorModelName);
                     
                     // 转换请求为统一格式
-                    UnifiedChatRequest unifiedRequest = vendorTransformFactory.vendorRequestToUnified(EndpointType.Anthropic, request);
+                    UnifiedChatRequest unifiedRequest = anthropicTransform.endpointToUnifiedRequest(request);
                     
                     if (Boolean.TRUE.equals(request.getStream())) {
                         // 处理流式响应
+                        String uuid = UUID.randomUUID().toString();
                         return Mono.just(ResponseEntity.ok()
                                 .contentType(MediaType.TEXT_EVENT_STREAM)
-                                .body(forwardingService.streamUnified(unifiedRequest, EndpointType.Anthropic)));
+                                .body(unifiedToAnthropicStreamTransformer.transform(unifiedService.sendStreamRequest(unifiedRequest), uuid))
+                        );
                     } else {
                         // 处理非流式响应
-                        return forwardingService.forwardUnified(unifiedRequest, EndpointType.Anthropic)
+                        return unifiedService.sendChatRequest(unifiedRequest)
                                 .map(response -> ResponseEntity.ok().body(response));
                     }
                 });
@@ -71,7 +77,7 @@ public class AnthropicController {
      */
     @GetMapping("/models")
     public Mono<ResponseEntity<AnthropicModelListResponse>> listModels() {
-        return forwardingService.listModels()
+        return unifiedService.listModels()
                 .map(this::convertToAnthropicModelList)
                 .map(response -> ResponseEntity.ok().body(response));
     }
@@ -85,63 +91,5 @@ public class AnthropicController {
                 .toList();
 
         return new AnthropicModelListResponse(anthropicModels);
-    }
-
-    /**
-     * 从JSON数据中提取事件类型
-     */
-    private String extractEventType(String jsonData) {
-        try {
-            // 简单解析JSON获取type字段
-            int typeIndex = jsonData.indexOf("\"type\"");
-            if (typeIndex == -1) {
-                return "message"; // 默认事件类型
-            }
-
-            // 找到type字段的值
-            int colonIndex = jsonData.indexOf(":", typeIndex);
-            if (colonIndex == -1) {
-                return "message";
-            }
-
-            // 找到值的开始引号
-            int startQuote = jsonData.indexOf("\"", colonIndex);
-            if (startQuote == -1) {
-                return "message";
-            }
-
-            // 找到值的结束引号
-            int endQuote = jsonData.indexOf("\"", startQuote + 1);
-            if (endQuote == -1) {
-                return "message";
-            }
-
-            String eventType = jsonData.substring(startQuote + 1, endQuote);
-
-            // 验证是否是有效的Anthropic事件类型
-            if (isValidAnthropicEventType(eventType)) {
-                return eventType;
-            } else {
-                return "message";
-            }
-        } catch (Exception e) {
-            return "message"; // 默认事件类型
-        }
-    }
-
-    /**
-     * 验证是否是有效的Anthropic事件类型
-     */
-    private boolean isValidAnthropicEventType(String eventType) {
-        return switch (eventType) {
-            case "message_start",
-                 "message_delta",
-                 "message_stop",
-                 "content_block_start",
-                 "content_block_delta",
-                 "content_block_stop",
-                 "ping" -> true;
-            default -> false;
-        };
     }
 }

@@ -88,6 +88,7 @@ src/main/resources/application.yml
 .claude/settings.local.json
 .trae
 .rules
+.qoder
 
 # Development tools
 .sonar/

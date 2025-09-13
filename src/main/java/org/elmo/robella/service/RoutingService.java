@@ -6,6 +6,7 @@ import reactor.core.publisher.Mono;
 
 import org.elmo.robella.client.ClientFactory;
 import org.elmo.robella.client.ApiClient;
+import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.repository.ModelRepository;
@@ -22,6 +23,12 @@ public class RoutingService {
     private final VendorModelRepository vendorModelRepository;
     private final ModelRepository modelRepository;
 
+    /**
+     * 根据模型名称选择一个启用的供应商模型。
+     *
+     * @param modelName 客户端请求的模型名称
+     * @return Mono<VendorModel> 启用的供应商模型，如果未找到则为空
+     */
     public Mono<VendorModel> selectVendor(String modelName) {
         return modelRepository.findByName(modelName)
             .flatMap(model -> vendorModelRepository.findByModelId(model.getId())
@@ -49,17 +56,34 @@ public class RoutingService {
                 }));
     }
 
+
     /**
-     * Get client by model name
+     * 根据供应商模型名称获取对应的 API 客户端和 Provider。
+     * <p>
+     * 该方法通过供应商模型名称查找启用的 VendorModel，
+     * 然后根据其 providerId 获取 Provider，并通过 ClientFactory 获取对应的 ApiClient 实例。
+     *
+     * @param vendorModelName 供应商模型名称
+     * @return Mono<ClientWithProvider> 对应的 API 客户端和 Provider，如果未找到则为空
      */
-    public Mono<ApiClient> getClientByModel(String modelName) {
-        return selectVendor(modelName)
+    public Mono<ClientWithProvider> getClientWithProviderByVendorModelName(String vendorModelName) {
+        return vendorModelRepository.findByVendorModelName(vendorModelName)
+            .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
-                .map(provider -> clientFactory.getClient(provider.getName())));
+                .map(provider -> {
+                    ApiClient client = clientFactory.getClient(provider.getType());
+                    return new ClientWithProvider(client, provider);
+                }));
     }
 
     /**
      * Get provider type by provider name
+     */
+    /**
+     * 根据供应商名称获取其 EndpointType 类型。
+     *
+     * @param providerName 供应商名称
+     * @return EndpointType 供应商类型，如果未找到则为 null
      */
     public EndpointType getProviderType(String providerName) {
         return providerService.getProviderByName(providerName)
@@ -67,13 +91,42 @@ public class RoutingService {
             .block();
     }
 
+
     /**
-     * Get provider type by model name
+     * Get provider type by vendor model name directly
      */
-    public Mono<EndpointType> getProviderTypeByModel(String modelName) {
-        return selectVendor(modelName)
+    /**
+     * 通过供应商模型名称直接获取 EndpointType 类型。
+     *
+     * @param vendorModelName 供应商模型名称
+     * @return Mono<EndpointType> 供应商类型，如果未找到则为空
+     */
+    public Mono<EndpointType> getProviderTypeByVendorModelName(String vendorModelName) {
+        return vendorModelRepository.findByVendorModelName(vendorModelName)
+            .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> provider.getType()));
+    }
+
+    /**
+     * 客户端和 Provider 的封装类
+     */
+    public static class ClientWithProvider {
+        private final ApiClient client;
+        private final Provider provider;
+        
+        public ClientWithProvider(ApiClient client, Provider provider) {
+            this.client = client;
+            this.provider = provider;
+        }
+        
+        public ApiClient getClient() {
+            return client;
+        }
+        
+        public Provider getProvider() {
+            return provider;
+        }
     }
 
 }

@@ -14,7 +14,7 @@ import org.elmo.robella.model.openai.stream.Delta;
 import org.elmo.robella.model.openai.content.OpenAIContent;
 import org.elmo.robella.model.openai.content.OpenAITextContent;
 import org.elmo.robella.model.openai.tool.ToolCall;
-import org.elmo.robella.service.stream.UnifiedToEndpointTransformer;
+import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import lombok.extern.slf4j.Slf4j;
@@ -32,13 +32,13 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class AnthropicUnifiedToEndpointTransformer implements UnifiedToEndpointTransformer<Object> {
+public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStreamTransformer<Object> {
 
     // 会话状态存储
     private final Map<String, SessionState> sessionStates = new ConcurrentHashMap<>();
 
     @Override
-    public Flux<Object> transformToEndpoint(Flux<UnifiedStreamChunk> unifiedStream, String sessionId) {
+    public Flux<Object> transform(Flux<UnifiedStreamChunk> unifiedStream, String sessionId) {
         // 初始化会话状态
         sessionStates.putIfAbsent(sessionId, new SessionState());
 

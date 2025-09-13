@@ -15,11 +15,11 @@ import org.springframework.web.server.WebFilter;
 @RequiredArgsConstructor
 public class WebConfig {
 
-    private final AuthenticationInterceptor jwtInterceptor;
+    private final AuthenticationInterceptor anthenticationInterceptor;
 
     @Bean
     public WebFilter jwtFilter() {
-        return jwtInterceptor;
+        return anthenticationInterceptor;
     }
 
     @Bean

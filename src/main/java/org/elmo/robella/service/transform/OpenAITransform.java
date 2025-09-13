@@ -22,11 +22,11 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
 
     @Override
     public EndpointType type() {
-        return EndpointType.OpenAI;
+        return EndpointType.OPENAI;
     }
 
     @Override
-    public UnifiedChatRequest vendorRequestToUnified(ChatCompletionRequest vendorRequest) {
+    public UnifiedChatRequest endpointToUnifiedRequest(ChatCompletionRequest vendorRequest) {
         if (vendorRequest == null) {
             return null;
         }
@@ -77,7 +77,7 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
     }
 
     @Override
-    public ChatCompletionRequest unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
+    public ChatCompletionRequest unifiedToEndpointRequest(UnifiedChatRequest unifiedRequest) {
 
         ChatCompletionRequest chatRequest = new ChatCompletionRequest();
         OpenAITransformUtils.convertUnifiedToBase(unifiedRequest, chatRequest);
@@ -117,7 +117,7 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
     }
 
     @Override
-    public UnifiedChatResponse vendorResponseToUnified(ChatCompletionResponse vendorResponse) {
+    public UnifiedChatResponse endpointToUnifiedResponse(ChatCompletionResponse vendorResponse) {
         if (vendorResponse == null) {
             return null;
         }
@@ -143,7 +143,7 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
     }
 
     @Override
-    public ChatCompletionResponse unifiedToVendorResponse(UnifiedChatResponse unifiedResponse) {
+    public ChatCompletionResponse unifiedToEndpointResponse(UnifiedChatResponse unifiedResponse) {
         if (unifiedResponse == null) {
             return null;
         }

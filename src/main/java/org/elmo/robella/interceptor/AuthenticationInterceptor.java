@@ -101,6 +101,7 @@ public class AuthenticationInterceptor implements WebFilter {
                path.startsWith("/swagger-ui") ||
                path.startsWith("/v3/api-docs")||
                path.startsWith("/v1") ||
+               path.startsWith("/anthropic") ||
                path.equals("/favicon.ico");
     }
 }

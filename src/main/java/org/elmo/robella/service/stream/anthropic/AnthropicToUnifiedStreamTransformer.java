@@ -21,7 +21,7 @@ import org.elmo.robella.model.openai.stream.Delta;
 import org.elmo.robella.model.openai.tool.ToolCall;
 import org.elmo.robella.model.openai.content.OpenAITextContent;
 import org.elmo.robella.model.anthropic.core.AnthropicUsage;
-import org.elmo.robella.service.stream.StreamToUnifiedTransformer;
+import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
@@ -36,13 +36,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 需要维护会话状态，如消息ID、工具调用索引等
  */
 @Component
-public class AnthropicStreamToUnifiedTransformer implements StreamToUnifiedTransformer<Object> {
+public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStreamTransformer<Object> {
 
     // 会话状态存储，实际应用中可能需要使用更持久化的存储方案
     private final Map<String, AnthropicStreamSessionState> sessionStates = new ConcurrentHashMap<>();
 
     @Override
-    public Flux<UnifiedStreamChunk> transformToUnified(Flux<Object> vendorStream, String sessionId) {
+    public Flux<UnifiedStreamChunk> transform(Flux<Object> vendorStream, String sessionId) {
         // 初始化会话状态
         sessionStates.putIfAbsent(sessionId, new AnthropicStreamSessionState());
 

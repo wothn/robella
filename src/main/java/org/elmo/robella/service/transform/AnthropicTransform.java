@@ -8,7 +8,7 @@ import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.anthropic.core.*;
 import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.util.AnthropicTransformUtils;
-
+import org.springframework.stereotype.Component;
 import org.elmo.robella.model.openai.core.Choice;
 import org.elmo.robella.model.openai.core.OpenAIMessage;
 import org.elmo.robella.model.openai.content.OpenAIContent;
@@ -24,17 +24,18 @@ import java.util.UUID;
  * Anthropic Messages API 转换实现，不处理流式转换。
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class AnthropicTransform implements VendorTransform<AnthropicChatRequest, AnthropicMessage> {
 
 
     @Override
     public EndpointType type() {
-        return EndpointType.Anthropic;
+        return EndpointType.ANTHROPIC;
     }
 
     @Override
-    public UnifiedChatRequest vendorRequestToUnified(AnthropicChatRequest vendorRequest) {
+    public UnifiedChatRequest endpointToUnifiedRequest(AnthropicChatRequest vendorRequest) {
         if (vendorRequest == null) {
             return null;
         }
@@ -82,7 +83,7 @@ public class AnthropicTransform implements VendorTransform<AnthropicChatRequest,
     }
 
     @Override
-    public AnthropicChatRequest unifiedToVendorRequest(UnifiedChatRequest unifiedRequest) {
+    public AnthropicChatRequest unifiedToEndpointRequest(UnifiedChatRequest unifiedRequest) {
         AnthropicChatRequest anthropicRequest = new AnthropicChatRequest();
         anthropicRequest.setModel(unifiedRequest.getModel());
         anthropicRequest.setStream(unifiedRequest.getStream());
@@ -122,7 +123,7 @@ public class AnthropicTransform implements VendorTransform<AnthropicChatRequest,
 
 
     @Override
-    public UnifiedChatResponse vendorResponseToUnified(AnthropicMessage vendorResponse) {
+    public UnifiedChatResponse endpointToUnifiedResponse(AnthropicMessage vendorResponse) {
         if (vendorResponse == null) {
             return null;
         }
@@ -167,7 +168,7 @@ public class AnthropicTransform implements VendorTransform<AnthropicChatRequest,
 
 
     @Override
-    public AnthropicMessage unifiedToVendorResponse(UnifiedChatResponse unifiedResponse) {
+    public AnthropicMessage unifiedToEndpointResponse(UnifiedChatResponse unifiedResponse) {
         if (unifiedResponse == null || unifiedResponse.getChoices() == null || unifiedResponse.getChoices().isEmpty()) {
             return null;
         }

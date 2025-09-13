@@ -5,16 +5,23 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
+import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.model.openai.model.ModelListResponse;
+import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.UnifiedService;
-import org.elmo.robella.service.stream.UnifiedToEndpointTransformer;
+import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
 import org.elmo.robella.service.RoutingService;
-import org.elmo.robella.service.transform.OpenAITransform;
-import org.elmo.robella.model.common.EndpointType;
+import org.elmo.robella.service.transform.VendorTransform;
+import org.elmo.robella.util.JsonUtils;
+
+import java.util.UUID;
+
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -25,8 +32,8 @@ public class OpenAIController {
 
     private final UnifiedService unifiedService;
     private final RoutingService routingService;
-    private final VendorTransform openAITransform; 
-    private final UnifiedToEndpointTransformer<String> endpointTransformer;
+    private final VendorTransform<ChatCompletionRequest, ChatCompletionResponse> openAITransform;
+    private final UnifiedToEndpointStreamTransformer<ChatCompletionChunk> unifiedToOpenAIStreamTransformer;
 
     @PostMapping(value = "/chat/completions", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE })
     public Mono<ResponseEntity<?>> chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
@@ -39,14 +46,20 @@ public class OpenAIController {
                     request.setModel(vendorModelName);
                     
                     // 直接使用OpenAI转换器进行统一处理
-                    UnifiedChatRequest unifiedRequest = openAITransform.vendorRequestToUnified(request);
+                    UnifiedChatRequest unifiedRequest = openAITransform.endpointToUnifiedRequest(request);
 
                     if (Boolean.TRUE.equals(request.getStream())) {
+                        String uuid = UUID.randomUUID().toString();
+                        Flux<String> sseStream = unifiedToOpenAIStreamTransformer.transform(
+                            unifiedService.sendStreamRequest(unifiedRequest), uuid)
+                            .mapNotNull(chunk -> JsonUtils.toJson(chunk))
+                            .concatWith(Flux.just("[DONE]"));
                         return Mono.just(ResponseEntity.ok()
                                 .contentType(MediaType.TEXT_EVENT_STREAM)
-                                .body(unifiedService.streamUnified(unifiedRequest, EndpointType.OpenAI)));
+                                .body(sseStream)
+                        );
                     } else {
-                        return unifiedService.forwardUnified(unifiedRequest, EndpointType.OpenAI)
+                        return unifiedService.sendChatRequest(unifiedRequest)
                                 .map(response -> ResponseEntity.ok().body(response));
                     }
                 });

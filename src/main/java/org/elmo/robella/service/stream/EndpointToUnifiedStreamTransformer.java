@@ -7,7 +7,7 @@ import reactor.core.publisher.Flux;
  * 将厂商特定的流式响应转换为统一格式的流式响应
  * @param <T> 厂商特定的流式响应类型
  */
-public interface StreamToUnifiedTransformer<T> {
+public interface EndpointToUnifiedStreamTransformer<T> {
     
     /**
      * 将厂商特定的流式响应转换为统一格式的流式响应
@@ -15,6 +15,6 @@ public interface StreamToUnifiedTransformer<T> {
      * @param sessionId 会话ID，用于状态管理
      * @return 统一格式的流式响应
      */
-    Flux<UnifiedStreamChunk> transformToUnified(Flux<T> vendorStream, String sessionId);
+    Flux<UnifiedStreamChunk> transform(Flux<T> vendorStream, String sessionId);
     
 }

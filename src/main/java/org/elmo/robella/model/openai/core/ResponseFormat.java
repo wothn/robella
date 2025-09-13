@@ -21,6 +21,7 @@ public class ResponseFormat {
 
     private JsonSchema jsonSchema;
 
+    @Data
     public static class JsonSchema {
         private String name;    // 响应格式的名称
         private String description;    // 响应格式的用途描述
