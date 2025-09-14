@@ -10,6 +10,7 @@ import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
 import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
+import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.service.UnifiedService;
@@ -37,7 +38,7 @@ public class AnthropicController {
     private final UnifiedService unifiedService;
     private final RoutingService routingService;
     private final VendorTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
-    private final UnifiedToEndpointStreamTransformer<Object> unifiedToAnthropicStreamTransformer;
+    private final UnifiedToEndpointStreamTransformer<AnthropicStreamEvent> unifiedToAnthropicStreamTransformer;
 
     /**
      * Anthropic Messages API 端点
