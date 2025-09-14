@@ -190,7 +190,12 @@ public class AnthropicTransformUtils {
         if (anthropicMessage.getContent() != null && !anthropicMessage.getContent().isEmpty()) {
             List<OpenAIContent> openAiContents =
                     fillOpenAIMessageFromAnthropicContents(anthropicMessage.getContent(), openAiMessage);
-            openAiMessage.setContent(openAiContents);
+            // 如果没有有效的内容且有tool_calls，则content应该为null而不是空数组
+            if (openAiContents.isEmpty() && openAiMessage.getToolCalls() != null && !openAiMessage.getToolCalls().isEmpty()) {
+                openAiMessage.setContent(null);
+            } else {
+                openAiMessage.setContent(openAiContents);
+            }
         }
 
         return openAiMessage;
