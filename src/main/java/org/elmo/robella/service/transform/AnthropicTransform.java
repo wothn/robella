@@ -78,7 +78,7 @@ public class AnthropicTransform implements VendorTransform<AnthropicChatRequest,
             }
             unifiedRequest.getMessages().add(0, systemMessage);
         }
-
+        log.debug("转换后的请求：{}", unifiedRequest);
         return unifiedRequest;
     }
 

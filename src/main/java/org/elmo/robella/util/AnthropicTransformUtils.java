@@ -201,7 +201,10 @@ public class AnthropicTransformUtils {
         List<OpenAIContent> openAiContents = new ArrayList<>();
         for (AnthropicContent anthropicContent : anthropicContents) {
             if (anthropicContent instanceof AnthropicTextContent text) {
-                openAiContents.add(toOpenAITextContent(text));
+                // 过滤掉空的或只包含空白字符的文本内容
+                if (text.getText() != null && !text.getText().trim().isEmpty()) {
+                    openAiContents.add(toOpenAITextContent(text));
+                }
             } else if (anthropicContent instanceof AnthropicImageContent image) {
                 openAiContents.add(toOpenAIImageContent(image));
             } else if (anthropicContent instanceof AnthropicToolUseContent toolUse) {
@@ -212,6 +215,9 @@ public class AnthropicTransformUtils {
                     }
                     target.getToolCalls().add(toolCall);
                 }
+            } else if (anthropicContent instanceof AnthropicThinkingContent) {
+                // 跳过thinking内容，因为OpenAI格式不支持thinking
+                // thinking内容通常用于Anthropic的推理过程，不需要转换到OpenAI格式
             }
             // 移除AnthropicToolResultContent的处理，因为已经在上层方法中处理
         }
