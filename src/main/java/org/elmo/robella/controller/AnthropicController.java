@@ -50,29 +50,29 @@ public class AnthropicController {
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<?>> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
         String originalModelName = request.getModel();
-        
+
         // 首先进行模型映射，获取供应商模型名称
         return routingService.mapToVendorModelName(originalModelName)
                 .flatMap(vendorModelName -> {
                     // 更新请求中的模型名称为供应商模型名称
                     request.setModel(vendorModelName);
-                    
+
                     // 转换请求为统一格式
                     UnifiedChatRequest unifiedRequest = anthropicTransform.endpointToUnifiedRequest(request);
-                    
+
                     if (Boolean.TRUE.equals(request.getStream())) {
                         // 处理流式响应
                         String uuid = UUID.randomUUID().toString();
                         Flux<ServerSentEvent<String>> sseStream = unifiedToAnthropicStreamTransformer.transform(
-                            unifiedService.sendStreamRequest(unifiedRequest), uuid)
-                            .mapNotNull(event -> {
-                                String eventType = extractEventType(event);
-                                String eventData = JsonUtils.toJson(event);
-                                return ServerSentEvent.<String>builder()
-                                        .event(eventType)
-                                        .data(eventData)
-                                        .build();
-                            });
+                                        unifiedService.sendStreamRequest(unifiedRequest), uuid)
+                                .mapNotNull(event -> {
+                                    String eventType = extractEventType(event);
+                                    String eventData = JsonUtils.toJson(event);
+                                    return ServerSentEvent.<String>builder()
+                                            .event(eventType)
+                                            .data(eventData)
+                                            .build();
+                                });
                         return Mono.just(ResponseEntity.ok()
                                 .contentType(MediaType.TEXT_EVENT_STREAM)
                                 .body(sseStream)
@@ -113,7 +113,7 @@ public class AnthropicController {
         if (event == null) {
             return "unknown";
         }
-        
+
         String className = event.getClass().getSimpleName();
         // 将类名转换为事件类型
         switch (className) {

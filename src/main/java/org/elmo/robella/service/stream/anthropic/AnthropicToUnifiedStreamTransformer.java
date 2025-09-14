@@ -56,12 +56,11 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
     }
 
     private UnifiedStreamChunk processEvent(Object event, AnthropicStreamSessionState state) {
-        UnifiedStreamChunk chunk = new UnifiedStreamChunk();
-        chunk.setObject("chat.completion.chunk");
-
         if (event instanceof AnthropicMessageStartEvent messageStart) {
+            // 流式开始，保存必要的会话状态
             state.setMessageId(messageStart.getMessage().getId());
             state.setModel(messageStart.getMessage().getModel());
+            state.setCreated(System.currentTimeMillis() / 1000L);
 
             // 保存初始的使用量信息（包含input_tokens）
             if (messageStart.getMessage().getUsage() != null) {
@@ -69,42 +68,39 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
             }
 
             // 创建初始chunk
-            chunk.setId(state.getMessageId());
-            chunk.setModel(state.getModel());
             Choice choice = new Choice();
             choice.setIndex(0);
+            // 创建delta
             Delta delta = new Delta();
+            // OpenAI 只在第一条流式中出现角色，后面都是内容的增量
+            // Anthropic 的MessageStartEvent只有角色，不包含内容，某些OpenAI兼容的厂商会包含内容
             delta.setRole("assistant");
             choice.setDelta(delta);
-            chunk.setChoices(List.of(choice));
+            
+            return createChunk(state, List.of(choice));
 
         } else if (event instanceof AnthropicContentBlockStartEvent blockStart) {
+            // 内容块开始，记录索引
             int index = blockStart.getIndex();
-
-            // 创建chunk
-            chunk.setId(state.getMessageId());
-            chunk.setModel(state.getModel());
-
+            // 准备choice
             Choice choice = new Choice();
             choice.setIndex(0);
 
             Delta delta = new Delta();
-            // tool use转换为toolcall时不需要设置role
-            if (!(blockStart.getContentBlock() instanceof AnthropicToolUseContent)) {
-                delta.setRole("assistant");
-            }
 
             // 根据内容块类型进行不同处理
             AnthropicContent contentBlock = blockStart.getContentBlock();
             if (contentBlock instanceof AnthropicToolUseContent toolUseContent) {
                 // 工具调用类型：记录映射关系、初始化工具调用信息并生成包含完整工具信息的toolcalls
                 Integer toolCallIndex = state.getNextToolCallIndex().getAndIncrement();
+                // 内容块索引映射工具调用索引，记录后面工具调用增量的toolcall index
                 state.getToolUseIndices().put(index, toolCallIndex);
 
                 // 保存工具调用的ID和名称
                 state.getToolCallIds().put(toolCallIndex, toolUseContent.getId());
                 state.getToolCallNames().put(toolCallIndex, toolUseContent.getName());
 
+                // 会不会不支持造成并行工具调用？
                 List<ToolCall> toolCalls = new ArrayList<>();
                 ToolCall toolCall = new ToolCall();
                 toolCall.setIndex(toolCallIndex);
@@ -130,14 +126,11 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
             }
 
             choice.setDelta(delta);
-            chunk.setChoices(List.of(choice));
+            return createChunk(state, List.of(choice));
 
         } else if (event instanceof AnthropicContentBlockDeltaEvent blockDelta) {
             int index = blockDelta.getIndex();
             AnthropicDelta delta = blockDelta.getDelta();
-
-            chunk.setId(state.getMessageId());
-            chunk.setModel(state.getModel());
 
             Choice choice = new Choice();
             choice.setIndex(0);
@@ -146,7 +139,6 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
 
             // 根据delta的type字段判断增量类型，而不是通过contentBlock的类型
             if (delta.isTextDelta()) {
-                // 文本内容 - 使用content字段而不是reasoningContent
                 OpenAITextContent textContent = new OpenAITextContent();
                 textContent.setText(delta.getDeltaContent());
                 unifiedDelta.setContent(List.of(textContent));
@@ -176,29 +168,28 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
             }
 
             choice.setDelta(unifiedDelta);
-            chunk.setChoices(List.of(choice));
+            return createChunk(state, List.of(choice));
 
         } else if (event instanceof AnthropicMessageDeltaEvent messageDelta) {
-            chunk.setId(state.getMessageId());
-            chunk.setModel(state.getModel());
-
             Choice choice = new Choice();
             choice.setIndex(0);
 
             // 根据delta中包含的属性来设置相应的字段
             AnthropicDelta delta = messageDelta.getDelta();
             
-            // 如果包含usage信息，则设置usage
-            if (messageDelta.getUsage() != null) {
-                chunk.setUsage(convertUsage(messageDelta.getUsage(), state.getInitialUsage()));
-            }
-
             // 如果包含stopReason，则设置finishReason
             if (delta.getStopReason() != null) {
                 choice.setFinishReason(convertStopReasonToFinishReason(delta.getStopReason()));
             }
 
-            chunk.setChoices(List.of(choice));
+            UnifiedStreamChunk chunk = createChunk(state, List.of(choice));
+            
+            // 如果包含usage信息，则设置usage
+            if (messageDelta.getUsage() != null) {
+                chunk.setUsage(convertUsage(messageDelta.getUsage(), state.getInitialUsage()));
+            }
+
+            return chunk;
 
         } else if (event instanceof AnthropicContentBlockStopEvent ||
                 event instanceof AnthropicPingEvent ||
@@ -209,6 +200,23 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
             return null;
         }
 
+        return null;
+    }
+
+    /**
+     * 创建统一的流式响应chunk，统一设置基本字段
+     *
+     * @param state 会话状态
+     * @param choices 选择列表
+     * @return 统一的流式响应chunk
+     */
+    private UnifiedStreamChunk createChunk(AnthropicStreamSessionState state, List<Choice> choices) {
+        UnifiedStreamChunk chunk = new UnifiedStreamChunk();
+        chunk.setObject("chat.completion.chunk");
+        chunk.setId(state.getMessageId());
+        chunk.setModel(state.getModel());
+        chunk.setCreated(state.getCreated());
+        chunk.setChoices(choices);
         return chunk;
     }
 
@@ -270,6 +278,7 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
     private static class AnthropicStreamSessionState {
         private String messageId; // 当前消息的唯一标识符
         private String model; // 当前会话使用的模型名称
+        private Long created; // 当前会话的创建时间
         private AnthropicUsage initialUsage; // 初始使用量信息（来自message_start事件）
         private final Map<Integer, Integer> toolUseIndices = new ConcurrentHashMap<>(); // 内容块索引到工具调用索引的映射
         private final Map<Integer, String> toolCallIds = new ConcurrentHashMap<>(); // 工具调用ID存储
