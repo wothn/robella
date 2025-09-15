@@ -10,6 +10,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
+export type EndpointType = 'OPENAI' | 'ANTHROPIC'
+export type ProviderType = 'DEEPSEEK' | 'VOLCANOENGINE' | 'ZHIPU' | 'DASHSCOPE'
+
 interface ProviderFormDialogProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -21,7 +24,8 @@ interface ProviderFormDialogProps {
 
 export interface ProviderFormData {
   name: string
-  type: string
+  endpointType: EndpointType
+  providerType: ProviderType
   baseUrl?: string
   apiKey?: string
   enabled: boolean
@@ -38,7 +42,8 @@ export function ProviderFormDialog({
 }: ProviderFormDialogProps) {
   const [formData, setFormData] = useState<ProviderFormData>({
     name: '',
-    type: '',
+    endpointType: 'OPENAI',
+    providerType: 'DEEPSEEK',
     baseUrl: '',
     apiKey: '',
     enabled: true,
@@ -50,7 +55,7 @@ export function ProviderFormDialog({
   useEffect(() => {
     let parsedConfig = {}
     let configStr = '{}'
-    
+
     if (provider?.config) {
       try {
         parsedConfig = JSON.parse(provider.config)
@@ -64,10 +69,11 @@ export function ProviderFormDialog({
         }
       }
     }
-    
+
     setFormData({
       name: provider?.name || '',
-      type: provider?.type || '',
+      endpointType: (provider?.endpointType as any) || 'OPENAI',
+      providerType: (provider?.providerType as any) || 'DEEPSEEK',
       baseUrl: provider?.baseUrl || '',
       apiKey: provider?.apiKey || '',
       enabled: provider?.enabled ?? true,
@@ -111,17 +117,28 @@ export function ProviderFormDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="type" className="text-right">类型</Label>
-            <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+            <Label htmlFor="endpointType" className="text-right">端点类型</Label>
+            <Select value={formData.endpointType} onValueChange={(value) => setFormData(prev => ({ ...prev, endpointType: value as any }))}>
               <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="选择类型" />
+                <SelectValue placeholder="选择端点类型" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="anthropic">Anthropic</SelectItem>
-                <SelectItem value="gemini">Gemini</SelectItem>
-                <SelectItem value="qwen">Qwen</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
+                <SelectItem value="OPENAI">OpenAI</SelectItem>
+                <SelectItem value="ANTHROPIC">Anthropic</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="providerType" className="text-right">提供商类型</Label>
+            <Select value={formData.providerType} onValueChange={(value) => setFormData(prev => ({ ...prev, providerType: value as any }))}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="选择提供商类型" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DEEPSEEK">DeepSeek</SelectItem>
+                <SelectItem value="VOLCANOENGINE">火山引擎</SelectItem>
+                <SelectItem value="ZHIPU">智谱AI</SelectItem>
+                <SelectItem value="DASHSCOPE">通义千问</SelectItem>
               </SelectContent>
             </Select>
           </div>

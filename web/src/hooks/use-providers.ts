@@ -4,7 +4,8 @@ import { Provider, VendorModel } from '@/types'
 
 export interface ProviderFormData {
   name: string
-  type: string
+  endpointType: string
+  providerType: string
   baseUrl?: string
   apiKey?: string
   config: Record<string, any>
@@ -66,13 +67,14 @@ export function useProviders(): UseProvidersReturn {
       setError(null)
       const newProvider = await apiClient.createProvider({
         name: formData.name,
-        type: formData.type,
+        endpointType: formData.endpointType,
+        providerType: formData.providerType,
         baseUrl: formData.baseUrl || undefined,
         apiKey: formData.apiKey || undefined,
         config: JSON.stringify(formData.config),
         enabled: formData.enabled
       })
-      
+
       setProviders(prev => [...prev, newProvider])
       setSelectedProvider(newProvider)
     } catch (err) {
@@ -87,13 +89,14 @@ export function useProviders(): UseProvidersReturn {
       setError(null)
       const updatedProvider = await apiClient.updateProvider(id, {
         name: formData.name,
-        type: formData.type,
+        endpointType: formData.endpointType,
+        providerType: formData.providerType,
         baseUrl: formData.baseUrl || undefined,
         apiKey: formData.apiKey || undefined,
         config: JSON.stringify(formData.config),
         enabled: formData.enabled
       })
-      
+
       setProviders(prev => prev.map(p => p.id === id ? updatedProvider : p))
       if (selectedProvider?.id === id) {
         setSelectedProvider(updatedProvider)

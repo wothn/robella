@@ -18,7 +18,7 @@ export function ProviderBasicInfo({ provider, onEdit, onDelete }: ProviderBasicI
     <div className="flex items-center justify-between mb-6">
       <div>
         <h1 className="text-2xl font-bold">{provider.name}</h1>
-        <p className="text-gray-500">{provider.type}</p>
+        <p className="text-gray-500">{provider.endpointType} / {provider.providerType}</p>
       </div>
       <div className="flex items-center space-x-2">
         <Button variant="outline" size="sm" onClick={onEdit}>
@@ -51,8 +51,12 @@ export function ProviderDetailsCard({ provider }: ProviderDetailsCardProps) {
             <p className="text-sm text-gray-600">{provider.name}</p>
           </div>
           <div>
-            <Label className="text-sm font-medium">类型</Label>
-            <p className="text-sm text-gray-600">{provider.type}</p>
+            <Label className="text-sm font-medium">端点类型</Label>
+            <p className="text-sm text-gray-600">{provider.endpointType}</p>
+          </div>
+          <div>
+            <Label className="text-sm font-medium">提供商类型</Label>
+            <p className="text-sm text-gray-600">{provider.providerType}</p>
           </div>
           <div>
             <Label className="text-sm font-medium">状态</Label>
@@ -60,7 +64,7 @@ export function ProviderDetailsCard({ provider }: ProviderDetailsCardProps) {
               {provider.enabled ? '启用' : '禁用'}
             </Badge>
           </div>
-          <div>
+          <div className="col-span-2">
             <Label className="text-sm font-medium">Base URL</Label>
             <p className="text-sm text-gray-600 break-all">{provider.baseUrl || '未设置'}</p>
           </div>

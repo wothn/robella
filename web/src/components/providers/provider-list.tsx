@@ -53,7 +53,7 @@ export function ProviderList({
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium truncate">{provider.name}</h3>
-                    <p className="text-sm text-gray-500 truncate">{provider.type}</p>
+                    <p className="text-sm text-gray-500 truncate">{provider.endpointType} / {provider.providerType}</p>
                   </div>
                   <Badge variant={provider.enabled ? 'default' : 'secondary'}>
                     {provider.enabled ? '启用' : '禁用'}

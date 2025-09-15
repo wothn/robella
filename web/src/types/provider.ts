@@ -1,7 +1,8 @@
 export interface Provider {
   id: number
   name: string
-  type: string
+  endpointType: string
+  providerType: string
   baseUrl?: string
   apiKey?: string
   config?: string
@@ -12,7 +13,8 @@ export interface Provider {
 
 export interface CreateProviderRequest {
   name: string
-  type: string
+  endpointType: string
+  providerType: string
   baseUrl?: string
   apiKey?: string
   config?: string
@@ -21,7 +23,8 @@ export interface CreateProviderRequest {
 
 export interface UpdateProviderRequest {
   name?: string
-  type?: string
+  endpointType?: string
+  providerType?: string
   baseUrl?: string
   apiKey?: string
   config?: string

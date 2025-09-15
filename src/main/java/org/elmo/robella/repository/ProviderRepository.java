@@ -9,5 +9,5 @@ public interface ProviderRepository extends R2dbcRepository<Provider, Long> {
     Flux<Provider> findByEnabledTrue();
     Mono<Provider> findByName(String name);
     Mono<Provider> findByEnabledTrueAndName(String name);
-    Flux<Provider> findByType(String type);
+    Flux<Provider> findByEndpointType(String type);
 }
