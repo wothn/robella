@@ -71,7 +71,6 @@ public class OpenAITransformUtils {
         // 智谱系列映射
         if (req.getThinking() != null) {
             thinkingOptions.setType(req.getThinking().getType());
-            unifiedRequest.getTempFields().put("req_thinking", "thinking");
         }
         // Qwen系列映射
         else if (req.getEnableThinking() != null && req.getEnableThinking()) {
@@ -79,32 +78,21 @@ public class OpenAITransformUtils {
             if (req.getThinkingBudget() != null) {
                 thinkingOptions.setThinkingBudget(req.getThinkingBudget());
             }
-            unifiedRequest.getTempFields().put("req_thinking", "enableThinking");
         }
         // OpenAI系列映射
         else if (req.getReasoningEffort() != null) {
             thinkingOptions.setReasoningEffort(req.getReasoningEffort());
-            unifiedRequest.getTempFields().put("req_thinking", "reasoningEffort");
         }
 
     }
 
     public static void convertThinkingToChat(UnifiedChatRequest req, ChatCompletionRequest chatRequest) {
-        if (req.getTempFields() != null && req.getTempFields().containsKey("thinking")) {
-            String originalField = (String) req.getTempFields().get("thinking");
-
-            if ("thinking".equals(originalField)) {
-                Thinking thinking = new Thinking();
-                thinking.setType(req.getThinkingOptions().getType());
-                chatRequest.setThinking(thinking);
-            } else if ("enableThinking".equals(originalField)) {
-                chatRequest.setEnableThinking(true);
-                if (req.getThinkingOptions().getThinkingBudget() != null) {
-                    chatRequest.setThinkingBudget(req.getThinkingOptions().getThinkingBudget());
-                }
-            } else if ("reasoningEffort".equals(originalField)) {
-                chatRequest.setReasoningEffort(req.getThinkingOptions().getReasoningEffort());
+        if (req.getThinkingOptions() != null) {
+            ThinkingOptions thinkingOptions = req.getThinkingOptions();
+            if (thinkingOptions.getReasoningEffort() != null || thinkingOptions.getType() != null || thinkingOptions.getThinkingBudget() != null) {
+                chatRequest.setReasoningEffort("middle");
             }
+            
         }
     }
 }

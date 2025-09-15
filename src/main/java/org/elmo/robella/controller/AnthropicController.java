@@ -16,7 +16,7 @@ import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.service.UnifiedService;
 import org.elmo.robella.service.RoutingService;
 import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
-import org.elmo.robella.service.transform.VendorTransform;
+import org.elmo.robella.service.transform.EndpointTransform;
 import org.elmo.robella.util.JsonUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +37,7 @@ public class AnthropicController {
 
     private final UnifiedService unifiedService;
     private final RoutingService routingService;
-    private final VendorTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
+    private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
     private final UnifiedToEndpointStreamTransformer<AnthropicStreamEvent> unifiedToAnthropicStreamTransformer;
 
     /**

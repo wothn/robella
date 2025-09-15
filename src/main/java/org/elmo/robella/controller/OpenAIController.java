@@ -11,7 +11,7 @@ import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.UnifiedService;
 import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
 import org.elmo.robella.service.RoutingService;
-import org.elmo.robella.service.transform.VendorTransform;
+import org.elmo.robella.service.transform.EndpointTransform;
 import org.elmo.robella.util.JsonUtils;
 
 import java.util.UUID;
@@ -32,7 +32,7 @@ public class OpenAIController {
 
     private final UnifiedService unifiedService;
     private final RoutingService routingService;
-    private final VendorTransform<ChatCompletionRequest, ChatCompletionResponse> openAITransform;
+    private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAITransform;
     private final UnifiedToEndpointStreamTransformer<ChatCompletionChunk> unifiedToOpenAIStreamTransformer;
 
     @PostMapping(value = "/chat/completions", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE })

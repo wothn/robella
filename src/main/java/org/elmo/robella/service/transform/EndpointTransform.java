@@ -14,7 +14,7 @@ import org.elmo.robella.model.internal.UnifiedChatResponse;
  * @param <V> 端点请求类型
  * @param <R> 端点响应类型
  */
-public interface VendorTransform<V, R> {
+public interface EndpointTransform<V, R> {
     /** 返回该转换器支持的 ProviderType 名称（枚举 name）。 */
     EndpointType type();
 

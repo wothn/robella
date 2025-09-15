@@ -18,7 +18,7 @@ import java.util.*;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OpenAITransform implements VendorTransform<ChatCompletionRequest, ChatCompletionResponse> {
+public class OpenAITransform implements EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> {
 
     @Override
     public EndpointType type() {

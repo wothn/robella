@@ -13,7 +13,7 @@ import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
-import org.elmo.robella.service.transform.VendorTransform;
+import org.elmo.robella.service.transform.EndpointTransform;
 import org.elmo.robella.util.JsonUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -35,7 +35,7 @@ public class OpenAIClient implements ApiClient {
 
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
-    private final VendorTransform<ChatCompletionRequest, ChatCompletionResponse> openAITransform;
+    private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAITransform;
     private final EndpointToUnifiedStreamTransformer<ChatCompletionChunk> streamTransformer;
 
     @Override

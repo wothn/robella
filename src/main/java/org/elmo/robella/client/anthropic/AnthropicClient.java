@@ -15,7 +15,7 @@ import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
-import org.elmo.robella.service.transform.VendorTransform;
+import org.elmo.robella.service.transform.EndpointTransform;
 import org.elmo.robella.util.JsonUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -38,7 +38,7 @@ public class AnthropicClient implements ApiClient {
 
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
-    private final VendorTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
+    private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
     private final EndpointToUnifiedStreamTransformer<Object> streamTransformer;
 
     @Override

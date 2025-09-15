@@ -1,6 +1,6 @@
-# CLAUDE.md
+# QWEN.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to QWEN CODE when working with code in this repository.
 
 ## Project Overview
 
@@ -8,17 +8,17 @@ Robella is an AI API gateway that provides unified access to multiple AI service
 
 ## Architecture
 
-### Backend (Java Spring webflux)
+### Backend (Java Spring WebFlux)
 - **Framework**: Spring Boot 3.2.5 with WebFlux for reactive programming
 - **Database**: PostgreSQL with R2DBC for reactive database access
 - **Authentication**: JWT-based authentication with GitHub OAuth support
-- **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`)
+- **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`) and Anthropic native API (`/anthropic/v1/messages`)
 - **Key Components**:
-  - `OpenAIController.java:27` - Main OpenAI-compatible API endpoint
-  - `AnthropicController.java` - Anthropic API compatibility layer
-  - `RoutingService.java:24` - Dynamic model-to-provider routing
-  - `ForwardingService.java` - Request forwarding to AI providers
-  - `VendorTransformFactory` - Request/response transformation between vendor formats
+  - `OpenAIController.java:39` - Main OpenAI-compatible API endpoint
+  - `AnthropicController.java:52` - Anthropic API compatibility layer
+  - `RoutingService.java:32` - Dynamic model-to-provider routing
+  - `UnifiedService.java:42` - Unified request handling service
+  - `EndpointTransform.java` - Generic interface for request/response transformation
 
 ### Frontend (React + TypeScript)
 - **Framework**: React 18.3.1 with TypeScript
@@ -107,13 +107,17 @@ QWEN_API_KEY=your_qwen_key
 ### Key Configuration Files
 - `src/main/resources/application.yml` - Main application configuration
 - `src/main/resources/schema.sql` - Database schema definition
-- `web/vite.config.ts` - Frontend build configuration
+- `web/vite.config.ts` - Frontend build configuration with proxy to backend
 
 ## API Endpoints
 
 ### OpenAI Compatible
 - `POST /v1/chat/completions` - Chat completions (streaming supported)
 - `GET /v1/models` - List available models
+
+### Anthropic Native
+- `POST /anthropic/v1/messages` - Anthropic messages API (streaming supported)
+- `GET /anthropic/v1/models` - List available models in Anthropic format
 
 ### Authentication
 - `POST /api/users/login` - User login
@@ -131,11 +135,12 @@ QWEN_API_KEY=your_qwen_key
 ## Key Patterns
 
 ### Request Flow
-1. Request arrives at OpenAI-compatible endpoint
-2. `VendorTransformFactory` converts to unified format
-3. `RoutingService` selects appropriate provider based on model
-4. `ForwardingService` forwards request to provider
-5. Response transformed back to OpenAI format
+1. Request arrives at OpenAI-compatible or Anthropic endpoint
+2. `RoutingService` maps client model name to vendor model name
+3. `EndpointTransform` converts request to unified format
+4. `UnifiedService` selects appropriate provider based on vendor model
+5. Request forwarded to provider via `ApiClient` implementation
+6. Response transformed back to requested format
 
 ### Authentication
 - JWT tokens with refresh token rotation
@@ -144,8 +149,13 @@ QWEN_API_KEY=your_qwen_key
 
 ### Database Access
 - R2DBC for reactive database operations
-- Flyway for database migrations (currently disabled)
 - Repository pattern with reactive return types (Mono/Flux)
+- Flyway configured but disabled for migrations
+
+### Transformation Architecture
+- Generic `EndpointTransform<T, R>` interface for request/response conversion
+- `OpenAITransform` and `AnthropicTransform` implementations
+- Stream transformation support for real-time responses
 
 ## Important Notes
 
@@ -154,3 +164,6 @@ QWEN_API_KEY=your_qwen_key
 - All database operations return reactive types (Mono/Flux)
 - The frontend is a separate React application in the `/web` directory
 - Provider configurations are stored in the database and can be managed through the UI
+- Model routing is dynamic and can be configured at runtime
+- Both streaming and non-streaming responses are supported
+- The system supports both OpenAI-compatible and Anthropic-native API formats
