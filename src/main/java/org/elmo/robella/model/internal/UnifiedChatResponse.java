@@ -19,6 +19,5 @@ public class UnifiedChatResponse {
     private Usage usage;
     private String systemFingerprint;
     private Map<String,Object> metadata;     // 通用元数据（对齐不同厂商）
-    private Map<String,Object> undefined;
 
 }

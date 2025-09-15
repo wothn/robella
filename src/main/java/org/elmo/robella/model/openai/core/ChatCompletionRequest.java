@@ -7,9 +7,7 @@ import org.elmo.robella.model.openai.audio.OpenAIAudio;
 import org.elmo.robella.model.openai.tool.Tool;
 import org.elmo.robella.model.openai.tool.ToolChoice;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * OpenAI 聊天完成请求
@@ -35,7 +33,7 @@ public class ChatCompletionRequest {
     private Double frequencyPenalty;
     
     /**
-     * 最大token数，1到8192之间
+     * 最大token数
      */
     @JsonProperty("max_tokens")
     @JsonAlias("max_completion_tokens")
@@ -186,18 +184,6 @@ public class ChatCompletionRequest {
     @JsonProperty("extra_body")
     private Object extraBody;
 
-
-    private Map<String, Object> undefined = new HashMap<>();
-
-    @JsonAnySetter
-    public void addUndefined(String key, Object value) {
-        undefined.put(key, value);
-    }
-
-    @JsonAnyGetter
-    public Map<String, Object> getUndefined() {
-        return undefined;
-    }
 
     /**
      * 网络搜索选项

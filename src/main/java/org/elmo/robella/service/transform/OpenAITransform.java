@@ -49,12 +49,6 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
         // 转换工具选择
         unifiedRequest.setToolChoice(req.getToolChoice());
 
-        // 获取配置的thinkingField
-        if (unifiedRequest.getTempFields() != null) {
-            String thinkingField = "thinking";
-            unifiedRequest.getTempFields().put("config_thinking", thinkingField);
-        }
-
         // 思考参数映射
         OpenAITransformUtils.convertThinkingToUnified(req, unifiedRequest);
 
@@ -65,12 +59,6 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
         }
         if (!vendorExtras.isEmpty()) {
             unifiedRequest.setVendorExtras(vendorExtras);
-        }
-
-        // 处理未知字段
-        Map<String, Object> undefined = req.getUndefined();
-        if (undefined != null && !undefined.isEmpty()) {
-            unifiedRequest.setUndefined(undefined);
         }
 
         return unifiedRequest;
@@ -108,11 +96,6 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
             }
         }
 
-        // 处理未知字段
-        if (unifiedRequest.getUndefined() != null && !unifiedRequest.getUndefined().isEmpty()) {
-            chatRequest.setUndefined(unifiedRequest.getUndefined());
-        }
-
         return chatRequest;
     }
 
@@ -135,10 +118,6 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
         // 转换Choice
         unifiedResponse.setChoices(resp.getChoices());
 
-        // 为undefined赋值
-        if (resp.getUndefined() != null) {
-            unifiedResponse.setUndefined(resp.getUndefined());
-        }
         return unifiedResponse;
     }
 
@@ -160,11 +139,6 @@ public class OpenAITransform implements VendorTransform<ChatCompletionRequest, C
 
         // 转换Choice
         chatResponse.setChoices(unifiedResponse.getChoices());
-
-        // 为undefined赋值
-        if (unifiedResponse.getUndefined() != null) {
-            chatResponse.setUndefined(unifiedResponse.getUndefined());
-        }
         return chatResponse;
     }
 }

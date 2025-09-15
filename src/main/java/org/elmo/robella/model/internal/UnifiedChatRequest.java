@@ -1,8 +1,5 @@
 package org.elmo.robella.model.internal;
 
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.elmo.robella.model.openai.audio.OpenAIAudio;
 import org.elmo.robella.model.openai.core.*;
@@ -48,41 +45,6 @@ public class UnifiedChatRequest {
     private Prediction prediction;
     private ThinkingOptions thinkingOptions;
     private Map<String, Object> vendorExtras;    // 厂商特定参数
-
-
-    @JsonIgnore
-    private Map<String, Object> tempFields = new HashMap<>();
-    private Map<String, Object> undefined = new HashMap<>();
-
-    @JsonAnySetter
-    public void addUndefined(String key, Object value) {
-        undefined.put(key, value);
-    }
-
-    @JsonAnyGetter
-    public Map<String, Object> getUndefined() {
-        return undefined;
-    }
-
-    /**
-     * 安全地添加临时字段，不会覆盖现有内容
-     */
-    public void addTempField(String key, Object value) {
-        if (this.tempFields == null) {
-            this.tempFields = new HashMap<>();
-        }
-        this.tempFields.put(key, value);
-    }
-
-    /**
-     * 获取临时字段值
-     */
-    public Object getTempField(String key) {
-        return this.tempFields != null ? this.tempFields.get(key) : null;
-    }
-
-    
-
 
 }
 
