@@ -38,6 +38,15 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
 
     private Flux<AnthropicStreamEvent> processChunk(UnifiedStreamChunk chunk, SessionState state) {
         log.debug("[AnthropicTransformer] 处理chunk，model: {}", chunk.getModel());
+        
+        // 添加详细日志来调试usage chunk
+        if (chunk.getUsage() != null) {
+            log.debug("[AnthropicTransformer] processChunk - 收到包含usage的chunk: id={}, choicesSize={}, choicesNull={}, usage={}", 
+                chunk.getId(), 
+                chunk.getChoices() != null ? chunk.getChoices().size() : "null",
+                chunk.getChoices() == null,
+                chunk.getUsage());
+        }
 
         List<AnthropicStreamEvent> events = new ArrayList<>();
 
@@ -91,10 +100,9 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
                 log.debug("[AnthropicTransformer] 收到usage信息");
             }
 
-            if (state.getFinishReason() != null && state.getUsage() != null) {
-                events.addAll(processMessageEnd(chunk, state));
+            if (state.getFinishReason() != null && state.getUsage() != null && !state.isMessageEnded()) {
+                events.addAll(processMessageEnd(state));
                 log.debug("[AnthropicTransformer] 处理消息结束");
-                
             }
 
             return Flux.fromIterable(events);
@@ -208,8 +216,13 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
         return events;
     }
 
-    private List<AnthropicStreamEvent> processMessageEnd(UnifiedStreamChunk chunk, SessionState state) {
+    private List<AnthropicStreamEvent> processMessageEnd(SessionState state) {
         List<AnthropicStreamEvent> events = new ArrayList<>();
+        
+        // 避免重复处理
+        if (state.isMessageEnded()) {
+            return events;
+        }
         
         // 关闭当前内容块（如果有）
         if (state.getActiveContent() != null) {
@@ -217,14 +230,14 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
             state.setActiveContent(null);
         }
 
-        // 创建消息增量事件（包含停止原因）
-        String finishReason = chunk.getChoices().get(0).getFinishReason();
-        events.add(createMessageDeltaEvent(chunk));
+        // 创建消息增量事件
+        events.add(createMessageDeltaEvent(state));
 
         // 添加消息停止事件
         events.add(createMessageStopEvent());
 
-        log.info("[AnthropicTransformer] 消息结束，停止原因: {}", finishReason);
+        state.setMessageEnded(true);
+        log.info("[AnthropicTransformer] 消息结束");
         return events;
     }
 
@@ -334,14 +347,14 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
         return event;
     }
 
-    private AnthropicMessageDeltaEvent createMessageDeltaEvent(UnifiedStreamChunk chunk) {
+    private AnthropicMessageDeltaEvent createMessageDeltaEvent(SessionState state) {
         AnthropicMessageDeltaEvent event = new AnthropicMessageDeltaEvent();
         event.setType("message_delta");
 
         AnthropicDelta delta = new AnthropicDelta();
-        delta.setStopReason(mapFinishReason(chunk.getChoices().get(0).getFinishReason()));
+        delta.setStopReason(mapFinishReason(state.getFinishReason()));
 
-        event.setUsage(mapUsage(chunk.getUsage()));
+        event.setUsage(mapUsage(state.getUsage()));
         event.setDelta(delta);
         return event;
     }
@@ -410,6 +423,7 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
         private Integer contentBlockIndex = 0;
         private String finishReason;
         private Usage usage;
+        private boolean messageEnded;
         
         public void incrementContentBlockIndex() {
             this.contentBlockIndex++;

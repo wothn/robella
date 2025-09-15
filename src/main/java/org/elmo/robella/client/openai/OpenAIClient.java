@@ -143,6 +143,7 @@ public class OpenAIClient implements ApiClient {
 
         String trimmed = raw.trim();
         if (SSE_DONE_MARKER.equals(trimmed)) {
+            log.debug("[OpenAIClient] streamChatCompletion done ");
             return null;
         }
 
