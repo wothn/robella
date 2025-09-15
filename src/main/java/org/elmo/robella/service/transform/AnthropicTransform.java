@@ -11,6 +11,7 @@ import org.elmo.robella.util.AnthropicTransformUtils;
 import org.springframework.stereotype.Component;
 import org.elmo.robella.model.openai.core.Choice;
 import org.elmo.robella.model.openai.core.OpenAIMessage;
+import org.elmo.robella.model.openai.core.StreamOptions;
 import org.elmo.robella.model.openai.content.OpenAIContent;
 import org.elmo.robella.model.openai.content.OpenAITextContent;
 
@@ -49,6 +50,12 @@ public class AnthropicTransform implements VendorTransform<AnthropicChatRequest,
         unifiedRequest.setTopP(req.getTopP());
         unifiedRequest.setTopK(req.getTopK());
         unifiedRequest.setStop(req.getStopSequences());
+        
+        if (req.getStream() == true) {
+            StreamOptions streamOptions = new StreamOptions();
+            streamOptions.setIncludeUsage(true);
+            unifiedRequest.setStreamOptions(streamOptions);
+        }
 
         // 转换消息
         if (req.getMessages() != null) {
