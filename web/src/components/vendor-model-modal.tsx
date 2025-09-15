@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Bot, Plus, Edit } from 'lucide-react'
 
@@ -150,14 +151,15 @@ export function VendorModelModal({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5" />
             {vendorModel ? '编辑 Vendor Model' : '添加 Vendor Model'}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <ScrollArea className="h-[60vh]">
+          <form onSubmit={handleSubmit} className="space-y-4 pr-4">
           <div className="space-y-2">
             <Label htmlFor="vendorModelName">模型名称 *</Label>
             <Input
@@ -248,6 +250,7 @@ export function VendorModelModal({
             </Button>
           </div>
         </form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

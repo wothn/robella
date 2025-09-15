@@ -166,7 +166,7 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="h-[60vh]">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pr-4">
             {/* 错误信息显示 */}
