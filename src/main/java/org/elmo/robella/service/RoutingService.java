@@ -5,10 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 import org.elmo.robella.client.ClientFactory;
+import org.elmo.robella.common.EndpointType;
 import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.entity.VendorModel;
-import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.repository.ModelRepository;
 import org.elmo.robella.repository.VendorModelRepository;
 import org.springframework.stereotype.Service;
@@ -71,7 +71,7 @@ public class RoutingService {
             .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> {
-                    ApiClient client = clientFactory.getClient(provider.getType());
+                    ApiClient client = clientFactory.getClient(provider.getEndpointType());
                     return new ClientWithProvider(client, provider);
                 }));
     }
@@ -87,7 +87,7 @@ public class RoutingService {
      */
     public EndpointType getProviderType(String providerName) {
         return providerService.getProviderByName(providerName)
-            .map(provider -> provider.getType())
+            .map(provider -> provider.getEndpointType())
             .block();
     }
 
@@ -105,7 +105,7 @@ public class RoutingService {
         return vendorModelRepository.findByVendorModelName(vendorModelName)
             .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
-                .map(provider -> provider.getType()));
+                .map(provider -> provider.getEndpointType()));
     }
 
     /**

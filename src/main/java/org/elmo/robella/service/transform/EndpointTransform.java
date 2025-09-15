@@ -1,6 +1,6 @@
 package org.elmo.robella.service.transform;
 
-import org.elmo.robella.model.common.EndpointType;
+import org.elmo.robella.common.EndpointType;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 
@@ -15,6 +15,7 @@ import org.elmo.robella.model.internal.UnifiedChatResponse;
  * @param <R> 端点响应类型
  */
 public interface EndpointTransform<V, R> {
+    
     /** 返回该转换器支持的 ProviderType 名称（枚举 name）。 */
     EndpointType type();
 

@@ -1,4 +1,4 @@
-package org.elmo.robella.model.common;
+package org.elmo.robella.common;
 
 import lombok.Getter;
 

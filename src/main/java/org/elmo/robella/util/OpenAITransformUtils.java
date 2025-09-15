@@ -87,12 +87,41 @@ public class OpenAITransformUtils {
     }
 
     public static void convertThinkingToChat(UnifiedChatRequest req, ChatCompletionRequest chatRequest) {
+        // 端点级别的映射都尽量遵循openai的思考参数
+        // Provider需要特殊处理的，可以创建VendorTransform处理
         if (req.getThinkingOptions() != null) {
             ThinkingOptions thinkingOptions = req.getThinkingOptions();
-            if (thinkingOptions.getReasoningEffort() != null || thinkingOptions.getType() != null || thinkingOptions.getThinkingBudget() != null) {
-                chatRequest.setReasoningEffort("middle");
+            if (thinkingOptions.getReasoningEffort() != null) {
+                chatRequest.setReasoningEffort(thinkingOptions.getReasoningEffort());
+            } else if (thinkingOptions.getType() != null) {
+                chatRequest.setReasoningEffort(mapThinkingTypeToReasoning(thinkingOptions.getType()));
             }
             
         }
     }
+
+    public static String mapThinkingTypeToReasoning(String type) {
+        if (type == null) {
+            return null;
+        }
+        return switch (type) {
+            case "enabled", "enable" -> "midium";
+            case "disabled", "disable" -> "minimal";
+            case "auto" -> "auto";
+            default -> "midium";
+        };
+    }
+
+    public static String mapReasoningToThinkingType(String reasoningEffort) {
+        if (reasoningEffort == null) {
+            return null;
+        }
+        return switch (reasoningEffort) {
+            case "minimal" -> "disabled";
+            case "midium" -> "enabled";
+            case "auto" -> "auto";
+            default -> "enabled";
+        };
+    }
+
 }

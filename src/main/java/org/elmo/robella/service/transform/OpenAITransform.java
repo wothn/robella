@@ -3,7 +3,7 @@ package org.elmo.robella.service.transform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.elmo.robella.model.common.EndpointType;
+import org.elmo.robella.common.EndpointType;
 import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
@@ -95,7 +95,8 @@ public class OpenAITransform implements EndpointTransform<ChatCompletionRequest,
                 chatRequest.setExtraBody(extraBody);
             }
         }
-
+        
+        
         return chatRequest;
     }
 

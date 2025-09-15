@@ -4,9 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elmo.robella.model.internal.*;
-
+import org.elmo.robella.common.EndpointType;
 import org.elmo.robella.model.anthropic.core.*;
-import org.elmo.robella.model.common.EndpointType;
 import org.elmo.robella.util.AnthropicTransformUtils;
 import org.springframework.stereotype.Component;
 import org.elmo.robella.model.openai.core.Choice;

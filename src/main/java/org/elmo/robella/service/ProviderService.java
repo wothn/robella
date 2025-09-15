@@ -49,7 +49,8 @@ public class ProviderService {
         return providerRepository.findById(id)
                 .flatMap(existingProvider -> {
                     existingProvider.setName(provider.getName());
-                    existingProvider.setType(provider.getType());
+                    existingProvider.setEndpointType(provider.getEndpointType());
+                    existingProvider.setProviderType(provider.getProviderType());
                     existingProvider.setApiKey(provider.getApiKey());
                     existingProvider.setBaseUrl(provider.getBaseUrl());
                     existingProvider.setConfig(provider.getConfig());

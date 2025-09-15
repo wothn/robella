@@ -1,6 +1,8 @@
 package org.elmo.robella.model.internal;
 
 import lombok.*;
+
+import org.elmo.robella.common.ProviderType;
 import org.elmo.robella.model.openai.audio.OpenAIAudio;
 import org.elmo.robella.model.openai.core.*;
 import org.elmo.robella.model.openai.tool.Tool;
@@ -17,7 +19,7 @@ import java.util.*;
 public class UnifiedChatRequest {
 
     private String model;                        // 逻辑模型名
-    private String providerName;                 // 供应商名称，用于获取配置信息
+    private ProviderType providerType;                 // 供应商名称，用于获取配置信息
     private List<OpenAIMessage> messages;          // 对话历史
     private Boolean stream;                      // 是否流式
     private StreamOptions streamOptions;         // 流式参数

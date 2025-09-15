@@ -3,6 +3,7 @@ package org.elmo.robella.client.anthropic;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.client.ApiClient;
+import org.elmo.robella.common.ProviderType;
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.config.WebClientProperties;
 import org.elmo.robella.exception.ProviderException;
@@ -16,21 +17,26 @@ import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
 import org.elmo.robella.service.transform.EndpointTransform;
+import org.elmo.robella.service.transform.provider.VendorTransform;
 import org.elmo.robella.util.JsonUtils;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
+import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.Map;
 
 /**
  * Anthropic Messages API 适配器
- * 不再是 Spring Bean，通过 ClientBuilder 创建
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
+@Qualifier("ANTHROPIC")
 public class AnthropicClient implements ApiClient {
 
     private static final String SSE_DATA_PREFIX = "data: ";
@@ -40,16 +46,28 @@ public class AnthropicClient implements ApiClient {
     private final WebClientProperties webClientProperties;
     private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
     private final EndpointToUnifiedStreamTransformer<Object> streamTransformer;
+    private final Map<ProviderType, VendorTransform<AnthropicChatRequest, AnthropicMessage>> anthropicProviderTransformMap;
 
     @Override
     public Mono<UnifiedChatResponse> chatCompletion(UnifiedChatRequest request, Provider provider) {
         AnthropicChatRequest anthropicRequest = anthropicTransform.unifiedToEndpointRequest(request);
 
+        // 根据ProviderType调用对应的ProviderTransform
+        if (request.getProviderType() != null) {
+            VendorTransform<AnthropicChatRequest, AnthropicMessage> providerTransform = anthropicProviderTransformMap.get(request.getProviderType());
+            if (providerTransform != null) {
+                anthropicRequest = providerTransform.processRequest(anthropicRequest);
+            }
+        }
+
+        // 为了在 lambda 中使用，创建 final 变量
+        final AnthropicChatRequest finalRequest = anthropicRequest;
+
         String url = buildMessagesUrl(provider);
 
         if (log.isDebugEnabled()) {
             log.debug("[AnthropicClient] chatCompletion start provider={} model={} stream=false", provider.getName(),
-                    anthropicRequest.getModel());
+                    finalRequest.getModel());
         }
 
         return webClient.post()
@@ -59,7 +77,7 @@ public class AnthropicClient implements ApiClient {
                     headers.set("anthropic-version", ANTHROPIC_VERSION);
                     headers.set("Content-Type", "application/json");
                 })
-                .bodyValue(anthropicRequest)
+                .bodyValue(finalRequest)
                 .retrieve()
                 .bodyToMono(AnthropicMessage.class)
                 .map(response -> anthropicTransform.endpointToUnifiedResponse(response))
@@ -68,15 +86,27 @@ public class AnthropicClient implements ApiClient {
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
                         log.debug("[AnthropicClient] chatCompletion success provider={} model={}", provider.getName(),
-                                anthropicRequest.getModel());
+                                finalRequest.getModel());
                 })
                 .doOnError(err -> log.debug("[AnthropicClient] chatCompletion error provider={} model={} msg={}",
-                        provider.getName(), anthropicRequest.getModel(), err.toString()));
+                        provider.getName(), finalRequest.getModel(), err.toString()));
     }
 
     @Override
     public Flux<UnifiedStreamChunk> streamChatCompletion(UnifiedChatRequest request, Provider provider) {
         AnthropicChatRequest anthropicRequest = anthropicTransform.unifiedToEndpointRequest(request);
+
+        // 根据ProviderType调用对应的ProviderTransform
+        if (request.getProviderType() != null) {
+            VendorTransform<AnthropicChatRequest, AnthropicMessage> providerTransform = anthropicProviderTransformMap.get(request.getProviderType());
+            if (providerTransform != null) {
+                anthropicRequest = providerTransform.processRequest(anthropicRequest);
+            }
+        }
+
+        // 为了在 lambda 中使用，创建 final 变量
+        final AnthropicChatRequest finalRequest = anthropicRequest;
+
         String url = buildMessagesUrl(provider);
         String uuid = java.util.UUID.randomUUID().toString();
 
@@ -88,7 +118,7 @@ public class AnthropicClient implements ApiClient {
 
         if (log.isDebugEnabled()) {
             log.debug("[AnthropicClient] streamChatCompletion start provider={} model={} stream=true",
-                    provider.getName(), anthropicRequest.getModel());
+                    provider.getName(), finalRequest.getModel());
         }
 
         return streamTransformer.transform(webClient.post()
@@ -99,7 +129,7 @@ public class AnthropicClient implements ApiClient {
                     headers.set(HttpHeaders.ACCEPT, "text/event-stream");
                     headers.set("Content-Type", "application/json");
                 })
-                .bodyValue(anthropicRequest)
+                .bodyValue(finalRequest)
                 .retrieve()
                 .bodyToFlux(String.class)
                 .timeout(streamTimeout)
@@ -113,7 +143,7 @@ public class AnthropicClient implements ApiClient {
                     }
                 })
                 .doOnError(err -> log.debug("[AnthropicClient] streamChatCompletion error provider={} model={} msg={}",
-                        provider.getName(), anthropicRequest.getModel(), err.toString())), uuid);
+                        provider.getName(), finalRequest.getModel(), err.toString())), uuid);
     }
 
     private String buildMessagesUrl(Provider provider) {
