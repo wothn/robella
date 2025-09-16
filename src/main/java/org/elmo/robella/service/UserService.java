@@ -164,23 +164,20 @@ public class UserService {
     }
     
     public Mono<LoginResponse> refreshToken(String refreshToken) {
-        if (!jwtUtil.validateToken(refreshToken)) {
-            return Mono.error(new RuntimeException("无效的刷新令牌"));
-        }
-
-        String username = jwtUtil.extractUsername(refreshToken);
-
-        return userRepository.findByUsername(username)
+        return Mono.fromCallable(() -> jwtUtil.validateToken(refreshToken))
+            .filter(valid -> valid)
+            .switchIfEmpty(Mono.error(new RuntimeException("无效的刷新令牌")))
+            .flatMap(valid -> Mono.just(jwtUtil.extractUsername(refreshToken)))
+            .flatMap(userRepository::findByUsername)
+            .switchIfEmpty(Mono.error(new RuntimeException("用户不存在")))
             .flatMap(user -> {
                 if (!user.getActive()) {
                     return Mono.error(new RuntimeException("用户已被禁用"));
                 }
                 String newAccessToken = jwtUtil.generateAccessToken(user);
                 String newRefreshToken = jwtUtil.generateRefreshToken(user);
-                LoginResponse response = new LoginResponse(newAccessToken, newRefreshToken);
-                return Mono.just(response);
-            })
-            .switchIfEmpty(Mono.error(new RuntimeException("用户不存在")));
+                return Mono.just(new LoginResponse(newAccessToken, newRefreshToken));
+            });
     }
     
     

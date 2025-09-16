@@ -1,11 +1,10 @@
 package org.elmo.robella.config;
 
 import org.elmo.robella.interceptor.AuthenticationInterceptor;
+import org.elmo.robella.interceptor.ApiKeyInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -16,6 +15,7 @@ import org.springframework.web.server.WebFilter;
 public class WebConfig {
 
     private final AuthenticationInterceptor anthenticationInterceptor;
+    private final ApiKeyInterceptor apiKeyInterceptor;
 
     @Bean
     public WebFilter jwtFilter() {
@@ -23,10 +23,11 @@ public class WebConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public WebFilter apiKeyFilter() {
+        return apiKeyInterceptor;
     }
 
+  
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();

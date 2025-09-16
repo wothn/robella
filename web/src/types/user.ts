@@ -40,3 +40,7 @@ export interface CreateUserRequest {
   displayName?: string
   role?: number
 }
+
+export interface RefreshTokenRequest {
+  refreshToken: string
+}

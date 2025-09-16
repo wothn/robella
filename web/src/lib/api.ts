@@ -11,7 +11,7 @@ class ApiClient {
 
   // 获取存储的访问令牌
   private getAccessToken(): string | null {
-    return localStorage.getItem('accessToken')
+    return storage.getAccessToken()
   }
 
   // 通用请求方法
@@ -28,7 +28,7 @@ class ApiClient {
 
     // 为需要认证的请求添加访问令牌
     const token = this.getAccessToken()
-    if (token && !endpoint.includes('/login') && !endpoint.includes('/oauth/github')) {
+    if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
 
@@ -52,61 +52,7 @@ class ApiClient {
 
         // 如果是401错误，尝试刷新令牌
         if (response.status === 401) {
-          // 避免无限循环的刷新
-          const isRefreshRequest = endpoint.includes('/users/refresh')
-          const isAlreadyRefreshing = localStorage.getItem('isRefreshing') === 'true'
-          
-          if (isRefreshRequest || isAlreadyRefreshing) {
-            // 如果是刷新请求失败或已经在刷新中，则清除token并重定向
-            localStorage.removeItem('accessToken')
-            localStorage.removeItem('refreshToken')
-            localStorage.removeItem('isRefreshing')
-            window.location.href = '/login'
-            throw new Error('Token refresh failed')
-          }
-
-          // 标记正在刷新
-          localStorage.setItem('isRefreshing', 'true')
-          
-          try {
-            // 尝试刷新token
-            const newTokens = await this.refreshToken()
-            // 更新token并重试原请求
-            localStorage.setItem('accessToken', newTokens.accessToken)
-            localStorage.setItem('refreshToken', newTokens.refreshToken)
-            localStorage.removeItem('isRefreshing')
-            
-            // 使用新token重试原请求
-            const newHeaders = {
-              ...headers,
-              'Authorization': `Bearer ${newTokens.accessToken}`
-            }
-            
-            const retryConfig: RequestInit = {
-              ...config,
-              headers: newHeaders
-            }
-            
-            const retryResponse = await fetch(url, retryConfig)
-            if (!retryResponse.ok) {
-              throw new Error(`Retry failed with status: ${retryResponse.status}`)
-            }
-            
-            const contentType = retryResponse.headers.get('content-type')
-            if (contentType && contentType.includes('application/json')) {
-              return await retryResponse.json()
-            } else {
-              return await retryResponse.text() as unknown as T
-            }
-          } catch (refreshError) {
-            console.error('Token refresh failed:', refreshError)
-            // 刷新失败，清除token并重定向
-            localStorage.removeItem('accessToken')
-            localStorage.removeItem('refreshToken')
-            localStorage.removeItem('isRefreshing')
-            window.location.href = '/login'
-            throw new Error('Token refresh failed')
-          }
+          return this.handleTokenRefresh(endpoint, headers, config, url)
         }
 
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
@@ -149,6 +95,14 @@ class ApiClient {
   // DELETE请求
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' })
+  }
+
+  // PATCH请求
+  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
   }
 
   // 用户登录
@@ -219,21 +173,76 @@ class ApiClient {
 
   // 刷新令牌
   async refreshToken(): Promise<LoginResponse> {
-    const refreshToken = localStorage.getItem('refreshToken')
+    const refreshToken = storage.getRefreshToken()
     if (!refreshToken) {
-      console.error('No refresh token available in localStorage')
+      storage.clearAuth()
+      window.location.href = '/login'
       throw new Error('No refresh token available')
     }
-    
-    console.log('Attempting to refresh token...')
-    
+
+    console.log('[ApiClient] Attempting to refresh token...')
+
     try {
-      const response = await this.post<LoginResponse>('/users/refresh', { refreshToken })
-      console.log('Token refresh successful')
-      return response
+      const url = `${this.baseURL}/users/refresh`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (!response.ok) {
+        storage.clearAuth()
+        window.location.href = '/login'
+        throw new Error(`Token refresh failed with status: ${response.status}`)
+      }
+
+      return response.json()
     } catch (error) {
-      console.error('Token refresh failed:', error)
+      storage.clearAuth()
+      window.location.href = '/login'
       throw error
+    }
+  }
+
+  // 处理令牌刷新逻辑
+  private async handleTokenRefresh<T>(
+    endpoint: string,
+    headers: Record<string, string>,
+    config: RequestInit,
+    url: string
+  ): Promise<T> {
+    const isRefreshRequest = endpoint.includes('/users/refresh')
+    const isAlreadyRefreshing = storage.isRefreshing()
+
+    if (isRefreshRequest || isAlreadyRefreshing) {
+      storage.clearAuth()
+      window.location.href = '/login'
+      throw new Error('Token refresh failed')
+    }
+
+    storage.setRefreshing(true)
+
+    try {
+      const newTokens = await this.refreshToken()
+      storage.setAuthTokens(newTokens.accessToken, newTokens.refreshToken)
+      storage.setRefreshing(false)
+
+      const newHeaders = { ...headers, 'Authorization': `Bearer ${newTokens.accessToken}` }
+      const retryConfig: RequestInit = { ...config, headers: newHeaders }
+      const retryResponse = await fetch(url, retryConfig)
+
+      if (!retryResponse.ok) {
+        throw new Error(`Retry failed with status: ${retryResponse.status}`)
+      }
+
+      const contentType = retryResponse.headers.get('content-type')
+      return contentType?.includes('application/json')
+        ? await retryResponse.json()
+        : await retryResponse.text() as T
+    } catch (refreshError) {
+      storage.clearAuth()
+      window.location.href = '/login'
+      throw new Error('Token refresh failed')
     }
   }
 
@@ -339,6 +348,27 @@ class ApiClient {
     return this.get('/models/stats')
   }
 
+  // ================= API Key Management =================
+  // 获取用户所有 API Key
+  async getUserApiKeys(): Promise<ApiKey[]> {
+    return this.get('/api-keys')
+  }
+
+  // 创建新的 API Key
+  async createApiKey(data: ApiKeyCreateRequest): Promise<ApiKey> {
+    return this.post('/api-keys', data)
+  }
+
+  // 删除 API Key
+  async deleteApiKey(id: number): Promise<void> {
+    return this.delete(`/api-keys/${id}`)
+  }
+
+  // 切换 API Key 状态
+  async toggleApiKeyStatus(id: number): Promise<ApiKey> {
+    return this.patch(`/api-keys/${id}/toggle`, {})
+  }
+
   // 获取组织模型数量
   async getModelCountByOrganization(organization: string): Promise<number> {
     return this.get(`/models/stats/organization/${encodeURIComponent(organization)}`)
@@ -396,8 +426,11 @@ import type {
   Model,
   CreateModelRequest,
   UpdateModelRequest,
-  ModelStats
-} from '../types'
+  ModelStats,
+  ApiKey,
+  ApiKeyCreateRequest
+} from '@/types'
+import { storage } from './storage'
 
 // 创建API客户端实例
 export const apiClient = new ApiClient()

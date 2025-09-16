@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '@/lib/api'
+import { storage } from '@/lib/storage'
 import type { User, LoginResponse } from '@/types/user'
 
 interface AuthContextType {
@@ -29,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const validateCurrentSession = async () => {
     try {
       // Try to get current user with stored token
-      const token = localStorage.getItem('accessToken')
+      const token = storage.getAccessToken()
       if (token) {
         const currentUser = await apiClient.getCurrentUser()
         setUser(currentUser)
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const validateSession = async (): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('accessToken')
+      const token = storage.getAccessToken()
       if (token) {
         const currentUser = await apiClient.getCurrentUser()
         setUser(currentUser)
@@ -58,26 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Session validation failed:', error)
-      // Try to refresh the token if validation fails
-      try {
-        console.log('Attempting to refresh token due to session validation failure')
-        const response = await apiClient.refreshToken()
-        localStorage.setItem('accessToken', response.accessToken)
-        localStorage.setItem('refreshToken', response.refreshToken)
-        localStorage.removeItem('isRefreshing')
-        const currentUser = await apiClient.getCurrentUser()
-        setUser(currentUser)
-        console.log('Token refresh and session recovery successful')
-        return true
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError)
-        // Clear all tokens if refresh fails
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('isRefreshing')
-        setUser(null)
-        return false
-      }
+      setUser(null)
+      return false
     }
   }
 
@@ -85,15 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     try {
       const response: LoginResponse = await apiClient.login(username, password)
-      
+
       // Store the tokens
-      localStorage.setItem('accessToken', response.accessToken)
-      localStorage.setItem('refreshToken', response.refreshToken)
-      
+      storage.setAuthTokens(response.accessToken, response.refreshToken)
+
       // Get the current user data
       const currentUser = await apiClient.getCurrentUser()
       setUser(currentUser)
-      
+
       // Redirect to dashboard
       navigate('/')
     } catch (error) {
@@ -111,9 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     // Clear stored data
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('isRefreshing')
+    storage.clearAuth()
     setUser(null)
     navigate('/login')
   }

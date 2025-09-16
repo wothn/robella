@@ -60,6 +60,25 @@ CREATE TABLE IF NOT EXISTS vendor_model (
     FOREIGN KEY (provider_id) REFERENCES provider(id) ON DELETE CASCADE
 );
 
+-- API密钥表
+CREATE TABLE IF NOT EXISTS api_key (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    key_hash VARCHAR(255) NOT NULL,
+    key_prefix VARCHAR(16) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    daily_limit INTEGER DEFAULT 0,
+    monthly_limit INTEGER DEFAULT 0,
+    rate_limit INTEGER DEFAULT 60,
+    active BOOLEAN DEFAULT TRUE,
+    last_used_at TIMESTAMP,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -86,6 +105,13 @@ CREATE INDEX IF NOT EXISTS idx_vendor_model_provider_id ON vendor_model(provider
 CREATE INDEX IF NOT EXISTS idx_vendor_model_vendor_model_name ON vendor_model(vendor_model_name);
 CREATE INDEX IF NOT EXISTS idx_vendor_model_enabled ON vendor_model(enabled);
 CREATE INDEX IF NOT EXISTS idx_vendor_model_created_at ON vendor_model(created_at);
+
+-- api_key表索引
+CREATE INDEX IF NOT EXISTS idx_api_key_user_id ON api_key(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_key_key_prefix ON api_key(key_prefix);
+CREATE INDEX IF NOT EXISTS idx_api_key_active ON api_key(active);
+CREATE INDEX IF NOT EXISTS idx_api_key_expires_at ON api_key(expires_at);
+CREATE INDEX IF NOT EXISTS idx_api_key_created_at ON api_key(created_at);
 
 -- 添加注释
 COMMENT ON TABLE users IS '用户表';
@@ -141,3 +167,20 @@ COMMENT ON COLUMN vendor_model.input_per_million_tokens IS '每百万输入令�
 COMMENT ON COLUMN vendor_model.enabled IS '是否启用';
 COMMENT ON COLUMN vendor_model.created_at IS '创建时间';
 COMMENT ON COLUMN vendor_model.updated_at IS '更新时间';
+
+-- api_key表注释
+COMMENT ON TABLE api_key IS 'API密钥表';
+COMMENT ON COLUMN api_key.id IS 'API密钥ID';
+COMMENT ON COLUMN api_key.user_id IS '用户ID';
+COMMENT ON COLUMN api_key.key_hash IS '密钥哈希值';
+COMMENT ON COLUMN api_key.key_prefix IS '密钥前缀';
+COMMENT ON COLUMN api_key.name IS '密钥名称';
+COMMENT ON COLUMN api_key.description IS '密钥描述';
+COMMENT ON COLUMN api_key.daily_limit IS '日限制(0为无限制)';
+COMMENT ON COLUMN api_key.monthly_limit IS '月限制(0为无限制)';
+COMMENT ON COLUMN api_key.rate_limit IS '速率限制(每分钟请求数)';
+COMMENT ON COLUMN api_key.active IS '是否启用';
+COMMENT ON COLUMN api_key.last_used_at IS '最后使用时间';
+COMMENT ON COLUMN api_key.expires_at IS '过期时间';
+COMMENT ON COLUMN api_key.created_at IS '创建时间';
+COMMENT ON COLUMN api_key.updated_at IS '更新时间';

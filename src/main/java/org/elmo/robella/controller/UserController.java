@@ -2,6 +2,7 @@ package org.elmo.robella.controller;
 
 import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.request.LoginRequest;
+import org.elmo.robella.model.request.RefreshTokenRequest;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
@@ -137,20 +138,12 @@ public class UserController {
     }
 
     @PostMapping("/refresh")
-    public Mono<ResponseEntity<LoginResponse>> refreshToken(@RequestBody Map<String, String> request) {
-        return Mono.justOrEmpty(request.get("refreshToken"))
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("刷新令牌不存在")))
-                .filter(token -> !token.isBlank())
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("刷新令牌为空")))
-                .flatMap(userService::refreshToken)
+    public Mono<ResponseEntity<LoginResponse>> refreshToken(@RequestBody RefreshTokenRequest request) {
+        return userService.refreshToken(request.getRefreshToken())
                 .map(ResponseEntity::ok)
-                .onErrorResume(IllegalArgumentException.class, e -> {
-                    log.warn("客户端错误: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-                })
-                .onErrorResume(Exception.class, e -> {
-                    log.error("服务器内部错误: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+                .onErrorResume(e -> {
+                    log.error("刷新令牌失败: {}", e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
                 });
     }
 

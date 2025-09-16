@@ -89,6 +89,7 @@ src/main/resources/application.yml
 .trae
 .rules
 .qoder
+CODEBUDDY.md
 
 # Development tools
 .sonar/

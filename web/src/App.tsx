@@ -1,12 +1,13 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { DashboardLayout } from './components/layout/dashboard-layout'
+import { DashboardLayout } from '@/components/layout'
 import LoginPage from './app/login/page'
 import DashboardPage from './app/dashboard/page'
 import UsersPage from './app/users/page'
 import ProvidersPage from './app/providers/page'
 import ModelsPage from './app/models/page'
+import ApiKeysPage from './app/apikeys/page'
 import AuthCallbackPage from './app/auth/callback/page'
 import AuthSuccessPage from './app/auth/success/page'
 import AuthErrorPage from './app/auth/error/page'
@@ -61,13 +62,21 @@ function AppContent() {
           </DashboardLayout>
         ) : <Navigate to="/login" replace />} 
       />
-      <Route 
-        path="/models" 
+      <Route
+        path="/models"
         element={isAuthenticated ? (
           <DashboardLayout>
             <ModelsPage />
           </DashboardLayout>
-        ) : <Navigate to="/login" replace />} 
+        ) : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/apikeys"
+        element={isAuthenticated ? (
+          <DashboardLayout>
+            <ApiKeysPage />
+          </DashboardLayout>
+        ) : <Navigate to="/login" replace />}
       />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/auth/success" element={<AuthSuccessPage />} />

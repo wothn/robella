@@ -6,6 +6,7 @@ import {
   Bot,
   Command,
   Frame,
+  Key,
   LifeBuoy,
   Map,
   PieChart,
@@ -142,6 +143,17 @@ const data = {
         {
           title: "Provider Models",
           url: "/providers/models",
+        },
+      ],
+    },
+    {
+      title: "API Keys",
+      url: "/apikeys",
+      icon: Key,
+      items: [
+        {
+          title: "Manage API Keys",
+          url: "/apikeys",
         },
       ],
     },

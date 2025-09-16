@@ -9,6 +9,7 @@ Robella is an AI API gateway that provides unified access to multiple AI service
 ## Architecture
 
 ### Backend (Java Spring WebFlux)
+the first：there is **not** use spring security, onlt import spring-security-crypto for password encoding
 - **Framework**: Spring Boot 3.2.5 with WebFlux for reactive programming
 - **Database**: PostgreSQL with R2DBC for reactive database access
 - **Authentication**: JWT-based authentication with GitHub OAuth support

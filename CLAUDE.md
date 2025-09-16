@@ -9,6 +9,7 @@ Robella is an AI API gateway that provides unified access to multiple AI service
 ## Architecture
 
 ### Backend (Java Spring WebFlux)
+the first：there is **not** use spring security, onlt import spring-security-crypto for password encoding
 - **Framework**: Spring Boot 3.2.5 with WebFlux for reactive programming
 - **Database**: PostgreSQL with R2DBC for reactive database access
 - **Authentication**: JWT-based authentication with GitHub OAuth support
@@ -83,27 +84,6 @@ npm run preview
 
 ## Configuration
 
-### Environment Variables
-```bash
-# Database
-POSTGRES_USERNAME=postgres
-POSTGRES_PASSWORD=your_password
-
-# JWT
-JWT_SECRET=your_jwt_secret_key
-
-# GitHub OAuth
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-GITHUB_REDIRECT_URI=http://localhost:10032/api/oauth/github/callback
-
-# AI Provider API Keys
-OPENAI_API_KEY=your_openai_key
-CLAUDE_API_KEY=your_claude_key
-GEMINI_API_KEY=your_gemini_key
-QWEN_API_KEY=your_qwen_key
-```
-
 ### Key Configuration Files
 - `src/main/resources/application.yml` - Main application configuration
 - `src/main/resources/schema.sql` - Database schema definition
@@ -167,3 +147,17 @@ QWEN_API_KEY=your_qwen_key
 - Model routing is dynamic and can be configured at runtime
 - Both streaming and non-streaming responses are supported
 - The system supports both OpenAI-compatible and Anthropic-native API formats
+
+## AI 开发哲学
+
+**KISS原则 (Keep It Simple, Stupid)**
+1. 简单优于复杂: 优先选择简单直接的解决方案
+2. 可读性第一: 代码是给人看的，其次才是给机器执行的
+3. 避免过度设计: 不要为了未来可能的需求而过度设计
+4. 单一职责: 每个函数、类、模块只做一件事
+
+**Linus精神**
+1. 代码质量至上: 糟糕的代码是技术债务，好的代码是资产
+2. 直接而诚实: 代码评审时直接指出问题，不要含糊其辞
+3. 性能意识: 始终考虑代码的性能影响
+
