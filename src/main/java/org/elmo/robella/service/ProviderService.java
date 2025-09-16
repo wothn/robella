@@ -89,6 +89,7 @@ public class ProviderService {
                     existingVendorModel.setModelId(vendorModel.getModelId());
                     existingVendorModel.setProviderId(vendorModel.getProviderId());
                     existingVendorModel.setVendorModelName(vendorModel.getVendorModelName());
+                    existingVendorModel.setProviderType(vendorModel.getProviderType());
                     existingVendorModel.setDescription(vendorModel.getDescription());
                     existingVendorModel.setInputPerMillionTokens(vendorModel.getInputPerMillionTokens());
                     existingVendorModel.setOutputPerMillionTokens(vendorModel.getOutputPerMillionTokens());

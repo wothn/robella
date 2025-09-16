@@ -64,7 +64,7 @@ public class RoutingService {
      * 然后根据其 providerId 获取 Provider，并通过 ClientFactory 获取对应的 ApiClient 实例。
      *
      * @param vendorModelName 供应商模型名称
-     * @return Mono<ClientWithProvider> 对应的 API 客户端和 Provider，如果未找到则为空
+     * @return Mono<ClientWithProvider> 对应的 API 客户端、Provider 和 VendorModel，如果未找到则为空
      */
     public Mono<ClientWithProvider> getClientWithProviderByVendorModelName(String vendorModelName) {
         return vendorModelRepository.findByVendorModelName(vendorModelName)
@@ -72,7 +72,7 @@ public class RoutingService {
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> {
                     ApiClient client = clientFactory.getClient(provider.getEndpointType());
-                    return new ClientWithProvider(client, provider);
+                    return new ClientWithProvider(client, provider, vendorModel);
                 }));
     }
 
@@ -109,15 +109,17 @@ public class RoutingService {
     }
 
     /**
-     * 客户端和 Provider 的封装类
+     * 客户端、Provider 和 VendorModel 的封装类
      */
     public static class ClientWithProvider {
         private final ApiClient client;
         private final Provider provider;
+        private final VendorModel vendorModel;
         
-        public ClientWithProvider(ApiClient client, Provider provider) {
+        public ClientWithProvider(ApiClient client, Provider provider, VendorModel vendorModel) {
             this.client = client;
             this.provider = provider;
+            this.vendorModel = vendorModel;
         }
         
         public ApiClient getClient() {
@@ -126,6 +128,10 @@ public class RoutingService {
         
         public Provider getProvider() {
             return provider;
+        }
+        
+        public VendorModel getVendorModel() {
+            return vendorModel;
         }
     }
 

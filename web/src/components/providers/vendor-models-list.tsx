@@ -70,6 +70,14 @@ export function VendorModelsList({
                     <Badge variant={model.enabled ? 'default' : 'secondary'}>
                       {model.enabled ? '启用' : '禁用'}
                     </Badge>
+                    {model.providerType && (
+                      <Badge variant="outline">
+                        {model.providerType === 'DEEPSEEK' ? 'DeepSeek' :
+                         model.providerType === 'VOLCANOENGINE' ? '火山引擎' :
+                         model.providerType === 'ZHIPU' ? '智谱AI' :
+                         model.providerType === 'DASHSCOPE' ? '通义千问' : model.providerType}
+                      </Badge>
+                    )}
                   </div>
                   {model.description && (
                     <p className="text-sm text-gray-600 mb-2">{model.description}</p>

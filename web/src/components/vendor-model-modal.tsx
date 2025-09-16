@@ -9,7 +9,10 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Bot, Plus, Edit } from 'lucide-react'
+
+export type ProviderType = 'DEEPSEEK' | 'VOLCANOENGINE' | 'ZHIPU' | 'DASHSCOPE'
 
 interface VendorModelModalProps {
   vendorModel?: VendorModel
@@ -34,6 +37,7 @@ export function VendorModelModal({
     currency: '',
     cachedInputPrice: '',
     cachedOutputPrice: '',
+    providerType: 'DEEPSEEK' as ProviderType,
     enabled: true
   })
   const [open, setOpen] = useState(isOpen || false)
@@ -51,6 +55,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
+        providerType: 'DEEPSEEK' as ProviderType,
         enabled: true
       })
     }
@@ -70,6 +75,7 @@ export function VendorModelModal({
         currency: vendorModel.currency || '',
         cachedInputPrice: vendorModel.cachedInputPrice || '',
         cachedOutputPrice: vendorModel.cachedOutputPrice || '',
+        providerType: (vendorModel.providerType as ProviderType) || 'DEEPSEEK',
         enabled: vendorModel.enabled ?? true
       })
     } else {
@@ -82,6 +88,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
+        providerType: 'DEEPSEEK' as ProviderType,
         enabled: true
       })
     }
@@ -90,9 +97,10 @@ export function VendorModelModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const data = vendorModel 
+    const data = vendorModel
       ? {
           providerId: vendorModel.providerId,
+          providerType: formData.providerType,
           vendorModelName: formData.vendorModelName,
           description: formData.description || undefined,
           inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
@@ -104,6 +112,7 @@ export function VendorModelModal({
         } as UpdateVendorModelRequest
       : {
           providerId,
+          providerType: formData.providerType,
           vendorModelName: formData.vendorModelName,
           description: formData.description || undefined,
           inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
@@ -126,6 +135,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
+        providerType: 'DEEPSEEK' as ProviderType,
         enabled: true
       })
     }
@@ -169,6 +179,21 @@ export function VendorModelModal({
               placeholder="例如: gpt-4, claude-3-sonnet-20240229"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="providerType">提供商类型 *</Label>
+            <Select value={formData.providerType} onValueChange={(value) => setFormData({ ...formData, providerType: value as ProviderType })}>
+              <SelectTrigger>
+                <SelectValue placeholder="选择提供商类型" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DEEPSEEK">DeepSeek</SelectItem>
+                <SelectItem value="VOLCANOENGINE">火山引擎</SelectItem>
+                <SelectItem value="ZHIPU">智谱AI</SelectItem>
+                <SelectItem value="DASHSCOPE">通义千问</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

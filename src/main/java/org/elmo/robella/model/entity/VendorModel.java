@@ -1,5 +1,6 @@
 package org.elmo.robella.model.entity;
 
+import org.elmo.robella.common.ProviderType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -22,6 +23,7 @@ public class VendorModel {
     private Long modelId;
     private Long providerId;
     private String vendorModelName;
+    private ProviderType providerType;
     private String description;
     @JsonSerialize(using = ToStringSerializer.class)
     private BigDecimal inputPerMillionTokens;

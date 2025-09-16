@@ -45,8 +45,12 @@ public class UnifiedService {
         // 获取合适的客户端和 Provider
         return routingService.getClientWithProviderByVendorModelName(modelName)
                 .flatMap(clientWithProvider -> {
-                    // 填充 ProviderType
-                    request.setProviderType(clientWithProvider.getProvider().getProviderType());
+                    // 填充 ProviderType，优先使用 VendorModel 的 ProviderType
+                    if (clientWithProvider.getVendorModel().getProviderType() != null) {
+                        request.setProviderType(clientWithProvider.getVendorModel().getProviderType());
+                    } else if (clientWithProvider.getProvider().getProviderType() != null) {
+                        request.setProviderType(clientWithProvider.getProvider().getProviderType());
+                    }
                     // 发起请求
                     return clientWithProvider.getClient().chatCompletion(request, clientWithProvider.getProvider());
                 });
@@ -58,8 +62,12 @@ public class UnifiedService {
         // 获取合适的客户端和 Provider
         return routingService.getClientWithProviderByVendorModelName(modelName)
                 .flatMapMany(clientWithProvider -> {
-                    // 填充 ProviderType
-                    request.setProviderType(clientWithProvider.getProvider().getProviderType());
+                    // 填充 ProviderType，优先使用 VendorModel 的 ProviderType
+                    if (clientWithProvider.getVendorModel().getProviderType() != null) {
+                        request.setProviderType(clientWithProvider.getVendorModel().getProviderType());
+                    } else {
+                        request.setProviderType(clientWithProvider.getProvider().getProviderType());
+                    }
                     // 发起流式请求
                     return clientWithProvider.getClient().streamChatCompletion(request, clientWithProvider.getProvider());
                 })

@@ -2,6 +2,7 @@ export interface VendorModel {
   id: number
   modelId?: number
   providerId: number
+  providerType: string
   vendorModelName: string
   description?: string
   inputPerMillionTokens?: string
@@ -19,6 +20,7 @@ export interface VendorModel {
 export interface CreateVendorModelRequest {
   modelId?: number
   providerId: number
+  providerType: string
   vendorModelName: string
   description?: string
   inputPerMillionTokens?: string
@@ -32,6 +34,7 @@ export interface CreateVendorModelRequest {
 export interface UpdateVendorModelRequest {
   modelId?: number
   providerId?: number
+  providerType?: string
   vendorModelName?: string
   description?: string
   inputPerMillionTokens?: string
