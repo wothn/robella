@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Bot, Trash2 } from 'lucide-react'
-import { VendorModelModal } from '@/components/vendor-model-modal'
+import { VendorModelModal } from '@/components/providers/vendor-model-modal'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,7 +72,8 @@ export function VendorModelsList({
                     </Badge>
                     {model.providerType && (
                       <Badge variant="outline">
-                        {model.providerType === 'DEEPSEEK' ? 'DeepSeek' :
+                        {model.providerType === 'NONE' ? '无转换器' :
+                         model.providerType === 'OPENAI' ? 'OpenAI' :
                          model.providerType === 'VOLCANOENGINE' ? '火山引擎' :
                          model.providerType === 'ZHIPU' ? '智谱AI' :
                          model.providerType === 'DASHSCOPE' ? '通义千问' : model.providerType}

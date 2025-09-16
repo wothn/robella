@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS provider (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    type VARCHAR(50) NOT NULL,
+    type VARCHAR(50),
     base_url VARCHAR(500),
     api_key VARCHAR(500),
     config TEXT,
@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS vendor_model (
     model_id BIGINT NOT NULL,
     provider_id BIGINT NOT NULL,
     vendor_model_name VARCHAR(100) NOT NULL,
+    provider_type VARCHAR(50),
     description TEXT,
     input_per_million_tokens DECIMAL(19, 6),
     output_per_million_tokens DECIMAL(19, 6),

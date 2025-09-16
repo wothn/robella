@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Bot, Plus, Edit } from 'lucide-react'
 
-export type ProviderType = 'DEEPSEEK' | 'VOLCANOENGINE' | 'ZHIPU' | 'DASHSCOPE'
+export type ProviderType = 'NONE' | 'OPENAI' | 'VOLCANOENGINE' | 'ZHIPU' | 'DASHSCOPE'
 
 interface VendorModelModalProps {
   vendorModel?: VendorModel
@@ -37,7 +37,7 @@ export function VendorModelModal({
     currency: '',
     cachedInputPrice: '',
     cachedOutputPrice: '',
-    providerType: 'DEEPSEEK' as ProviderType,
+    providerType: 'OPENAI' as ProviderType,
     enabled: true
   })
   const [open, setOpen] = useState(isOpen || false)
@@ -55,7 +55,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
-        providerType: 'DEEPSEEK' as ProviderType,
+        providerType: 'OPENAI' as ProviderType,
         enabled: true
       })
     }
@@ -75,7 +75,7 @@ export function VendorModelModal({
         currency: vendorModel.currency || '',
         cachedInputPrice: vendorModel.cachedInputPrice || '',
         cachedOutputPrice: vendorModel.cachedOutputPrice || '',
-        providerType: (vendorModel.providerType as ProviderType) || 'DEEPSEEK',
+        providerType: (vendorModel.providerType as ProviderType) || 'OPENAI',
         enabled: vendorModel.enabled ?? true
       })
     } else {
@@ -88,7 +88,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
-        providerType: 'DEEPSEEK' as ProviderType,
+        providerType: 'OPENAI' as ProviderType,
         enabled: true
       })
     }
@@ -135,7 +135,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
-        providerType: 'DEEPSEEK' as ProviderType,
+        providerType: 'NONE' as ProviderType,
         enabled: true
       })
     }
@@ -188,7 +188,8 @@ export function VendorModelModal({
                 <SelectValue placeholder="选择提供商类型" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DEEPSEEK">DeepSeek</SelectItem>
+                <SelectItem value="NONE">无转换器</SelectItem>
+                <SelectItem value="OPENAI">OpenAI</SelectItem>
                 <SelectItem value="VOLCANOENGINE">火山引擎</SelectItem>
                 <SelectItem value="ZHIPU">智谱AI</SelectItem>
                 <SelectItem value="DASHSCOPE">通义千问</SelectItem>

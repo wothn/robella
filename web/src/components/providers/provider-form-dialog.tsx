@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export type EndpointType = 'OPENAI' | 'ANTHROPIC'
-export type ProviderType = 'DEEPSEEK' | 'VOLCANOENGINE' | 'ZHIPU' | 'DASHSCOPE'
+export type ProviderType = 'NONE' | 'OPENAI' | 'VOLCANOENGINE' | 'ZHIPU' | 'DASHSCOPE'
 
 interface ProviderFormDialogProps {
   isOpen: boolean
@@ -43,7 +43,7 @@ export function ProviderFormDialog({
   const [formData, setFormData] = useState<ProviderFormData>({
     name: '',
     endpointType: 'OPENAI',
-    providerType: 'DEEPSEEK',
+    providerType: 'OPENAI',
     baseUrl: '',
     apiKey: '',
     enabled: true,
@@ -73,7 +73,7 @@ export function ProviderFormDialog({
     setFormData({
       name: provider?.name || '',
       endpointType: (provider?.endpointType as any) || 'OPENAI',
-      providerType: (provider?.providerType as any) || 'DEEPSEEK',
+      providerType: (provider?.providerType as any) || 'OPENAI',
       baseUrl: provider?.baseUrl || '',
       apiKey: provider?.apiKey || '',
       enabled: provider?.enabled ?? true,
@@ -135,7 +135,8 @@ export function ProviderFormDialog({
                 <SelectValue placeholder="选择提供商类型" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DEEPSEEK">DeepSeek</SelectItem>
+                <SelectItem value="NONE">无转换器</SelectItem>
+                <SelectItem value="OPENAI">OPENAI</SelectItem>
                 <SelectItem value="VOLCANOENGINE">火山引擎</SelectItem>
                 <SelectItem value="ZHIPU">智谱AI</SelectItem>
                 <SelectItem value="DASHSCOPE">通义千问</SelectItem>

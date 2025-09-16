@@ -3,7 +3,6 @@ package org.elmo.robella.service.stream.anthropic;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.model.anthropic.stream.*;
 import org.elmo.robella.model.anthropic.content.*;
-import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.openai.core.Choice;
 import org.elmo.robella.model.openai.core.Usage;
 import org.elmo.robella.model.openai.stream.Delta;

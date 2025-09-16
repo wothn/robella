@@ -2,7 +2,7 @@
 
 import { Provider, VendorModel } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { VendorModelModal } from '@/components/vendor-model-modal'
+import { VendorModelModal } from '@/components/providers/vendor-model-modal'
 import { apiClient } from '@/lib/api'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { 

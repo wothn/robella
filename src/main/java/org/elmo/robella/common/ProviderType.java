@@ -2,6 +2,7 @@ package org.elmo.robella.common;
 
 
 public enum ProviderType {
+    NONE("NONE", EndpointType.OPENAI),
     DEEPSEEK("DEEPSEEK", EndpointType.OPENAI),
     VOLCANOENGINE("VOLCANOENGINE", EndpointType.OPENAI),
     ZHIPU("ZHIPU", EndpointType.OPENAI),
