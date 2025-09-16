@@ -43,7 +43,7 @@ public class UnifiedService {
         String modelName = request.getModel();
         
         // 获取合适的客户端和 Provider
-        return routingService.getClientWithProviderByVendorModelName(modelName)
+        return routingService.getClientWithProviderByModelKey(modelName)
                 .flatMap(clientWithProvider -> {
                     // 填充 ProviderType，优先使用 VendorModel 的 ProviderType
                     if (clientWithProvider.getVendorModel().getProviderType() != null) {
@@ -60,7 +60,7 @@ public class UnifiedService {
         String modelName = request.getModel();
 
         // 获取合适的客户端和 Provider
-        return routingService.getClientWithProviderByVendorModelName(modelName)
+        return routingService.getClientWithProviderByModelKey(modelName)
                 .flatMapMany(clientWithProvider -> {
                     // 填充 ProviderType，优先使用 VendorModel 的 ProviderType
                     if (clientWithProvider.getVendorModel().getProviderType() != null) {

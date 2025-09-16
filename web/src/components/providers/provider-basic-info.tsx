@@ -10,7 +10,7 @@ import { Edit, Trash2 } from 'lucide-react'
 interface ProviderBasicInfoProps {
   provider: Provider
   onEdit: () => void
-  onDelete: () => void
+  onDelete: (providerId: number) => void
 }
 
 export function ProviderBasicInfo({ provider, onEdit, onDelete }: ProviderBasicInfoProps) {
@@ -25,7 +25,7 @@ export function ProviderBasicInfo({ provider, onEdit, onDelete }: ProviderBasicI
           <Edit className="h-4 w-4 mr-1" />
           编辑
         </Button>
-        <Button variant="destructive" size="sm" onClick={onDelete}>
+        <Button variant="destructive" size="sm" onClick={() => onDelete(provider.id)}>
           <Trash2 className="h-4 w-4 mr-1" />
           删除
         </Button>

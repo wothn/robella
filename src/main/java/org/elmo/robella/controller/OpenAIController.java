@@ -39,11 +39,11 @@ public class OpenAIController {
     public Mono<ResponseEntity<?>> chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
         String originalModelName = request.getModel();
 
-        // 首先进行模型映射，获取供应商模型名称
-        return routingService.mapToVendorModelName(originalModelName)
-                .flatMap(vendorModelName -> {
-                    // 更新请求中的模型名称为供应商模型名称
-                    request.setModel(vendorModelName);
+        // 首先进行模型映射，获取供应商模型调用标识
+        return routingService.mapToVendorModelKey(originalModelName)
+                .flatMap(modelKey -> {
+                    // 更新请求中的模型名称为供应商模型调用标识
+                    request.setModel(modelKey);
                     
                     // 直接使用OpenAI转换器进行统一处理
                     UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);

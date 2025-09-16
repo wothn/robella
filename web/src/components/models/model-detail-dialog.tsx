@@ -285,7 +285,10 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <h4 className="font-medium">{vendorModel.vendorModelName}</h4>
-                                <Badge 
+                                <Badge variant="outline" className="text-xs">
+                                  {vendorModel.modelKey}
+                                </Badge>
+                                <Badge
                                   variant={vendorModel.enabled ? 'default' : 'secondary'}
                                   className="text-xs"
                                 >

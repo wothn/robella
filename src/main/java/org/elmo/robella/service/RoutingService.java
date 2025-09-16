@@ -38,16 +38,16 @@ public class RoutingService {
     }
 
     /**
-     * 将客户端模型名称映射到供应商模型名称
-     * 
+     * 将客户端模型名称映射到供应商模型调用标识
+     *
      * @param clientModelName 客户端请求中的模型名称
-     * @return 供应商特定的模型名称，如果找不到映射则返回原名称
+     * @return 供应商特定的模型调用标识，如果找不到映射则返回原名称
      */
-    public Mono<String> mapToVendorModelName(String clientModelName) {
+    public Mono<String> mapToVendorModelKey(String clientModelName) {
         return selectVendor(clientModelName)
-                .map(VendorModel::getVendorModelName)
-                .doOnNext(vendorModelName -> log.debug("Mapped client model '{}' to vendor model '{}'", 
-                        clientModelName, vendorModelName))
+                .map(VendorModel::getModelKey)
+                .doOnNext(modelKey -> log.debug("Mapped client model '{}' to vendor model key '{}'",
+                        clientModelName, modelKey))
                 .doOnError(error -> log.warn("Failed to map model '{}': {}", clientModelName, error.getMessage()))
                 .onErrorReturn(clientModelName) // 如果映射失败，返回原模型名称
                 .switchIfEmpty(Mono.fromSupplier(() -> {
@@ -58,16 +58,16 @@ public class RoutingService {
 
 
     /**
-     * 根据供应商模型名称获取对应的 API 客户端和 Provider。
+     * 根据供应商模型调用标识获取对应的 API 客户端和 Provider。
      * <p>
-     * 该方法通过供应商模型名称查找启用的 VendorModel，
+     * 该方法通过供应商模型调用标识查找启用的 VendorModel，
      * 然后根据其 providerId 获取 Provider，并通过 ClientFactory 获取对应的 ApiClient 实例。
      *
-     * @param vendorModelName 供应商模型名称
+     * @param modelKey 供应商模型调用标识
      * @return Mono<ClientWithProvider> 对应的 API 客户端、Provider 和 VendorModel，如果未找到则为空
      */
-    public Mono<ClientWithProvider> getClientWithProviderByVendorModelName(String vendorModelName) {
-        return vendorModelRepository.findByVendorModelName(vendorModelName)
+    public Mono<ClientWithProvider> getClientWithProviderByModelKey(String modelKey) {
+        return vendorModelRepository.findByModelKey(modelKey)
             .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> {
@@ -93,16 +93,13 @@ public class RoutingService {
 
 
     /**
-     * Get provider type by vendor model name directly
-     */
-    /**
-     * 通过供应商模型名称直接获取 EndpointType 类型。
+     * 通过供应商模型调用标识直接获取 EndpointType 类型。
      *
-     * @param vendorModelName 供应商模型名称
+     * @param modelKey 供应商模型调用标识
      * @return Mono<EndpointType> 供应商类型，如果未找到则为空
      */
-    public Mono<EndpointType> getProviderTypeByVendorModelName(String vendorModelName) {
-        return vendorModelRepository.findByVendorModelName(vendorModelName)
+    public Mono<EndpointType> getProviderTypeByModelKey(String modelKey) {
+        return vendorModelRepository.findByModelKey(modelKey)
             .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> provider.getEndpointType()));

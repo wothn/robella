@@ -8,13 +8,23 @@ import { Settings } from 'lucide-react'
 import { useProviders } from '@/hooks/use-providers'
 import { ErrorHandler } from '@/components/error-handler'
 import { LoadingState } from '@/components/loading-state'
-import { 
-  ProviderList, 
-  ProviderDetails, 
-  ProviderFormDialog, 
-  type ProviderFormData 
+import {
+  ProviderList,
+  ProviderDetails,
+  ProviderFormDialog,
+  type ProviderFormData
 } from '@/components/providers'
 import { Toaster } from '@/components/ui/sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function ProvidersPage() {
   const {
@@ -33,6 +43,7 @@ export default function ProvidersPage() {
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
+  const [deleteProviderId, setDeleteProviderId] = useState<number | null>(null)
 
   const handleCreateProvider = async (formData: ProviderFormData) => {
     try {
@@ -55,11 +66,12 @@ export default function ProvidersPage() {
     }
   }
 
-  const handleDeleteProvider = async (providerId: number) => {
-    if (!confirm('确定要删除这个Provider吗？')) return
+  const handleDeleteProvider = async () => {
+    if (!deleteProviderId) return
 
     try {
-      await deleteProvider(providerId)
+      await deleteProvider(deleteProviderId)
+      setDeleteProviderId(null)
     } catch (error) {
       // Error is handled by the hook
     }
@@ -102,7 +114,7 @@ export default function ProvidersPage() {
               provider={selectedProvider}
               vendorModels={vendorModels}
               onEdit={openEditDialog}
-              onDelete={handleDeleteProvider}
+              onDelete={setDeleteProviderId}
               onVendorModelsChange={() => refreshVendorModels(selectedProvider.id)}
             />
           ) : (
@@ -131,6 +143,24 @@ export default function ProvidersPage() {
           title={editingProvider ? '编辑 Provider' : '创建新 Provider'}
           description={editingProvider ? '修改 Provider 的配置信息' : '添加一个新的 AI 服务提供商'}
         />
+
+        {/* 删除确认对话框 */}
+        <AlertDialog open={!!deleteProviderId} onOpenChange={() => setDeleteProviderId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认删除</AlertDialogTitle>
+              <AlertDialogDescription>
+                此操作将永久删除该Provider及其所有Vendor Models，且无法撤销。确定要继续吗？
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteProvider} className="bg-red-600 hover:bg-red-700">
+                删除
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Toaster />
         <ErrorHandler error={error} onClearError={clearError} />

@@ -158,6 +158,7 @@ export function ModelConfigDialog({
     return providers.map(provider => {
       const filteredVendorModels = provider.vendorModels.filter(vm =>
         vm.vendorModelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        vm.modelKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (vm.description && vm.description.toLowerCase().includes(searchQuery.toLowerCase()))
       )
 
@@ -269,6 +270,9 @@ export function ModelConfigDialog({
                                     <h4 className="font-medium text-sm truncate">
                                       {vendorModel.vendorModelName}
                                     </h4>
+                                    <Badge variant="outline" className="text-xs">
+                                      {vendorModel.modelKey}
+                                    </Badge>
                                     {isBound && (
                                       <Badge variant="default" className="text-xs">
                                         已绑定

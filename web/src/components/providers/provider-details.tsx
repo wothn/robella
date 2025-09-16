@@ -1,16 +1,27 @@
 'use client'
 
+import { useState } from 'react'
 import { Provider, VendorModel } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VendorModelModal } from '@/components/providers/vendor-model-modal'
 import { apiClient } from '@/lib/api'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { 
-  ProviderBasicInfo, 
-  ProviderDetailsCard, 
-  ProviderConfigCard 
+import {
+  ProviderBasicInfo,
+  ProviderDetailsCard,
+  ProviderConfigCard
 } from './provider-basic-info'
 import { VendorModelsList } from './vendor-models-list'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface ProviderDetailsProps {
   provider: Provider
@@ -27,6 +38,7 @@ export function ProviderDetails({
   onDelete,
   onVendorModelsChange
 }: ProviderDetailsProps) {
+  const [deleteModelId, setDeleteModelId] = useState<number | null>(null)
   const handleCreateVendorModel = async (data: any) => {
     try {
       await apiClient.createVendorModel(provider.id, data)
@@ -45,11 +57,12 @@ export function ProviderDetails({
     }
   }
 
-  const handleDeleteVendorModel = async (modelId: number) => {
-    if (!confirm('确定要删除这个Vendor Model吗？')) return
+  const handleDeleteVendorModel = async () => {
+    if (!deleteModelId) return
     try {
-      await apiClient.deleteVendorModel(modelId)
+      await apiClient.deleteVendorModel(deleteModelId)
       onVendorModelsChange()
+      setDeleteModelId(null)
     } catch (error) {
       console.error('Failed to delete vendor model:', error)
     }
@@ -89,12 +102,30 @@ export function ProviderDetails({
                 vendorModels={vendorModels}
                 providerId={provider.id}
                 onUpdateModel={handleUpdateVendorModel}
-                onDeleteModel={handleDeleteVendorModel}
+                onDeleteModel={setDeleteModelId}
               />
             </TabsContent>
           </Tabs>
         </div>
       </ScrollArea>
+
+      {/* 删除确认对话框 */}
+      <AlertDialog open={!!deleteModelId} onOpenChange={() => setDeleteModelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将永久删除该Vendor Model，且无法撤销。确定要继续吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteVendorModel} className="bg-red-600 hover:bg-red-700">
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

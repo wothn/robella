@@ -1,28 +1,17 @@
 'use client'
 
-import { useState } from 'react'
 import { VendorModel } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Bot, Trash2 } from 'lucide-react'
 import { VendorModelModal } from '@/components/providers/vendor-model-modal'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 
 interface VendorModelsListProps {
   vendorModels: VendorModel[]
   providerId: number
   onUpdateModel: (modelId: number, data: any) => Promise<void>
-  onDeleteModel: (modelId: number) => Promise<void>
+  onDeleteModel: (modelId: number) => void
 }
 
 export function VendorModelsList({
@@ -31,17 +20,6 @@ export function VendorModelsList({
   onUpdateModel,
   onDeleteModel
 }: VendorModelsListProps) {
-  const [deleteModelId, setDeleteModelId] = useState<number | null>(null)
-
-  const handleDeleteVendorModel = async () => {
-    if (!deleteModelId) return
-    try {
-      await onDeleteModel(deleteModelId)
-      setDeleteModelId(null)
-    } catch (error) {
-      console.error('删除Vendor Model失败:', error)
-    }
-  }
 
   if (vendorModels.length === 0) {
     return (
@@ -67,6 +45,9 @@ export function VendorModelsList({
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-2">
                     <h4 className="font-medium">{model.vendorModelName}</h4>
+                    <Badge variant="outline">
+                      {model.modelKey}
+                    </Badge>
                     <Badge variant={model.enabled ? 'default' : 'secondary'}>
                       {model.enabled ? '启用' : '禁用'}
                     </Badge>
@@ -107,10 +88,10 @@ export function VendorModelsList({
                     providerId={providerId}
                     onSubmit={(data) => onUpdateModel(model.id, data)}
                   />
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     size="sm"
-                    onClick={() => setDeleteModelId(model.id)}
+                    onClick={() => onDeleteModel(model.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -120,24 +101,6 @@ export function VendorModelsList({
           </Card>
         ))}
       </div>
-
-      {/* 删除确认对话框 */}
-      <AlertDialog open={!!deleteModelId} onOpenChange={() => setDeleteModelId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作将永久删除该Vendor Model，且无法撤销。确定要继续吗？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteVendorModel} className="bg-red-600 hover:bg-red-700">
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

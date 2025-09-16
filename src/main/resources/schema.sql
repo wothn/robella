@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS vendor_model (
     model_id BIGINT NOT NULL,
     provider_id BIGINT NOT NULL,
     vendor_model_name VARCHAR(100) NOT NULL,
+    model_key VARCHAR(200) NOT NULL,
     provider_type VARCHAR(50),
     description TEXT,
     input_per_million_tokens DECIMAL(19, 6),
@@ -103,6 +104,7 @@ CREATE INDEX IF NOT EXISTS idx_model_created_at ON model(created_at);
 CREATE INDEX IF NOT EXISTS idx_vendor_model_model_id ON vendor_model(model_id);
 CREATE INDEX IF NOT EXISTS idx_vendor_model_provider_id ON vendor_model(provider_id);
 CREATE INDEX IF NOT EXISTS idx_vendor_model_vendor_model_name ON vendor_model(vendor_model_name);
+CREATE INDEX IF NOT EXISTS idx_vendor_model_model_key ON vendor_model(model_key);
 CREATE INDEX IF NOT EXISTS idx_vendor_model_enabled ON vendor_model(enabled);
 CREATE INDEX IF NOT EXISTS idx_vendor_model_created_at ON vendor_model(created_at);
 
@@ -158,6 +160,7 @@ COMMENT ON COLUMN vendor_model.id IS '供应商模型ID';
 COMMENT ON COLUMN vendor_model.model_id IS '模型ID';
 COMMENT ON COLUMN vendor_model.provider_id IS '提供商ID';
 COMMENT ON COLUMN vendor_model.vendor_model_name IS '供应商模型名称';
+COMMENT ON COLUMN vendor_model.model_key IS '模型调用标识';
 COMMENT ON COLUMN vendor_model.description IS '描述';
 COMMENT ON COLUMN vendor_model.input_per_million_tokens IS '每百万输入令牌价格';
     COMMENT ON COLUMN vendor_model.output_per_million_tokens IS '每百万输出令牌价格';
