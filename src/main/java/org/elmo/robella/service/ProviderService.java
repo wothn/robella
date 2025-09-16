@@ -86,7 +86,6 @@ public class ProviderService {
     public Mono<VendorModel> updateVendorModel(Long id, VendorModel vendorModel) {
         return vendorModelRepository.findById(id)
                 .flatMap(existingVendorModel -> {
-                    existingVendorModel.setModelId(vendorModel.getModelId());
                     existingVendorModel.setProviderId(vendorModel.getProviderId());
                     existingVendorModel.setVendorModelName(vendorModel.getVendorModelName());
                     existingVendorModel.setProviderType(vendorModel.getProviderType());
