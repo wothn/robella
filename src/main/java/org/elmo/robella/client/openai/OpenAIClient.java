@@ -41,13 +41,13 @@ public class OpenAIClient implements ApiClient {
 
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
-    private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAITransform;
+    private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAIEndpointTransform;
     private final EndpointToUnifiedStreamTransformer<ChatCompletionChunk> streamTransformer;
     private final Map<ProviderType, VendorTransform<ChatCompletionRequest, ChatCompletionResponse>> openaiProviderTransformMap;
 
     @Override
     public Mono<UnifiedChatResponse> chatCompletion(UnifiedChatRequest request, Provider provider) {
-        ChatCompletionRequest openaiRequest = openAITransform.unifiedToEndpointRequest(request);
+        ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
         if (request.getProviderType() != null) {
@@ -82,8 +82,8 @@ public class OpenAIClient implements ApiClient {
                 })
                 .bodyValue(finalRequest)
                 .retrieve()
-                .bodyToMono(ChatCompletionResponse.class) 
-                .map(response -> openAITransform.endpointToUnifiedResponse(response))
+                .bodyToMono(ChatCompletionResponse.class)
+                .map(response -> openAIEndpointTransform.endpointToUnifiedResponse(response))
                 .timeout(webClientProperties.getTimeout().getRead())
                 .onErrorMap(ex -> mapToProviderException(ex, "OpenAI API call"))
                 .doOnSuccess(resp -> {
@@ -95,7 +95,7 @@ public class OpenAIClient implements ApiClient {
 
     @Override
     public Flux<UnifiedStreamChunk> streamChatCompletion(UnifiedChatRequest request, Provider provider) {
-        ChatCompletionRequest openaiRequest = openAITransform.unifiedToEndpointRequest(request);
+        ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
         if (request.getProviderType() != null) {

@@ -26,7 +26,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AnthropicTransform implements EndpointTransform<AnthropicChatRequest, AnthropicMessage> {
+public class AnthropicEndpointTransform implements EndpointTransform<AnthropicChatRequest, AnthropicMessage> {
 
 
     @Override

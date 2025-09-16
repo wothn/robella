@@ -36,8 +36,10 @@ public class ChatCompletionRequest {
      * 最大token数
      */
     @JsonProperty("max_tokens")
-    @JsonAlias("max_completion_tokens")
     private Integer maxTokens;
+
+    @JsonProperty("max_completion_tokens")
+    private Integer maxCompletionsTokens;
     
     /**
      * 存在惩罚，-2.0到2.0之间

@@ -37,7 +37,7 @@ public class AnthropicController {
 
     private final UnifiedService unifiedService;
     private final RoutingService routingService;
-    private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
+    private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicEndpointTransform;
     private final UnifiedToEndpointStreamTransformer<AnthropicStreamEvent> unifiedToAnthropicStreamTransformer;
 
     /**
@@ -59,7 +59,7 @@ public class AnthropicController {
                     request.setModel(vendorModelName);
 
                     // 转换请求为统一格式
-                    UnifiedChatRequest unifiedRequest = anthropicTransform.endpointToUnifiedRequest(request);
+                    UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
 
                     if (Boolean.TRUE.equals(request.getStream())) {
                         // 处理流式响应

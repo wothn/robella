@@ -44,13 +44,13 @@ public class AnthropicClient implements ApiClient {
 
     private final WebClient webClient;
     private final WebClientProperties webClientProperties;
-    private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicTransform;
+    private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicEndpointTransform;
     private final EndpointToUnifiedStreamTransformer<Object> streamTransformer;
     private final Map<ProviderType, VendorTransform<AnthropicChatRequest, AnthropicMessage>> anthropicProviderTransformMap;
 
     @Override
     public Mono<UnifiedChatResponse> chatCompletion(UnifiedChatRequest request, Provider provider) {
-        AnthropicChatRequest anthropicRequest = anthropicTransform.unifiedToEndpointRequest(request);
+        AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
         if (request.getProviderType() != null) {
@@ -80,7 +80,7 @@ public class AnthropicClient implements ApiClient {
                 .bodyValue(finalRequest)
                 .retrieve()
                 .bodyToMono(AnthropicMessage.class)
-                .map(response -> anthropicTransform.endpointToUnifiedResponse(response))
+                .map(response -> anthropicEndpointTransform.endpointToUnifiedResponse(response))
                 .timeout(webClientProperties.getTimeout().getRead())
                 .onErrorMap(ex -> mapToProviderException(ex, "Anthropic API call"))
                 .doOnSuccess(resp -> {
@@ -94,7 +94,7 @@ public class AnthropicClient implements ApiClient {
 
     @Override
     public Flux<UnifiedStreamChunk> streamChatCompletion(UnifiedChatRequest request, Provider provider) {
-        AnthropicChatRequest anthropicRequest = anthropicTransform.unifiedToEndpointRequest(request);
+        AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
         if (request.getProviderType() != null) {

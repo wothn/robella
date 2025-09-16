@@ -2,7 +2,6 @@ package org.elmo.robella.util;
 
 import org.elmo.robella.model.internal.*;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
-import org.elmo.robella.model.openai.core.Thinking;
 
 
 /**
@@ -22,6 +21,7 @@ public class OpenAITransformUtils {
         unifiedRequest.setLogprobs(req.getLogprobs());
         unifiedRequest.setModel(req.getModel());
         unifiedRequest.setMaxTokens(req.getMaxTokens());
+        unifiedRequest.setMaxTokens(req.getMaxCompletionsTokens());
         unifiedRequest.setModalities(req.getModalities());
         unifiedRequest.setN(req.getN());
         unifiedRequest.setParallelToolCalls(req.getParallelToolCalls());

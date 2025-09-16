@@ -5,7 +5,8 @@ public enum ProviderType {
     DEEPSEEK("DEEPSEEK", EndpointType.OPENAI),
     VOLCANOENGINE("VOLCANOENGINE", EndpointType.OPENAI),
     ZHIPU("ZHIPU", EndpointType.OPENAI),
-    DASHSCOPE("DASHSCOPE", EndpointType.OPENAI);
+    DASHSCOPE("DASHSCOPE", EndpointType.OPENAI),
+    OPENAI("OPENAI", EndpointType.OPENAI);
 
 
     private final String name;

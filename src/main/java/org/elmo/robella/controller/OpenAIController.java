@@ -32,7 +32,7 @@ public class OpenAIController {
 
     private final UnifiedService unifiedService;
     private final RoutingService routingService;
-    private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAITransform;
+    private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAIEndpointTransform;
     private final UnifiedToEndpointStreamTransformer<ChatCompletionChunk> unifiedToOpenAIStreamTransformer;
 
     @PostMapping(value = "/chat/completions", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE })
@@ -46,7 +46,7 @@ public class OpenAIController {
                     request.setModel(vendorModelName);
                     
                     // 直接使用OpenAI转换器进行统一处理
-                    UnifiedChatRequest unifiedRequest = openAITransform.endpointToUnifiedRequest(request);
+                    UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
 
                     if (Boolean.TRUE.equals(request.getStream())) {
                         String uuid = UUID.randomUUID().toString();
