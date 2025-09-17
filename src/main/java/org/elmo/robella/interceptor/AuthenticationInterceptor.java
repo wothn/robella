@@ -34,6 +34,7 @@ public class AuthenticationInterceptor implements WebFilter {
 
         // 公开端点跳过JWT验证
         if (isPublicEndpoint(path)) {
+            log.debug("Public endpoint accessed: {}", path);
             return chain.filter(exchange);
         }
 
@@ -82,6 +83,7 @@ public class AuthenticationInterceptor implements WebFilter {
 
     private Mono<Void> handleUnauthorized(ServerWebExchange exchange, String message) {
         ServerHttpResponse response = exchange.getResponse();
+        // 未认证401
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
         response.getHeaders().add("Content-Type", "application/json");
         

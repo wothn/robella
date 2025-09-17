@@ -180,71 +180,104 @@ class ApiClient {
       throw new Error('No refresh token available')
     }
 
-    console.log('[ApiClient] Attempting to refresh token...')
+    const response = await fetch(`${this.baseURL}/users/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    })
 
-    try {
-      const url = `${this.baseURL}/users/refresh`
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      })
-
-      if (!response.ok) {
-        storage.clearAuth()
-        window.location.href = '/login'
-        throw new Error(`Token refresh failed with status: ${response.status}`)
-      }
-
-      return response.json()
-    } catch (error) {
+    if (!response.ok) {
       storage.clearAuth()
       window.location.href = '/login'
-      throw error
+      throw new Error('Failed to refresh token')
     }
+
+    const data: LoginResponse = await response.json()
+    storage.setAuthTokens(data.accessToken, data.refreshToken)
+    return data
   }
 
-  // 处理令牌刷新逻辑
+  // 处理令牌刷新
   private async handleTokenRefresh<T>(
     endpoint: string,
     headers: Record<string, string>,
     config: RequestInit,
     url: string
   ): Promise<T> {
-    const isRefreshRequest = endpoint.includes('/users/refresh')
-    const isAlreadyRefreshing = storage.isRefreshing()
-
-    if (isRefreshRequest || isAlreadyRefreshing) {
-      storage.clearAuth()
-      window.location.href = '/login'
-      throw new Error('Token refresh failed')
+    // 检查是否正在刷新中，避免并发刷新
+    if (storage.isRefreshing()) {
+      // 等待刷新完成
+      await this.waitForRefreshComplete()
+      // 使用新token重试原请求
+      return this.retryRequest<T>(endpoint, config)
     }
-
-    storage.setRefreshing(true)
 
     try {
-      const newTokens = await this.refreshToken()
-      storage.setAuthTokens(newTokens.accessToken, newTokens.refreshToken)
-      storage.setRefreshing(false)
+      storage.setRefreshing(true)
 
-      const newHeaders = { ...headers, 'Authorization': `Bearer ${newTokens.accessToken}` }
-      const retryConfig: RequestInit = { ...config, headers: newHeaders }
-      const retryResponse = await fetch(url, retryConfig)
+      // 尝试刷新令牌
+      await this.refreshToken()
 
-      if (!retryResponse.ok) {
-        throw new Error(`Retry failed with status: ${retryResponse.status}`)
-      }
-
-      const contentType = retryResponse.headers.get('content-type')
-      return contentType?.includes('application/json')
-        ? await retryResponse.json()
-        : await retryResponse.text() as T
-    } catch (refreshError) {
+      // 使用新token重试原请求
+      return this.retryRequest<T>(endpoint, config)
+    } catch (error) {
+      console.error('Token refresh failed:', error)
       storage.clearAuth()
       window.location.href = '/login'
-      throw new Error('Token refresh failed')
+      throw error
+    } finally {
+      storage.setRefreshing(false)
     }
   }
+
+  // 等待刷新完成
+  private async waitForRefreshComplete(): Promise<void> {
+    const maxWaitTime = 10000 // 最多等待10秒
+    const checkInterval = 100 // 每100ms检查一次
+    let elapsedTime = 0
+
+    return new Promise((resolve, reject) => {
+      const checkIntervalId = setInterval(() => {
+        if (!storage.isRefreshing()) {
+          clearInterval(checkIntervalId)
+          resolve()
+        } else if (elapsedTime >= maxWaitTime) {
+          clearInterval(checkIntervalId)
+          reject(new Error('Token refresh timeout'))
+        }
+        elapsedTime += checkInterval
+      }, checkInterval)
+    })
+  }
+
+  // 重试请求
+  private async retryRequest<T>(endpoint: string, originalConfig: RequestInit): Promise<T> {
+    const config = {
+      ...originalConfig,
+      headers: {
+        ...originalConfig.headers,
+        'Authorization': `Bearer ${storage.getAccessToken()}`,
+      },
+    }
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, config)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+    }
+
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json()
+    } else {
+      return await response.text() as unknown as T
+    }
+  }
+
+  
 
   // GitHub OAuth登录
   async githubLogin(): Promise<void> {

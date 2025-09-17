@@ -11,7 +11,7 @@ Robella是一个AI API网关，它提供对多个AI服务提供商（OpenAI、An
 ### 应用
 从应用层面来说，项目核心的ai被分为Provider、Model、VendorModel三层：
 - **Provider**: 代表AI服务提供商（如OpenAI、Anthropic等），包含认证信息和API端点。
-- **Model**: 代表AI模型（如gpt-4、claude-2等），包含能力（如推理能力，工具调用等）作为项目暴露给用户调用的模型。
+- **Model**: 代表AI模型（如gpt-4、claude-2等），包含能力（如推理能力，工具调用等）作为项目暴露给用户调用的模型，一个Model可以绑定多个VendorModel。
 - **VendorModel**: 连接Provider和Model，定义某个模型在某个提供商下的具体实现和定价。
 
 模型请求进入系统后，经过路由服务（RoutingService）将用户请求的模型名称映射到具体的提供商模型名称，然后通过统一服务（UnifiedService）将请求转发给相应的提供商API。
