@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS provider (
 CREATE TABLE IF NOT EXISTS model (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    model_key VARCHAR(200) NOT NULL,
     description TEXT,
     organization VARCHAR(100),
     capabilities JSONB,
@@ -96,6 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_provider_created_at ON provider(created_at);
 
 -- model表索引
 CREATE INDEX IF NOT EXISTS idx_model_name ON model(name);
+CREATE INDEX IF NOT EXISTS idx_model_model_key ON model(model_key);
 CREATE INDEX IF NOT EXISTS idx_model_organization ON model(organization);
 CREATE INDEX IF NOT EXISTS idx_model_published ON model(published);
 CREATE INDEX IF NOT EXISTS idx_model_created_at ON model(created_at);
@@ -146,6 +148,7 @@ COMMENT ON COLUMN provider.updated_at IS '更新时间';
 COMMENT ON TABLE model IS 'AI模型表';
 COMMENT ON COLUMN model.id IS '模型ID';
 COMMENT ON COLUMN model.name IS '模型名称';
+COMMENT ON COLUMN model.model_key IS '模型调用标识';
 COMMENT ON COLUMN model.description IS '模型描述';
 COMMENT ON COLUMN model.organization IS '组织';
 COMMENT ON COLUMN model.capabilities IS '能力';

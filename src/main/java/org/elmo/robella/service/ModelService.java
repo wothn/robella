@@ -45,6 +45,7 @@ public class ModelService {
                 .flatMap(existingModel -> {
                     // 更新所有字段
                     existingModel.setName(model.getName());
+                    existingModel.setModelKey(model.getModelKey());
                     existingModel.setDescription(model.getDescription());
                     existingModel.setOrganization(model.getOrganization());
                     existingModel.setCapabilities(model.getCapabilities());
@@ -62,6 +63,10 @@ public class ModelService {
 
     public Mono<Model> getModelById(Long id) {
         return modelRepository.findById(id);
+    }
+
+    public Mono<Model> getModelByModelKey(String modelKey) {
+        return modelRepository.findByModelKey(modelKey);
     }
 
     public Flux<VendorModel> getVendorModelsByModelId(Long modelId) {
@@ -121,13 +126,25 @@ public class ModelService {
                 .defaultIfEmpty(false);
     }
 
+    public Mono<Boolean> modelExistsByModelKey(String modelKey) {
+        return modelRepository.findByModelKey(modelKey)
+                .map(model -> true)
+                .defaultIfEmpty(false);
+    }
+
     public Mono<Model> validateAndCreateModel(Model model) {
         return modelExistsByName(model.getName())
-                .flatMap(exists -> {
-                    if (exists) {
+                .flatMap(nameExists -> {
+                    if (nameExists) {
                         return Mono.error(new IllegalArgumentException("Model name already exists"));
                     }
-                    return createModel(model);
+                    return modelExistsByModelKey(model.getModelKey())
+                            .flatMap(keyExists -> {
+                                if (keyExists) {
+                                    return Mono.error(new IllegalArgumentException("Model key already exists"));
+                                }
+                                return createModel(model);
+                            });
                 });
     }
 

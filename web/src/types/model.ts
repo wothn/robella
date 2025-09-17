@@ -10,6 +10,7 @@ export type ModelCapability =
 export interface Model {
   id: number
   name: string
+  modelKey: string
   description?: string
   organization?: string
   capabilities?: ModelCapability[]
@@ -21,6 +22,7 @@ export interface Model {
 
 export interface CreateModelRequest {
   name: string
+  modelKey: string
   description?: string
   organization?: string
   capabilities?: ModelCapability[]
@@ -30,6 +32,7 @@ export interface CreateModelRequest {
 
 export interface UpdateModelRequest {
   name?: string
+  modelKey?: string
   description?: string
   organization?: string
   capabilities?: ModelCapability[]

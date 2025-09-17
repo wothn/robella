@@ -46,6 +46,14 @@ public class ModelController {
                 .defaultIfEmpty(ResponseEntity.notFound().build())
                 .doOnError(error -> log.error("获取模型失败 [ID: {}]: {}", id, error.getMessage()));
     }
+
+    @GetMapping("/key/{modelKey}")
+    public Mono<ResponseEntity<Model>> getModelByModelKey(@PathVariable @NotNull String modelKey) {
+        return modelService.getModelByModelKey(modelKey)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build())
+                .doOnError(error -> log.error("获取模型失败 [modelKey: {}]: {}", modelKey, error.getMessage()));
+    }
     
     @PostMapping
     public Mono<ResponseEntity<Model>> createModel(@Valid @RequestBody Model model) {
@@ -160,10 +168,17 @@ public class ModelController {
     }
     
     // 验证接口
-    @GetMapping("/exists/{name}")
-    public Mono<ResponseEntity<Boolean>> checkModelExists(@PathVariable String name) {
+    @GetMapping("/exists/name/{name}")
+    public Mono<ResponseEntity<Boolean>> checkModelNameExists(@PathVariable String name) {
         return modelService.modelExistsByName(name)
                 .map(ResponseEntity::ok)
                 .doOnError(error -> log.error("检查模型名称是否存在失败 [name: {}]: {}", name, error.getMessage()));
+    }
+
+    @GetMapping("/exists/key/{modelKey}")
+    public Mono<ResponseEntity<Boolean>> checkModelKeyExists(@PathVariable String modelKey) {
+        return modelService.modelExistsByModelKey(modelKey)
+                .map(ResponseEntity::ok)
+                .doOnError(error -> log.error("检查模型调用标识是否存在失败 [modelKey: {}]: {}", modelKey, error.getMessage()));
     }
 }

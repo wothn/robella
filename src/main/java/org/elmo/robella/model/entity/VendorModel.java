@@ -23,7 +23,7 @@ public class VendorModel {
     private Long modelId;
     private Long providerId;
     private String vendorModelName;
-    private String modelKey;
+    private String vendorModelKey;
     private ProviderType providerType;
     private String description;
     @JsonSerialize(using = ToStringSerializer.class)

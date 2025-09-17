@@ -194,7 +194,8 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <CardTitle className="text-lg">{model.name}</CardTitle>
-                  <CardDescription className="flex items-center gap-2">
+                  <CardDescription className="flex flex-col gap-1">
+                    <div className="text-xs font-mono bg-muted px-2 py-1 rounded">{model.modelKey}</div>
                     {model.organization && (
                       <span className="text-sm">{model.organization}</span>
                     )}

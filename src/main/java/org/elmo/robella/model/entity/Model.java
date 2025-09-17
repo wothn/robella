@@ -18,6 +18,8 @@ public class Model {
     @Id
     private Long id;
     private String name;
+    private String modelKey;
+    
     private String description;
     private String organization;
     private List<ModelCapability> capabilities;

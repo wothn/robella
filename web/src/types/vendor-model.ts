@@ -4,7 +4,7 @@ export interface VendorModel {
   providerId: number
   providerType: string
   vendorModelName: string
-  modelKey: string
+  vendorModelKey: string
   description?: string
   inputPerMillionTokens?: string
   outputPerMillionTokens?: string
@@ -23,7 +23,7 @@ export interface CreateVendorModelRequest {
   providerId: number
   providerType: string
   vendorModelName: string
-  modelKey: string
+  vendorModelKey: string
   description?: string
   inputPerMillionTokens?: string
   outputPerMillionTokens?: string
@@ -38,7 +38,7 @@ export interface UpdateVendorModelRequest {
   providerId?: number
   providerType?: string
   vendorModelName?: string
-  modelKey?: string
+  vendorModelKey?: string
   description?: string
   inputPerMillionTokens?: string
   outputPerMillionTokens?: string
