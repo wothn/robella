@@ -14,4 +14,6 @@ public interface VendorModelRepository extends R2dbcRepository<VendorModel, Long
     Mono<VendorModel> findByModelIdAndProviderIdAndVendorModelName(Long modelId, Long providerId, String vendorModelName);
     Mono<VendorModel> findByVendorModelName(String vendorModelName);
     Mono<VendorModel> findByVendorModelKey(String vendorModelKey);
+    Mono<VendorModel> findByVendorModelKeyAndEnabledTrue(String vendorModelKey);
+    Flux<VendorModel> findByModelIdAndEnabledTrue(Long modelId);
 }
