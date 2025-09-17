@@ -13,7 +13,6 @@ import org.springframework.lang.NonNull;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.r2dbc.postgresql.codec.Json;
 
 import java.util.Arrays;
 import java.util.List;
@@ -38,36 +37,18 @@ public class R2dbcConfig extends AbstractR2dbcConfiguration {
     @NonNull
     protected List<Object> getCustomConverters() {
         return Arrays.asList(
-                new RoleToIntegerConverter(),
-                new IntegerToRoleConverter(),
                 new ModelCapabilityWriteConverter(),
                 new ModelCapabilityReadConverter());
     }
 
     @WritingConverter
-    static class RoleToIntegerConverter implements Converter<Role, Integer> {
-        @Override
-        public Integer convert(@NonNull Role source) {
-            return source.getValue();
-        }
-    }
-
-    @ReadingConverter
-    static class IntegerToRoleConverter implements Converter<Integer, Role> {
-        @Override
-        public Role convert(@NonNull Integer source) {
-            return Role.fromValue(source);
-        }
-    }
-
-    @WritingConverter
-    public static class ModelCapabilityWriteConverter implements Converter<List<ModelCapability>, Json> {
+    public static class ModelCapabilityWriteConverter implements Converter<List<ModelCapability>, String> {
         private static final ObjectMapper MAPPER = new ObjectMapper();
 
         @Override
-    public Json convert(@NonNull List<ModelCapability> source) {
+        public String convert(@NonNull List<ModelCapability> source) {
             try {
-                return Json.of(MAPPER.writeValueAsString(source));
+                return MAPPER.writeValueAsString(source);
             } catch (JsonProcessingException e) {
                 throw new IllegalArgumentException("Failed to serialize ModelCapability list", e);
             }
@@ -75,13 +56,13 @@ public class R2dbcConfig extends AbstractR2dbcConfiguration {
     }
 
     @ReadingConverter
-    public static class ModelCapabilityReadConverter implements Converter<Json, List<ModelCapability>> {
+    public static class ModelCapabilityReadConverter implements Converter<String, List<ModelCapability>> {
         private static final ObjectMapper MAPPER = new ObjectMapper();
 
         @Override
-    public List<ModelCapability> convert(@NonNull Json source) {
+        public List<ModelCapability> convert(@NonNull String source) {
             try {
-                return MAPPER.readValue(source.asString(), new TypeReference<List<ModelCapability>>() {
+                return MAPPER.readValue(source, new TypeReference<List<ModelCapability>>() {
                 });
             } catch (JsonProcessingException e) {
                 throw new IllegalArgumentException("Failed to deserialize ModelCapability list", e);

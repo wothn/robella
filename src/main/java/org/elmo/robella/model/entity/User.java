@@ -34,7 +34,6 @@ public class User {
     private String avatar;
     
     private Boolean active;
-    
     private Role role;
     
     @CreatedDate

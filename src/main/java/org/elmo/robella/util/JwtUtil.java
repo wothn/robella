@@ -44,7 +44,7 @@ public class JwtUtil {
 
     public Role extractRole(String token) {
         try {
-            Integer roleValue = extractClaim(token, claims -> claims.get("role", Integer.class));
+            String roleValue = extractClaim(token, claims -> claims.get("role", String.class));
             return Role.fromValue(roleValue != null ? roleValue : Role.USER.getValue());
         } catch (Exception e) {
             log.debug("Role claim not found or invalid, defaulting to USER role");
