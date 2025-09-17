@@ -31,7 +31,7 @@ export function VendorModelModal({
 }: VendorModelModalProps) {
   const [formData, setFormData] = useState({
     vendorModelName: '',
-    modelKey: '',
+    vendorModelKey: '',
     description: '',
     inputPerMillionTokens: '',
     outputPerMillionTokens: '',
@@ -50,7 +50,7 @@ export function VendorModelModal({
       // Reset form when closing modal for creating new model
       setFormData({
         vendorModelName: '',
-        modelKey: '',
+        vendorModelKey: '',
         description: '',
         inputPerMillionTokens: '',
         outputPerMillionTokens: '',
@@ -71,7 +71,7 @@ export function VendorModelModal({
     if (vendorModel) {
       setFormData({
         vendorModelName: vendorModel.vendorModelName || '',
-        modelKey: vendorModel.modelKey || '',
+        vendorModelKey: vendorModel.vendorModelKey || '',
         description: vendorModel.description || '',
         inputPerMillionTokens: vendorModel.inputPerMillionTokens || '',
         outputPerMillionTokens: vendorModel.outputPerMillionTokens || '',
@@ -85,7 +85,7 @@ export function VendorModelModal({
       // Reset form when no vendorModel (for creating new)
       setFormData({
         vendorModelName: '',
-        modelKey: '',
+        vendorModelKey: '',
         description: '',
         inputPerMillionTokens: '',
         outputPerMillionTokens: '',
@@ -106,7 +106,7 @@ export function VendorModelModal({
           providerId: vendorModel.providerId,
           providerType: formData.providerType,
           vendorModelName: formData.vendorModelName,
-          modelKey: formData.modelKey,
+          vendorModelKey: formData.vendorModelKey,
           description: formData.description || undefined,
           inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
           outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
@@ -119,7 +119,7 @@ export function VendorModelModal({
           providerId,
           providerType: formData.providerType,
           vendorModelName: formData.vendorModelName,
-          modelKey: formData.modelKey,
+          vendorModelKey: formData.vendorModelKey,
           description: formData.description || undefined,
           inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
           outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
@@ -135,7 +135,7 @@ export function VendorModelModal({
     if (!vendorModel) {
       setFormData({
         vendorModelName: '',
-        modelKey: '',
+        vendorModelKey: '',
         description: '',
         inputPerMillionTokens: '',
         outputPerMillionTokens: '',
@@ -191,9 +191,9 @@ export function VendorModelModal({
           <div className="space-y-2">
             <Label htmlFor="modelKey">模型调用标识 *</Label>
             <Input
-              id="modelKey"
-              value={formData.modelKey}
-              onChange={(e) => setFormData({ ...formData, modelKey: e.target.value })}
+              id="vendorModelKey"
+              value={formData.vendorModelKey}
+              onChange={(e) => setFormData({ ...formData, vendorModelKey: e.target.value })}
               placeholder="例如: gpt-4, claude-3-sonnet-20240229"
               required
             />

@@ -46,7 +46,7 @@ export function VendorModelsList({
                   <div className="flex items-center space-x-2 mb-2">
                     <h4 className="font-medium">{model.vendorModelName}</h4>
                     <Badge variant="outline">
-                      {model.modelKey}
+                      {model.vendorModelKey}
                     </Badge>
                     <Badge variant={model.enabled ? 'default' : 'secondary'}>
                       {model.enabled ? '启用' : '禁用'}

@@ -8,6 +8,7 @@ import reactor.core.publisher.Mono;
 public interface ModelRepository extends R2dbcRepository<Model, Long> {
     Flux<Model> findByPublishedTrue();
     Mono<Model> findByName(String name);
+    Mono<Model> findByModelKey(String modelKey);
     Flux<Model> findByOrganization(String organization);
     Flux<Model> findByOrganizationAndPublishedTrue(String organization);
 }

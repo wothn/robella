@@ -177,6 +177,9 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
                     <h2 className="text-2xl font-bold">{model.name}</h2>
+                    <div className="text-sm font-mono bg-muted px-2 py-1 rounded inline-block">
+                      {model.modelKey}
+                    </div>
                     {model.organization && (
                       <p className="text-muted-foreground">{model.organization}</p>
                     )}
@@ -236,6 +239,12 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">模型调用标识:</span>
+                      <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                        {model.modelKey}
+                      </span>
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">上下文窗口:</span>
                       <span className="font-mono">

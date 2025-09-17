@@ -51,6 +51,7 @@ const capabilityNames: Record<ModelCapability, string> = {
 
 const formSchema = z.object({
   name: z.string().min(1, '模型名称不能为空').max(100, '模型名称不能超过100个字符'),
+  modelKey: z.string().min(1, '模型调用标识不能为空').max(200, '模型调用标识不能超过200个字符'),
   description: z.string().optional(),
   organization: z.string().optional(),
   capabilities: z.array(z.string()).optional(),
@@ -93,6 +94,7 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
       if (model) {
         form.reset({
           name: model.name,
+          modelKey: model.modelKey,
           description: model.description || '',
           organization: model.organization || '',
           capabilities: model.capabilities || [],
@@ -102,6 +104,7 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
       } else {
         form.reset({
           name: '',
+          modelKey: '',
           description: '',
           organization: '',
           capabilities: [],
@@ -189,6 +192,26 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
                     <FormControl>
                       <Input placeholder="输入模型名称" {...field} />
                     </FormControl>
+                    <FormDescription>
+                      模型的显示名称，用于界面展示
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="modelKey"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>模型调用标识 *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入模型调用标识" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      模型的唯一标识，用于API调用和路由
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

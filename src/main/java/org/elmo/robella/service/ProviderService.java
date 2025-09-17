@@ -88,7 +88,7 @@ public class ProviderService {
                 .flatMap(existingVendorModel -> {
                     existingVendorModel.setProviderId(vendorModel.getProviderId());
                     existingVendorModel.setVendorModelName(vendorModel.getVendorModelName());
-                    existingVendorModel.setModelKey(vendorModel.getModelKey());
+                    existingVendorModel.setVendorModelKey(vendorModel.getVendorModelKey());
                     existingVendorModel.setProviderType(vendorModel.getProviderType());
                     existingVendorModel.setDescription(vendorModel.getDescription());
                     existingVendorModel.setInputPerMillionTokens(vendorModel.getInputPerMillionTokens());

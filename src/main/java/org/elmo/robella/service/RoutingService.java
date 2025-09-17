@@ -6,11 +6,15 @@ import reactor.core.publisher.Mono;
 
 import org.elmo.robella.client.ClientFactory;
 import org.elmo.robella.common.EndpointType;
+
+import java.util.List;
+
 import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.repository.ModelRepository;
 import org.elmo.robella.repository.VendorModelRepository;
+import org.elmo.robella.service.loadblancer.LoadBalancerStrategy;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,37 +26,41 @@ public class RoutingService {
     private final ProviderService providerService;
     private final VendorModelRepository vendorModelRepository;
     private final ModelRepository modelRepository;
+    private final LoadBalancerStrategy loadBalancer;
 
-    /**
-     * 根据模型名称选择一个启用的供应商模型。
-     *
-     * @param modelName 客户端请求的模型名称
-     * @return Mono<VendorModel> 启用的供应商模型，如果未找到则为空
-     */
-    public Mono<VendorModel> selectVendor(String modelName) {
-        return modelRepository.findByName(modelName)
-            .flatMap(model -> vendorModelRepository.findByModelId(model.getId())
-                .filter(VendorModel::getEnabled)
-                .next()
-            );
+    /**     
+     * 获取所有启用供应商模型（用于负载均衡）     
+     */    
+    public Mono<List<VendorModel>> selectAllEnabledVendors(String modelKey) {
+        return modelRepository.findByModelKey(modelKey)
+            .flatMapMany(model -> vendorModelRepository.findByModelId(model.getId()))
+            .filter(VendorModel::getEnabled)
+            .collectList();
+    }
+
+    public Mono<VendorModel> selectVendorWithLoadBalancing(String modelKey) {
+        return selectAllEnabledVendors(modelKey)
+            .filter(candidates -> !candidates.isEmpty())
+            .map(loadBalancer::select)
+            .switchIfEmpty(Mono.empty());
     }
 
     /**
-     * 将客户端模型名称映射到供应商模型调用标识
+     * 将客户端模型调用标识映射到供应商模型调用标识
      *
-     * @param clientModelName 客户端请求中的模型名称
-     * @return 供应商特定的模型调用标识，如果找不到映射则返回原名称
+     * @param clientModelKey 客户端请求中的模型调用标识
+     * @return 供应商特定的模型调用标识，如果找不到映射则返回原标识
      */
-    public Mono<String> mapToVendorModelKey(String clientModelName) {
-        return selectVendor(clientModelName)
-                .map(VendorModel::getModelKey)
-                .doOnNext(modelKey -> log.debug("Mapped client model '{}' to vendor model key '{}'",
-                        clientModelName, modelKey))
-                .doOnError(error -> log.warn("Failed to map model '{}': {}", clientModelName, error.getMessage()))
-                .onErrorReturn(clientModelName) // 如果映射失败，返回原模型名称
+    public Mono<String> mapToVendorModelKey(String clientModelKey) {
+        return selectVendorWithLoadBalancing(clientModelKey)
+                .map(VendorModel::getVendorModelKey)
+                .doOnNext(vendorModelKey -> log.debug("Mapped client model key '{}' to vendor model key '{}'",
+                        clientModelKey, vendorModelKey))
+                .doOnError(error -> log.warn("Failed to map model '{}': {}", clientModelKey, error.getMessage()))
+                .onErrorReturn(clientModelKey) // 如果映射失败，返回原模型标识
                 .switchIfEmpty(Mono.fromSupplier(() -> {
-                    log.warn("No vendor model mapping found for client model '{}', using original name", clientModelName);
-                    return clientModelName;
+                    log.warn("No vendor model mapping found for client model '{}', using original key", clientModelKey);
+                    return clientModelKey;
                 }));
     }
 
@@ -66,8 +74,8 @@ public class RoutingService {
      * @param modelKey 供应商模型调用标识
      * @return Mono<ClientWithProvider> 对应的 API 客户端、Provider 和 VendorModel，如果未找到则为空
      */
-    public Mono<ClientWithProvider> getClientWithProviderByModelKey(String modelKey) {
-        return vendorModelRepository.findByModelKey(modelKey)
+    public Mono<ClientWithProvider> getClientWithProviderByModelKey(String vendorModelKey) {
+        return vendorModelRepository.findByVendorModelKey(vendorModelKey)
             .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> {
@@ -95,11 +103,11 @@ public class RoutingService {
     /**
      * 通过供应商模型调用标识直接获取 EndpointType 类型。
      *
-     * @param modelKey 供应商模型调用标识
+     * @param vendorModelKey 供应商模型调用标识
      * @return Mono<EndpointType> 供应商类型，如果未找到则为空
      */
-    public Mono<EndpointType> getProviderTypeByModelKey(String modelKey) {
-        return vendorModelRepository.findByModelKey(modelKey)
+    public Mono<EndpointType> getProviderTypeByModelKey(String vendorModelKey) {
+        return vendorModelRepository.findByVendorModelKey(vendorModelKey)
             .filter(VendorModel::getEnabled)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> provider.getEndpointType()));
