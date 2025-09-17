@@ -33,11 +33,16 @@ public class RoutingService {
      */    
     public Mono<List<VendorModel>> selectAllEnabledVendors(String modelKey) {
         return modelRepository.findByModelKey(modelKey)
-            .flatMapMany(model -> vendorModelRepository.findByModelId(model.getId()))
-            .filter(VendorModel::getEnabled)
+            .flatMapMany(model -> vendorModelRepository.findByModelIdAndEnabledTrue(model.getId()))
             .collectList();
     }
 
+    /**
+     * 使用负载均衡策略选择一个启用的供应商模型
+     *
+     * @param modelKey 客户端请求中的模型调用标识
+     * @return 选定的供应商模型，如果没有可用供应商则返回空
+     */
     public Mono<VendorModel> selectVendorWithLoadBalancing(String modelKey) {
         return selectAllEnabledVendors(modelKey)
             .filter(candidates -> !candidates.isEmpty())
@@ -75,8 +80,7 @@ public class RoutingService {
      * @return Mono<ClientWithProvider> 对应的 API 客户端、Provider 和 VendorModel，如果未找到则为空
      */
     public Mono<ClientWithProvider> getClientWithProviderByModelKey(String vendorModelKey) {
-        return vendorModelRepository.findByVendorModelKey(vendorModelKey)
-            .filter(VendorModel::getEnabled)
+        return vendorModelRepository.findByVendorModelKeyAndEnabledTrue(vendorModelKey)
             .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
                 .map(provider -> {
                     ApiClient client = clientFactory.getClient(provider.getEndpointType());
@@ -84,34 +88,6 @@ public class RoutingService {
                 }));
     }
 
-    /**
-     * Get provider type by provider name
-     */
-    /**
-     * 根据供应商名称获取其 EndpointType 类型。
-     *
-     * @param providerName 供应商名称
-     * @return EndpointType 供应商类型，如果未找到则为 null
-     */
-    public EndpointType getProviderType(String providerName) {
-        return providerService.getProviderByName(providerName)
-            .map(provider -> provider.getEndpointType())
-            .block();
-    }
-
-
-    /**
-     * 通过供应商模型调用标识直接获取 EndpointType 类型。
-     *
-     * @param vendorModelKey 供应商模型调用标识
-     * @return Mono<EndpointType> 供应商类型，如果未找到则为空
-     */
-    public Mono<EndpointType> getProviderTypeByModelKey(String vendorModelKey) {
-        return vendorModelRepository.findByVendorModelKey(vendorModelKey)
-            .filter(VendorModel::getEnabled)
-            .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
-                .map(provider -> provider.getEndpointType()));
-    }
 
     /**
      * 客户端、Provider 和 VendorModel 的封装类
