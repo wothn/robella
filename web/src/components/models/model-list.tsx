@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { 
-  MoreHorizontal, 
-  Eye, 
-  EyeOff, 
-  Edit, 
-  Trash2, 
+import {
+  MoreHorizontal,
+  Eye,
+  EyeOff,
+  Edit,
+  Trash2,
   Settings,
-  ExternalLink 
+  ExternalLink,
+  Copy,
+  Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,6 +38,7 @@ import { useModelBindings } from '@/hooks/use-model-bindings'
 import type { Model, ModelCapability } from '@/types/model'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { toast } from 'sonner'
 
 interface ModelListProps {
   models: Model[]
@@ -71,6 +74,7 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
   const [editingModel, setEditingModel] = useState<Model | null>(null)
   const [configModel, setConfigModel] = useState<Model | null>(null)
   const [deleteModelId, setDeleteModelId] = useState<number | null>(null)
+  const [copiedModelKey, setCopiedModelKey] = useState<string | null>(null)
   const { publishModel, unpublishModel, deleteModel } = useModels()
   
   // 获取模型绑定状态
@@ -108,6 +112,20 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
   const handleConfigSuccess = () => {
     onRefresh()
     refetchBindings()
+  }
+
+  // 处理复制modelKey
+  const handleCopyModelKey = async (modelKey: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(modelKey)
+      setCopiedModelKey(modelKey)
+      setTimeout(() => setCopiedModelKey(null), 2000)
+      toast.success(`已复制: ${modelKey}`)
+    } catch (error) {
+      console.error('复制失败:', error)
+      toast.error('复制失败，请重试')
+    }
   }
 
   // 格式化时间
@@ -195,7 +213,19 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
                 <div className="space-y-1">
                   <CardTitle className="text-lg">{model.name}</CardTitle>
                   <CardDescription className="flex flex-col gap-1">
-                    <div className="text-xs font-mono bg-muted px-2 py-1 rounded">{model.modelKey}</div>
+                    <div
+                      className="text-xs font-mono bg-muted px-2 py-1 rounded cursor-pointer hover:bg-muted/80 transition-colors flex items-center gap-1 group"
+                      onClick={(e) => handleCopyModelKey(model.modelKey, e)}
+                      data-no-card-click="true"
+                      title="点击复制"
+                    >
+                      <span className="truncate">{model.modelKey}</span>
+                      {copiedModelKey === model.modelKey ? (
+                        <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
+                      ) : (
+                        <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      )}
+                    </div>
                     {model.organization && (
                       <span className="text-sm">{model.organization}</span>
                     )}
