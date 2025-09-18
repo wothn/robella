@@ -3,6 +3,8 @@ package org.elmo.robella.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.elmo.robella.annotation.RequiredRole;
+import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.dto.ApiKeyCreateRequest;
 import org.elmo.robella.model.entity.ApiKey;
 import org.elmo.robella.model.response.ApiKeyResponse;
@@ -21,6 +23,7 @@ public class ApiKeyController {
         private final ApiKeyService apiKeyService;
 
         @PostMapping
+        @RequiredRole(Role.USER)
         public Mono<ResponseEntity<ApiKeyResponse>> createApiKey(
                         @Valid @RequestBody ApiKeyCreateRequest request) {
 
@@ -38,6 +41,7 @@ public class ApiKeyController {
         }
 
         @GetMapping
+        @RequiredRole(Role.USER)
         public Flux<ApiKeyResponse> getUserApiKeys() {
 
                 return Mono.deferContextual(contextView -> {
@@ -49,6 +53,7 @@ public class ApiKeyController {
         }
 
         @DeleteMapping("/{id}")
+        @RequiredRole(Role.USER)
         public Mono<ResponseEntity<Void>> deleteApiKey(@PathVariable Long id) {
                 return Mono.deferContextual(contextView -> {
                         Long userId = contextView.get("userId");
@@ -68,6 +73,7 @@ public class ApiKeyController {
         }
 
         @PatchMapping("/{id}/toggle")
+        @RequiredRole(Role.USER)
         public Mono<ResponseEntity<ApiKeyResponse>> toggleApiKeyStatus(
                         @PathVariable Long id) {
 

@@ -1,5 +1,7 @@
 package org.elmo.robella.controller;
 
+import org.elmo.robella.annotation.RequiredRole;
+import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.entity.Model;
 import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.service.ModelService;
@@ -56,6 +58,7 @@ public class ModelController {
     }
     
     @PostMapping
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Model>> createModel(@Valid @RequestBody Model model) {
         return modelService.validateAndCreateModel(model)
                 .map(savedModel -> ResponseEntity.status(HttpStatus.CREATED).body(savedModel))
@@ -67,6 +70,7 @@ public class ModelController {
     }
     
     @PutMapping("/{id}")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Model>> updateModel(@PathVariable @NotNull Long id, @Valid @RequestBody Model model) {
         model.setId(id);
         return modelService.updateModel(model)
@@ -79,6 +83,7 @@ public class ModelController {
     }
     
     @DeleteMapping("/{id}")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Void>> deleteModel(@PathVariable @NotNull Long id) {
         return modelService.deleteModel(id)
                 .then(Mono.just(ResponseEntity.noContent().<Void>build()))
@@ -87,6 +92,7 @@ public class ModelController {
     
     // 状态管理
     @PutMapping("/{id}/publish")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Model>> publishModel(@PathVariable @NotNull Long id) {
         return modelService.publishModel(id)
                 .map(ResponseEntity::ok)
@@ -98,6 +104,7 @@ public class ModelController {
     }
     
     @PutMapping("/{id}/unpublish")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Model>> unpublishModel(@PathVariable @NotNull Long id) {
         return modelService.unpublishModel(id)
                 .map(ResponseEntity::ok)
@@ -157,6 +164,7 @@ public class ModelController {
     }
     
     @PostMapping("/{modelId}/vendor-models/{vendorModelId}")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<VendorModel>> addVendorModelToModel(
             @PathVariable @NotNull Long modelId, 
             @PathVariable @NotNull Long vendorModelId) {

@@ -1,5 +1,7 @@
 package org.elmo.robella.controller;
 
+import org.elmo.robella.annotation.RequiredRole;
+import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.service.ProviderService;
@@ -11,7 +13,6 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/providers")
-@CrossOrigin(origins = "*")
 public class ProviderController {
 
     @Autowired
@@ -23,6 +24,7 @@ public class ProviderController {
     }
 
     @GetMapping("/active")
+    @RequiredRole(Role.ROOT)
     public Flux<Provider> getActiveProviders() {
         return providerService.getEnabledProviders();
     }
@@ -35,12 +37,14 @@ public class ProviderController {
     }
 
     @PostMapping
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Provider>> createProvider(@RequestBody Provider provider) {
         return providerService.createProvider(provider)
                 .map(savedProvider -> ResponseEntity.ok(savedProvider));
     }
 
     @PutMapping("/{id}")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Provider>> updateProvider(@PathVariable Long id, @RequestBody Provider provider) {
         return providerService.updateProvider(id, provider)
                 .map(ResponseEntity::ok)
@@ -48,6 +52,7 @@ public class ProviderController {
     }
 
     @DeleteMapping("/{id}")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Void>> deleteProvider(@PathVariable Long id) {
         return providerService.deleteProvider(id)
                 .then(Mono.just(ResponseEntity.ok().<Void>build()))
@@ -60,12 +65,14 @@ public class ProviderController {
     }
 
     @PostMapping("/{id}/models")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<VendorModel>> createModel(@PathVariable Long id, @RequestBody VendorModel model) {
         return providerService.createVendorModel(id, model)
                 .map(savedModel -> ResponseEntity.ok(savedModel));
     }
 
     @PutMapping("/models/{id}")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<VendorModel>> updateModel(@PathVariable Long id, @RequestBody VendorModel model) {
         return providerService.updateVendorModel(id, model)
                 .map(ResponseEntity::ok)
@@ -73,6 +80,7 @@ public class ProviderController {
     }
 
     @DeleteMapping("/models/{id}")
+    @RequiredRole(Role.ROOT)
     public Mono<ResponseEntity<Void>> deleteVendorModel(@PathVariable Long id) {
         return providerService.deleteVendorModel(id)
                 .then(Mono.just(ResponseEntity.ok().<Void>build()));

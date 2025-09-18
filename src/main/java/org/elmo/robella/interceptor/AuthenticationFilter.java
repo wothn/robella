@@ -15,14 +15,16 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 import org.springframework.lang.NonNull;
+import org.springframework.core.annotation.Order;
 import reactor.util.context.Context;
 
 import java.nio.charset.StandardCharsets;
 
 @Component
+@Order(1)
 @RequiredArgsConstructor
 @Slf4j
-public class AuthenticationInterceptor implements WebFilter {
+public class AuthenticationFilter implements WebFilter {
 
     private final JwtUtil jwtUtil;
 

@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ApiKeyInterceptor implements WebFilter {
+public class ApiKeyFilter implements WebFilter {
 
     private final ApiKeyService apiKeyService;
 

@@ -1,7 +1,7 @@
 package org.elmo.robella.config;
 
-import org.elmo.robella.interceptor.AuthenticationInterceptor;
-import org.elmo.robella.interceptor.ApiKeyInterceptor;
+import org.elmo.robella.interceptor.AuthenticationFilter;
+import org.elmo.robella.interceptor.ApiKeyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,17 +14,18 @@ import org.springframework.web.server.WebFilter;
 @RequiredArgsConstructor
 public class WebConfig {
 
-    private final AuthenticationInterceptor anthenticationInterceptor;
-    private final ApiKeyInterceptor apiKeyInterceptor;
+    private final AuthenticationFilter authenticationFilter;
+    private final ApiKeyFilter apiKeyFilter;
 
     @Bean
-    public WebFilter jwtFilter() {
-        return anthenticationInterceptor;
+    public WebFilter authenticationFilter() {
+        return authenticationFilter;
     }
+
 
     @Bean
     public WebFilter apiKeyFilter() {
-        return apiKeyInterceptor;
+        return apiKeyFilter;
     }
 
   

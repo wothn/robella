@@ -29,4 +29,29 @@ public enum Role {
         }
         return USER; // Default to USER if invalid value
     }
+
+    /**
+     * 检查当前角色是否具有所需角色的权限
+     * @param requiredRole
+     * @return
+     */
+    public boolean hasPermission(Role requiredRole) {
+        return this.ordinal() >= requiredRole.ordinal();
+    }
+
+    public boolean isRoot() {
+        return this == ROOT;
+    }
+
+    public boolean isAdmin() {
+        return this == ADMIN;
+    }
+
+    public boolean isUser() {
+        return this == USER;
+    }
+
+    public boolean isGuest() {
+        return this == GUEST;
+    }
 }

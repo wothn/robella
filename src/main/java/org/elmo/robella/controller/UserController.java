@@ -1,8 +1,11 @@
 package org.elmo.robella.controller;
 
+import org.elmo.robella.annotation.RequiredRole;
+import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.request.RefreshTokenRequest;
+import org.elmo.robella.model.request.UserProfileUpdateRequest;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
@@ -20,7 +23,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,6 +34,7 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping
+    @RequiredRole(Role.ADMIN)
     public Mono<ResponseEntity<UserResponse>> createUser(@Valid @RequestBody User user) {
         return userService.createUser(user)
                 .map(createdUser -> ResponseEntity.status(HttpStatus.CREATED).body(createdUser))
@@ -63,6 +66,7 @@ public class UserController {
 
 
     @GetMapping
+    @RequiredRole(Role.ADMIN)
     public Flux<UserResponse> getAllUsers() {
         return userService.getAllUsers()
                 .onErrorResume(e -> {
@@ -72,6 +76,7 @@ public class UserController {
     }
 
     @GetMapping("/active")
+    @RequiredRole(Role.ADMIN)
     public Flux<UserResponse> getActiveUsers() {
         return userService.getActiveUsers()
                 .onErrorResume(e -> {
@@ -81,6 +86,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @RequiredRole(Role.ADMIN)
     public Mono<ResponseEntity<UserResponse>> updateUser(
             @PathVariable @NotNull Long id,
             @Valid @RequestBody User user) {
@@ -93,6 +99,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @RequiredRole(Role.ADMIN)
     public Mono<ResponseEntity<Void>> deleteUser(@PathVariable @NotNull Long id) {
         return userService.deleteUser(id)
                 .thenReturn(ResponseEntity.noContent().<Void>build())
@@ -103,6 +110,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/activate")
+    @RequiredRole(Role.ADMIN)
     public Mono<ResponseEntity<UserResponse>> activateUser(@PathVariable @NotNull Long id) {
         return userService.activateUser(id)
                 .map(ResponseEntity::ok)
@@ -113,6 +121,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/deactivate")
+    @RequiredRole(Role.ADMIN)
     public Mono<ResponseEntity<UserResponse>> deactivateUser(@PathVariable @NotNull Long id) {
         return userService.deactivateUser(id)
                 .map(ResponseEntity::ok)
@@ -151,7 +160,7 @@ public class UserController {
     public Mono<ResponseEntity<UserResponse>> getCurrentUser() {
         return Mono.deferContextual(contextView -> {
             String username = contextView.get("username");
-            
+
             if (username == null) {
                 return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).<UserResponse>build());
             }
@@ -161,6 +170,27 @@ public class UserController {
                     .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).<UserResponse>build()));
         }).onErrorResume(e -> {
             log.error("获取当前用户失败: {}", e.getMessage());
+            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<UserResponse>build());
+        });
+    }
+
+    @PutMapping("/me")
+    public Mono<ResponseEntity<UserResponse>> updateCurrentUser(
+            @Valid @RequestBody UserProfileUpdateRequest updateRequest) {
+        return Mono.deferContextual(contextView -> {
+            String username = contextView.get("username");
+
+            if (username == null) {
+                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).<UserResponse>build());
+            }
+
+            log.info("更新用户资料: {}", username);
+
+            return userService.updateUserProfile(username, updateRequest)
+                    .map(ResponseEntity::ok)
+                    .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).<UserResponse>build()));
+        }).onErrorResume(e -> {
+            log.error("更新用户资料失败: {}", e.getMessage());
             return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<UserResponse>build());
         });
     }
