@@ -11,7 +11,6 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Slf4j
 @ControllerAdvice
@@ -23,7 +22,31 @@ public class GlobalExceptionHandler {
         private String code;
         private String message;
         private String timestamp;
-        private String traceId;
+    }
+
+    // Anthropic 风格错误结构
+    @Data
+    public static class AnthropicError {
+        private String type;
+        private ErrorDetail error;
+
+        @Data
+        public static class ErrorDetail {
+            private String type;
+            private String message;
+        }
+    }
+
+    // 通用错误结构
+    @Data
+    public static class GenericError {
+        private ErrorDetail error;
+
+        @Data
+        public static class ErrorDetail {
+            private String type;
+            private String message;
+        }
     }
 
     private Mono<ResponseEntity<ApiError>> buildApi(HttpStatus status, String code, String message) {
@@ -31,29 +54,30 @@ public class GlobalExceptionHandler {
         error.setCode(code);
         error.setMessage(message);
         error.setTimestamp(Instant.now().toString());
-        error.setTraceId(UUID.randomUUID().toString());
         return Mono.just(ResponseEntity.status(status).body(error));
     }
 
     // 兼容 Anthropic 风格输出
-    private ResponseEntity<?> buildAnthropicStyle(int status, String type, String message) {
-        var body = java.util.Map.of(
-                "type", "error",
-                "error", java.util.Map.of(
-                        "type", type,
-                        "message", message
-                )
-        );
+    private ResponseEntity<AnthropicError> buildAnthropicStyle(int status, String type, String message) {
+        AnthropicError body = new AnthropicError();
+        body.setType("error");
+
+        AnthropicError.ErrorDetail errorDetail = new AnthropicError.ErrorDetail();
+        errorDetail.setType(type);
+        errorDetail.setMessage(message);
+        body.setError(errorDetail);
+
         return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
     }
 
-    private ResponseEntity<?> buildGenericStyle(int status, String type, String message) {
-        var body = java.util.Map.of(
-                "error", java.util.Map.of(
-                        "type", type,
-                        "message", message
-                )
-        );
+    private ResponseEntity<GenericError> buildGenericStyle(int status, String type, String message) {
+        GenericError body = new GenericError();
+
+        GenericError.ErrorDetail errorDetail = new GenericError.ErrorDetail();
+        errorDetail.setType(type);
+        errorDetail.setMessage(message);
+        body.setError(errorDetail);
+
         return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
     }
 
@@ -90,5 +114,11 @@ public class GlobalExceptionHandler {
     public Mono<ResponseEntity<ApiError>> handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);
         return buildApi(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误");
+    }
+
+    @ExceptionHandler(UserException.class)
+    public Mono<ResponseEntity<ApiError>> handleUser(UserException ex) {
+        log.warn("User error: {}", ex.getMessage());
+        return buildApi(HttpStatus.BAD_REQUEST, "USER_ERROR", ex.getMessage());
     }
 }
