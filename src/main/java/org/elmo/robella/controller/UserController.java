@@ -9,10 +9,9 @@ import org.elmo.robella.model.request.UserProfileUpdateRequest;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
+import org.elmo.robella.exception.InvalidCredentialsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +21,6 @@ import reactor.core.publisher.Mono;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 
 @RestController
 @RequestMapping("/api/users")
@@ -35,164 +33,96 @@ public class UserController {
 
     @PostMapping
     @RequiredRole(Role.ADMIN)
-    public Mono<ResponseEntity<UserResponse>> createUser(@Valid @RequestBody User user) {
-        return userService.createUser(user)
-                .map(createdUser -> ResponseEntity.status(HttpStatus.CREATED).body(createdUser))
-                .onErrorResume(e -> {
-                    log.error("创建用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+    public Mono<UserResponse> createUser(@Valid @RequestBody User user) {
+        return userService.createUser(user);
     }
 
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<UserResponse>> getUserById(@PathVariable @NotNull Long id) {
-        return userService.getUserById(id)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("获取用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.notFound().build());
-                });
+    public Mono<UserResponse> getUserById(@PathVariable @NotNull Long id) {
+        return userService.getUserById(id);
     }
 
     @GetMapping("/username/{username}")
-    public Mono<ResponseEntity<UserResponse>> getUserByUsername(@PathVariable @NotBlank String username) {
-        return userService.getUserByUsername(username)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("获取用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.notFound().build());
-                });
+    public Mono<UserResponse> getUserByUsername(@PathVariable @NotBlank String username) {
+        return userService.getUserByUsername(username);
     }
-
 
     @GetMapping
     @RequiredRole(Role.ADMIN)
     public Flux<UserResponse> getAllUsers() {
-        return userService.getAllUsers()
-                .onErrorResume(e -> {
-                    log.error("获取用户列表失败: {}", e.getMessage());
-                    return Flux.empty();
-                });
+        return userService.getAllUsers();
     }
 
     @GetMapping("/active")
     @RequiredRole(Role.ADMIN)
     public Flux<UserResponse> getActiveUsers() {
-        return userService.getActiveUsers()
-                .onErrorResume(e -> {
-                    log.error("获取活跃用户失败: {}", e.getMessage());
-                    return Flux.empty();
-                });
+        return userService.getActiveUsers();
     }
 
     @PutMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public Mono<ResponseEntity<UserResponse>> updateUser(
+    public Mono<UserResponse> updateUser(
             @PathVariable @NotNull Long id,
             @Valid @RequestBody User user) {
-        return userService.updateUser(id, user)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("更新用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
-                });
+        return userService.updateUser(id, user);
     }
 
     @DeleteMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public Mono<ResponseEntity<Void>> deleteUser(@PathVariable @NotNull Long id) {
-        return userService.deleteUser(id)
-                .thenReturn(ResponseEntity.noContent().<Void>build())
-                .onErrorResume(e -> {
-                    log.error("删除用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.notFound().build());
-                });
+    public Mono<Void> deleteUser(@PathVariable @NotNull Long id) {
+        return userService.deleteUser(id);
     }
 
     @PutMapping("/{id}/activate")
     @RequiredRole(Role.ADMIN)
-    public Mono<ResponseEntity<UserResponse>> activateUser(@PathVariable @NotNull Long id) {
-        return userService.activateUser(id)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("激活用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.notFound().build());
-                });
+    public Mono<UserResponse> activateUser(@PathVariable @NotNull Long id) {
+        return userService.activateUser(id);
     }
 
     @PutMapping("/{id}/deactivate")
     @RequiredRole(Role.ADMIN)
-    public Mono<ResponseEntity<UserResponse>> deactivateUser(@PathVariable @NotNull Long id) {
-        return userService.deactivateUser(id)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("停用用户失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.notFound().build());
-                });
+    public Mono<UserResponse> deactivateUser(@PathVariable @NotNull Long id) {
+        return userService.deactivateUser(id);
     }
 
     @PostMapping("/login")
-    public Mono<ResponseEntity<LoginResponse>> login(
-            @Valid @RequestBody LoginRequest loginRequest) {
-
+    public Mono<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         return userService.login(loginRequest)
-                .map(tokens -> {
-                    LoginResponse loginResponse = new LoginResponse(tokens.getAccessToken(), tokens.getRefreshToken());
-                    return ResponseEntity.ok(loginResponse);
-                })
-                .onErrorResume(e -> {
-                    log.error("登录失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-                });
+                .map(tokens -> new LoginResponse(tokens.getAccessToken(), tokens.getRefreshToken()));
     }
 
     @PostMapping("/refresh")
-    public Mono<ResponseEntity<LoginResponse>> refreshToken(@RequestBody RefreshTokenRequest request) {
-        return userService.refreshToken(request.getRefreshToken())
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    log.error("刷新令牌失败: {}", e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
-                });
+    public Mono<LoginResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
+        return userService.refreshToken(request.getRefreshToken());
     }
 
     @GetMapping("/me")
-    public Mono<ResponseEntity<UserResponse>> getCurrentUser() {
+    public Mono<UserResponse> getCurrentUser() {
         return Mono.deferContextual(contextView -> {
             String username = contextView.get("username");
 
             if (username == null) {
-                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).<UserResponse>build());
+                return Mono.error(new InvalidCredentialsException());
             }
             log.info("当前用户: {}", username);
 
-            return userService.getUserByUsername(username).map(ResponseEntity::ok)
-                    .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).<UserResponse>build()));
-        }).onErrorResume(e -> {
-            log.error("获取当前用户失败: {}", e.getMessage());
-            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<UserResponse>build());
+            return userService.getUserByUsername(username);
         });
     }
 
     @PutMapping("/me")
-    public Mono<ResponseEntity<UserResponse>> updateCurrentUser(
+    public Mono<UserResponse> updateCurrentUser(
             @Valid @RequestBody UserProfileUpdateRequest updateRequest) {
         return Mono.deferContextual(contextView -> {
             String username = contextView.get("username");
 
             if (username == null) {
-                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).<UserResponse>build());
+                return Mono.error(new InvalidCredentialsException());
             }
 
             log.info("更新用户资料: {}", username);
 
-            return userService.updateUserProfile(username, updateRequest)
-                    .map(ResponseEntity::ok)
-                    .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).<UserResponse>build()));
-        }).onErrorResume(e -> {
-            log.error("更新用户资料失败: {}", e.getMessage());
-            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<UserResponse>build());
+            return userService.updateUserProfile(username, updateRequest);
         });
     }
-
 }

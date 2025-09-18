@@ -1,7 +1,6 @@
 package org.elmo.robella.config;
 
 import io.r2dbc.spi.ConnectionFactory;
-import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.entity.ModelCapability;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;

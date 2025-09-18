@@ -187,9 +187,9 @@ public class AnthropicClient implements ApiClient {
             case 402 -> new ProviderException("Access forbidden - check permissions", ex);
             case 429 -> {
                 if (body.contains("quota"))
-                    yield new QuotaExceededException("API quota exceeded", ex);
+                    yield new ProviderException("API quota exceeded: " + errorMessage, ex);
                 else
-                    yield new RateLimitException("Rate limit exceeded", ex);
+                    yield new ProviderException("Rate limit exceeded: " + errorMessage, ex);
             }
             case 400 ->
                     new ProviderException("Bad request: " + (!body.isEmpty() ? body : "Invalid request parameters"), ex);

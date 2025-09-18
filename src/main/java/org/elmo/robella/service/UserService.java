@@ -9,12 +9,7 @@ import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.repository.UserRepository;
 import org.elmo.robella.util.JwtUtil;
-import org.elmo.robella.exception.UserNotFoundException;
-import org.elmo.robella.exception.UsernameAlreadyExistsException;
-import org.elmo.robella.exception.EmailAlreadyExistsException;
-import org.elmo.robella.exception.UserDisabledException;
-import org.elmo.robella.exception.AuthenticationFailedException;
-import org.elmo.robella.exception.InvalidRefreshTokenException;
+import org.elmo.robella.exception.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -38,13 +33,13 @@ public class UserService {
         return userRepository.existsByUsername(user.getUsername())
             .flatMap(existsByUsername -> {
                 if (existsByUsername) {
-                    return Mono.error(new UsernameAlreadyExistsException("用户名已存在"));
+                    return Mono.error(new ResourceConflictException("User", "username", user.getUsername()));
                 }
                 return userRepository.existsByEmail(user.getEmail());
             })
             .flatMap(existsByEmail -> {
                 if (existsByEmail) {
-                    return Mono.error(new EmailAlreadyExistsException("邮箱已存在"));
+                    return Mono.error(new ResourceConflictException("User", "email", user.getEmail()));
                 }
                 
                 user.setActive(true);
@@ -62,13 +57,13 @@ public class UserService {
     public Mono<UserResponse> getUserById(Long id) {
         return userRepository.findById(id)
             .map(this::convertToResponse)
-            .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")));
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)));
     }
     
     public Mono<UserResponse> getUserByUsername(String username) {
         return userRepository.findByUsername(username)
             .map(this::convertToResponse)
-            .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")));
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", username)));
     }
     
       
@@ -84,12 +79,12 @@ public class UserService {
     
     public Mono<UserResponse> updateUser(Long id, User user) {
         return userRepository.findById(id)
-            .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")))
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
             .flatMap(existingUser -> {
                 if (!existingUser.getUsername().equals(user.getUsername())) {
                     return userRepository.existsByUsername(user.getUsername())
                         .flatMap(exists -> exists ?
-                            Mono.error(new UsernameAlreadyExistsException("用户名已存在")) :
+                            Mono.error(new ResourceConflictException("User", "username", user.getUsername())) :
                             Mono.just(existingUser));
                 }
                 return Mono.just(existingUser);
@@ -98,7 +93,7 @@ public class UserService {
                 if (!existingUser.getEmail().equals(user.getEmail())) {
                     return userRepository.existsByEmail(user.getEmail())
                         .flatMap(exists -> exists ?
-                            Mono.error(new EmailAlreadyExistsException("邮箱已存在")) :
+                            Mono.error(new ResourceConflictException("User", "email", user.getEmail())) :
                             Mono.just(existingUser));
                 }
                 return Mono.just(existingUser);
@@ -121,7 +116,7 @@ public class UserService {
     
     public Mono<Void> deleteUser(Long id) {
         return userRepository.findById(id)
-            .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")))
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
             .flatMap(user -> userRepository.deleteById(id))
             .doOnSuccess(v -> log.info("用户删除成功: {}", id))
             .doOnError(error -> log.error("用户删除失败: {}", error.getMessage()));
@@ -129,7 +124,7 @@ public class UserService {
     
     public Mono<UserResponse> activateUser(Long id) {
         return userRepository.findById(id)
-            .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")))
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
             .flatMap(user -> {
                 user.setActive(true);
                 user.setUpdatedAt(LocalDateTime.now());
@@ -140,7 +135,7 @@ public class UserService {
     
     public Mono<UserResponse> deactivateUser(Long id) {
         return userRepository.findById(id)
-            .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")))
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
             .flatMap(user -> {
                 user.setActive(false);
                 user.setUpdatedAt(LocalDateTime.now());
@@ -152,34 +147,35 @@ public class UserService {
       
     public Mono<AuthTokens> login(LoginRequest loginRequest) {
         return userRepository.findByUsername(loginRequest.getUsername())
+            .switchIfEmpty(Mono.error(new InvalidCredentialsException()))
             .flatMap(user -> {
                 if (!user.getActive()) {
-                    return Mono.error(new UserDisabledException("用户已被禁用"));
+                    return Mono.error(new UserDisabledException(user.getUsername()));
                 }
                 
                 if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-                    return Mono.error(new AuthenticationFailedException("用户名或密码错误"));
+                    return Mono.error(new InvalidCredentialsException(user.getUsername()));
                 }
+                
                 user.setLastLoginAt(LocalDateTime.now());
                 String accessToken = jwtUtil.generateAccessToken(user);
                 String refreshToken = jwtUtil.generateRefreshToken(user);
                 
                 return userRepository.save(user)
-                .then(Mono.just(createAuthTokens(accessToken, refreshToken)));
-            })
-            .switchIfEmpty(Mono.error(new AuthenticationFailedException("用户名或密码错误")));
+                    .then(Mono.just(createAuthTokens(accessToken, refreshToken)));
+            });
     }
     
     public Mono<LoginResponse> refreshToken(String refreshToken) {
         return Mono.fromCallable(() -> jwtUtil.validateToken(refreshToken))
             .filter(valid -> valid)
-            .switchIfEmpty(Mono.error(new InvalidRefreshTokenException("无效的刷新令牌")))
+            .switchIfEmpty(Mono.error(new RefreshTokenException(ErrorCode.REFRESH_TOKEN_INVALID)))
             .flatMap(valid -> Mono.just(jwtUtil.extractUsername(refreshToken)))
             .flatMap(userRepository::findByUsername)
-            .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")))
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User")))
             .flatMap(user -> {
                 if (!user.getActive()) {
-                    return Mono.error(new UserDisabledException("用户已被禁用"));
+                    return Mono.error(new UserDisabledException(user.getUsername()));
                 }
                 String newAccessToken = jwtUtil.generateAccessToken(user);
                 String newRefreshToken = jwtUtil.generateRefreshToken(user);
@@ -207,10 +203,10 @@ public class UserService {
 
     public Mono<UserResponse> updateUserProfile(String username, UserProfileUpdateRequest updateRequest) {
         return userRepository.findByUsername(username)
-                .switchIfEmpty(Mono.error(new UserNotFoundException("用户不存在")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", username)))
                 .flatMap(existingUser -> {
                     if (!existingUser.getActive()) {
-                        return Mono.error(new UserDisabledException("用户已被禁用"));
+                        return Mono.error(new UserDisabledException(username));
                     }
 
                     return Mono.just(existingUser)
@@ -218,7 +214,7 @@ public class UserService {
                                 if (updateRequest.getUsername() != null && !updateRequest.getUsername().equals(user.getUsername())) {
                                     return userRepository.existsByUsername(updateRequest.getUsername())
                                             .flatMap(exists -> exists ?
-                                                Mono.error(new UsernameAlreadyExistsException("用户名已存在")) :
+                                                Mono.error(new ResourceConflictException("User", "username", updateRequest.getUsername())) :
                                                 Mono.just(user))
                                             .map(u -> {
                                                 u.setUsername(updateRequest.getUsername());
@@ -231,7 +227,7 @@ public class UserService {
                                 if (updateRequest.getEmail() != null && !updateRequest.getEmail().equals(user.getEmail())) {
                                     return userRepository.existsByEmail(updateRequest.getEmail())
                                             .flatMap(exists -> exists ?
-                                                Mono.error(new EmailAlreadyExistsException("邮箱已存在")) :
+                                                Mono.error(new ResourceConflictException("User", "email", updateRequest.getEmail())) :
                                                 Mono.just(user))
                                             .map(u -> {
                                                 u.setEmail(updateRequest.getEmail());

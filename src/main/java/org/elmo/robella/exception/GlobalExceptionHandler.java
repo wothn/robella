@@ -1,124 +1,151 @@
 package org.elmo.robella.exception;
 
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
+/**
+ * 全局异常处理器
+ * 统一处理所有异常并返回标准化的错误响应
+ */
 @Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 通用 API 错误结构
-    @Data
-    public static class ApiError {
-        private String code;
-        private String message;
-        private String timestamp;
-    }
-
-    // Anthropic 风格错误结构
-    @Data
-    public static class AnthropicError {
-        private String type;
-        private ErrorDetail error;
-
-        @Data
-        public static class ErrorDetail {
-            private String type;
-            private String message;
-        }
-    }
-
-    // 通用错误结构
-    @Data
-    public static class GenericError {
-        private ErrorDetail error;
-
-        @Data
-        public static class ErrorDetail {
-            private String type;
-            private String message;
-        }
-    }
-
-    private Mono<ResponseEntity<ApiError>> buildApi(HttpStatus status, String code, String message) {
-        ApiError error = new ApiError();
-        error.setCode(code);
-        error.setMessage(message);
-        error.setTimestamp(Instant.now().toString());
-        return Mono.just(ResponseEntity.status(status).body(error));
-    }
-
-    // 兼容 Anthropic 风格输出
-    private ResponseEntity<AnthropicError> buildAnthropicStyle(int status, String type, String message) {
-        AnthropicError body = new AnthropicError();
-        body.setType("error");
-
-        AnthropicError.ErrorDetail errorDetail = new AnthropicError.ErrorDetail();
-        errorDetail.setType(type);
-        errorDetail.setMessage(message);
-        body.setError(errorDetail);
-
-        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
-    }
-
-    private ResponseEntity<GenericError> buildGenericStyle(int status, String type, String message) {
-        GenericError body = new GenericError();
-
-        GenericError.ErrorDetail errorDetail = new GenericError.ErrorDetail();
-        errorDetail.setType(type);
-        errorDetail.setMessage(message);
-        body.setError(errorDetail);
-
-        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
-    }
-
-    private ResponseEntity<?> routeStyle(ServerWebExchange exchange, int status, String type, String message) {
+    
+    /**
+     * 处理业务异常
+     * 所有继承自BaseBusinessException的异常都会被此方法处理
+     */
+    @ExceptionHandler(BaseBusinessException.class)
+    public Mono<ResponseEntity<?>> handleBusinessException(
+            BaseBusinessException ex, ServerWebExchange exchange) {
+        
         String path = exchange.getRequest().getPath().value();
-        if (path.startsWith("/anthropic/")) {
-            return buildAnthropicStyle(status, type, message);
+        
+        // 根据异常级别记录日志
+        if (shouldLogAsError(ex)) {
+            log.error("Business exception [{}]: {}", ex.getErrorCode().getCode(), ex.getMessage(), ex);
+        } else {
+            log.warn("Business exception [{}]: {}", ex.getErrorCode().getCode(), ex.getMessage());
         }
-        return buildGenericStyle(status, type, message);
+        
+        // 根据请求路径返回不同格式的响应
+        return Mono.just(buildResponse(ex, path));
     }
-
-  
-    // ===== 业务相关异常处理 =====
-
-    @ExceptionHandler(ProviderException.class)
-    public Mono<ResponseEntity<?>> handleProvider(ProviderException ex, ServerWebExchange exchange) {
-        log.error("Provider error", ex);
-        return Mono.just(routeStyle(exchange, 502, "provider_error", ex.getMessage()));
+    
+    /**
+     * 处理参数验证异常
+     */
+    @ExceptionHandler({WebExchangeBindException.class, BindException.class})
+    public Mono<ResponseEntity<?>> handleValidationException(
+            WebExchangeBindException ex, ServerWebExchange exchange) {
+        
+        log.warn("Validation failed: {}", ex.getMessage());
+        
+        Map<String, Object> details = new HashMap<>();
+        for (FieldError fieldError : ex.getFieldErrors()) {
+            details.put(fieldError.getField(), fieldError.getDefaultMessage());
+        }
+        
+        InvalidParameterException validationEx = new InvalidParameterException(ErrorCode.VALIDATION_FAILED);
+        validationEx.addDetails(details);
+        
+        return Mono.just(buildResponse(validationEx, exchange.getRequest().getPath().value()));
     }
-
-    @ExceptionHandler(TransformException.class)
-    public Mono<ResponseEntity<?>> handleTransform(TransformException ex, ServerWebExchange exchange) {
-        log.error("Transform error", ex);
-        return Mono.just(routeStyle(exchange, 500, "transform_error", ex.getMessage()));
+    
+    /**
+     * 处理数据完整性违反异常（如唯一约束）
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public Mono<ResponseEntity<?>> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex, ServerWebExchange exchange) {
+        
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        
+        DataConstraintException constraintEx = new DataConstraintException("data_constraint", ex.getMessage());
+        return Mono.just(buildResponse(constraintEx, exchange.getRequest().getPath().value()));
     }
-
+    
+    /**
+     * 处理参数类型异常
+     */
     @ExceptionHandler(IllegalArgumentException.class)
-    public Mono<ResponseEntity<ApiError>> handleIllegalArgument(IllegalArgumentException ex) {
+    public Mono<ResponseEntity<?>> handleIllegalArgument(
+            IllegalArgumentException ex, ServerWebExchange exchange) {
+        
         log.warn("Invalid argument: {}", ex.getMessage());
-        return buildApi(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", ex.getMessage());
+        
+        InvalidParameterException invalidParamEx = new InvalidParameterException("argument", ex.getMessage());
+        return Mono.just(buildResponse(invalidParamEx, exchange.getRequest().getPath().value()));
     }
-
+    
+    /**
+     * 处理运行时异常
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public Mono<ResponseEntity<?>> handleRuntimeException(
+            RuntimeException ex, ServerWebExchange exchange) {
+        
+        log.error("Runtime exception", ex);
+        
+        SystemException systemEx = new SystemException(ErrorCode.INTERNAL_ERROR) {};
+        systemEx.addDetail("originalException", ex.getClass().getSimpleName());
+        
+        return Mono.just(buildResponse(systemEx, exchange.getRequest().getPath().value()));
+    }
+    
+    /**
+     * 处理所有其他异常
+     */
     @ExceptionHandler(Exception.class)
-    public Mono<ResponseEntity<ApiError>> handleGeneric(Exception ex) {
+    public Mono<ResponseEntity<?>> handleGenericException(
+            Exception ex, ServerWebExchange exchange) {
+        
         log.error("Unhandled exception", ex);
-        return buildApi(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误");
+        
+        SystemException systemEx = new SystemException(ErrorCode.UNKNOWN_ERROR) {};
+        systemEx.addDetail("originalException", ex.getClass().getSimpleName());
+        
+        return Mono.just(buildResponse(systemEx, exchange.getRequest().getPath().value()));
     }
-
-    @ExceptionHandler(UserException.class)
-    public Mono<ResponseEntity<ApiError>> handleUser(UserException ex) {
-        log.warn("User error: {}", ex.getMessage());
-        return buildApi(HttpStatus.BAD_REQUEST, "USER_ERROR", ex.getMessage());
+    
+    /**
+     * 根据请求路径构建不同格式的响应
+     */
+    private ResponseEntity<?> buildResponse(BaseBusinessException ex, String path) {
+        if (path.startsWith("/anthropic/")) {
+            return ResponseEntity
+                .status(ex.getHttpStatus())
+                .body(AnthropicErrorResponse.fromException(ex));
+        } else if (path.startsWith("/v1/")) {
+            return ResponseEntity
+                .status(ex.getHttpStatus())
+                .body(OpenAIErrorResponse.fromException(ex));
+        } else {
+            return ResponseEntity
+                .status(ex.getHttpStatus())
+                .body(ErrorResponse.fromException(ex, path));
+        }
+    }
+    
+    /**
+     * 判断是否应该作为错误级别记录日志
+     * 系统错误和外部服务错误记录为ERROR级别
+     * 其他业务异常记录为WARN级别
+     */
+    private boolean shouldLogAsError(BaseBusinessException ex) {
+        return ex.getCategory() == ErrorCategory.SYSTEM || 
+               ex.getCategory() == ErrorCategory.EXTERNAL_SERVICE;
     }
 }

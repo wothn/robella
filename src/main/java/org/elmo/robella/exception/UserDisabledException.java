@@ -1,7 +1,21 @@
 package org.elmo.robella.exception;
 
-public class UserDisabledException extends UserException {
-    public UserDisabledException(String message) {
-        super(message);
+/**
+ * 用户账户被禁用异常
+ */
+public class UserDisabledException extends BusinessLogicException {
+    
+    public UserDisabledException() {
+        super(ErrorCode.USER_DISABLED);
+    }
+    
+    public UserDisabledException(String username) {
+        super(ErrorCode.USER_DISABLED);
+        addDetail("username", username);
+    }
+    
+    @Override
+    public org.springframework.http.HttpStatus getHttpStatus() {
+        return org.springframework.http.HttpStatus.FORBIDDEN;
     }
 }
