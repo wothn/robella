@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.util.Objects;
+import reactor.util.context.Context;
 
 @Slf4j
 @Service
@@ -41,7 +42,7 @@ public class UnifiedService {
 
     public Mono<UnifiedChatResponse> sendChatRequest(UnifiedChatRequest request) {
         String modelName = request.getModel();
-        
+
         // 获取合适的客户端和 Provider
         return routingService.getClientWithProviderByModelKey(modelName)
                 .flatMap(clientWithProvider -> {
@@ -51,7 +52,8 @@ public class UnifiedService {
                     } else if (clientWithProvider.getProvider().getProviderType() != null) {
                         request.setProviderType(clientWithProvider.getProvider().getProviderType());
                     }
-                    // 发起请求
+
+                    // 发起请求并传递日志上下文
                     return clientWithProvider.getClient().chatCompletion(request, clientWithProvider.getProvider());
                 });
     }
@@ -68,8 +70,16 @@ public class UnifiedService {
                     } else {
                         request.setProviderType(clientWithProvider.getProvider().getProviderType());
                     }
-                    // 发起流式请求
-                    return clientWithProvider.getClient().streamChatCompletion(request, clientWithProvider.getProvider());
+
+                    // 创建包含日志信息的上下文
+                    Context loggingContext = Context.of(
+                        "vendorModelName", clientWithProvider.getVendorModel().getVendorModelKey(),
+                        "providerId", clientWithProvider.getVendorModel().getProviderId()
+                    );
+
+                    // 发起流式请求并传递日志上下文
+                    return clientWithProvider.getClient().streamChatCompletion(request, clientWithProvider.getProvider())
+                            .contextWrite(loggingContext);
                 })
                 .filter(Objects::nonNull);
     }

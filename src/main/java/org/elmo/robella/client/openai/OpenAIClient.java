@@ -128,7 +128,7 @@ public class OpenAIClient implements ApiClient {
             log.debug("[OpenAIClient] streamChatCompletion start provider={} model={} stream=true", provider.getName(), finalRequest.getModel());
         }
 
-        clientRequestLogger.startStreamRequest(requestId, request, "openai");
+        clientRequestLogger.startStreamRequest(requestId, finalRequest);
 
         return streamTransformer.transform(webClient.post()
                 .uri(url)
@@ -153,7 +153,7 @@ public class OpenAIClient implements ApiClient {
                             chunk.getModel());
                     }
                 })
-                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest, "openai"))
+                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest))
                 .doOnError(err -> {
                     clientRequestLogger.failStreamRequest(requestId, finalRequest, "openai", err);
                     log.debug("[OpenAIClient] streamChatCompletion error provider={} model={} msg={}", provider.getName(), finalRequest.getModel(), err.toString());

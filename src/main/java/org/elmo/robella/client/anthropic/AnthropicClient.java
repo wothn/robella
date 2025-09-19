@@ -134,7 +134,7 @@ public class AnthropicClient implements ApiClient {
                     provider.getName(), finalRequest.getModel());
         }
 
-        clientRequestLogger.startStreamRequest(requestId, request, "anthropic");
+        clientRequestLogger.startStreamRequest(requestId, finalRequest);
 
         return streamTransformer.transform(webClient.post()
                 .uri(url)
@@ -161,7 +161,7 @@ public class AnthropicClient implements ApiClient {
                             event != null ? "present" : "null");
                     }
                 })
-                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest, "anthropic"))
+                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest))
                 .doOnError(err -> {
                     clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic", err);
                     log.debug("[AnthropicClient] streamChatCompletion error provider={} model={} msg={}",

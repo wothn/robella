@@ -19,11 +19,14 @@ import org.elmo.robella.service.TokenCountingService;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import reactor.core.publisher.Flux;
 
 @Slf4j
 @Component
@@ -43,14 +46,14 @@ public class ClientRequestLogger {
      * 开始记录请求日志
      */
     public String startRequest() {
+        // 记录请求开始时间
         String requestId = UUID.randomUUID().toString();
         requestStartTimeMap.put(requestId, LocalDateTime.now());
-        requestLogService.logRequestStart(requestId);
         return requestId;
     }
 
     /**
-     * 记录成功的请求
+     * 记录成功的请求（非流式）
      */
     public Mono<Void> OpenAIlogSuccess(String requestId, ChatCompletionRequest request,
             ChatCompletionResponse response) {
@@ -83,7 +86,7 @@ public class ClientRequestLogger {
                 }
             }
 
-            return requestLogService.createSuccessLog(data.build()).then();
+            return createSuccessLog(data.build()).then();
         });
     }
 
@@ -103,7 +106,7 @@ public class ClientRequestLogger {
             data.modelName(request != null ? request.getModel() : null);
             data.isStream(false);
 
-            return requestLogService.createFailureLog(data.build()).then();
+            return createFailureLog(data.build()).then();
         });
     }
 
@@ -141,7 +144,7 @@ public class ClientRequestLogger {
                 }
             }
 
-            return requestLogService.createSuccessLog(data.build()).then();
+            return createSuccessLog(data.build()).then();
         });
     }
 
@@ -161,22 +164,50 @@ public class ClientRequestLogger {
             data.modelName(request != null ? request.getModel() : null);
             data.isStream(false);
 
-            return requestLogService.createFailureLog(data.build()).then();
+            return createFailureLog(data.build()).then();
         });
     }
 
     /**
-     * 开始记录流式请求
+     * 开始记录流式请求（OpenAI格式）
      */
-    public void startStreamRequest(String requestId, UnifiedChatRequest request, String endpointType) {
+    public void startStreamRequest(String requestId, ChatCompletionRequest request) {
         StreamRequestState state = new StreamRequestState();
         state.setRequestId(requestId);
-        state.setRequest(request);
-        state.setEndpointType(endpointType);
         state.setStartTime(LocalDateTime.now());
+        if (request != null) {
+            state.setVendorModelName(request.getModel());
+            // 计算并设置prompt token
+            if (request.getMessages() != null) {
+                int promptTokens = tokenCountingService.countOpenAIRequestToken(request, request.getModel());
+                state.setPromptTokens(promptTokens);
+                log.debug("Stream request {} calculated prompt tokens: {} for model {}", 
+                         requestId, promptTokens, request.getModel());
+            }
+        }
 
         streamStateMap.put(requestId, state);
-        log.debug("Stream request started: {}, endpoint: {}", requestId, endpointType);
+    }
+
+    /**
+     * 开始记录流式请求（Anthropic格式）
+     */
+    public void startStreamRequest(String requestId, AnthropicChatRequest request) {
+        StreamRequestState state = new StreamRequestState();
+        state.setRequestId(requestId);
+        state.setStartTime(LocalDateTime.now());
+        if (request != null) {
+            state.setVendorModelName(request.getModel());
+            // 计算并设置prompt token
+            if (request.getMessages() != null) {
+                int promptTokens = tokenCountingService.countAnthropicRequestToken(request, request.getModel());
+                state.setPromptTokens(promptTokens);
+                log.debug("Anthropic stream request {} calculated prompt tokens: {} for model {}", 
+                         requestId, promptTokens, request.getModel());
+            }
+        }
+
+        streamStateMap.put(requestId, state);
     }
 
     /**
@@ -187,37 +218,26 @@ public class ClientRequestLogger {
         if (state == null)
             return;
 
-            state.incrementChunkCount();
-            state.updateLastChunkTime();
+        // 精确计算响应token数
+        if (chunk.getChoices() != null && !chunk.getChoices().isEmpty()) {
+            String modelName = state.getModelName();
+            int tokens = tokenCountingService.countOpenAIStreamChunkToken(chunk, modelName);
+            state.incrementEstimatedResponseTokens(tokens);
+        }
 
-            // 精确计算响应token数
-            if (chunk.getChoices() != null && !chunk.getChoices().isEmpty()) {
-                String modelName = state.getRequest() != null ? state.getRequest().getModel() : null;
-                int tokens = tokenCountingService.countOpenAIStreamChunkToken(chunk, modelName);
-                state.incrementEstimatedResponseTokens(tokens);
-            }
+        // 记录第一个token的延迟
+        if (state.getFirstTokenLatencyMs() == null) {
+            long firstTokenLatency = Duration.between(state.getStartTime(), LocalDateTime.now()).toMillis();
+            state.setFirstTokenLatencyMs((int) firstTokenLatency);
+            log.info("Stream request {} first token received after {}ms", requestId, firstTokenLatency);
+        }
 
-            // 记录第一个token的延迟
-            if (state.getFirstTokenTime() == null) {
-                state.setFirstTokenTime(LocalDateTime.now());
-                state.setFirstTokenLatencyMs(
-                        Duration.between(state.getStartTime(), state.getFirstTokenTime()).toMillisPart());
-                log.info("Stream request {} first token received after {}ms", requestId,
-                        state.getFirstTokenLatencyMs());
-            }
-
-            // 累积token统计
-            if (chunk.getUsage() != null) {
-                state.setPromptTokens(chunk.getUsage().getPromptTokens());
-                state.setCompletionTokens(chunk.getUsage().getCompletionTokens());
-                state.setTotalTokens(chunk.getUsage().getTotalTokens());
-            }
-
-            // 记录最后一个chunk的ID
-            if (chunk.getId() != null) {
-                state.setResponseId(chunk.getId());
-            }
-
+        // 累积token统计
+        if (chunk.getUsage() != null) {
+            state.setPromptTokens(chunk.getUsage().getPromptTokens());
+            state.setCompletionTokens(chunk.getUsage().getCompletionTokens());
+            state.setTotalTokens(chunk.getUsage().getTotalTokens());
+        }
     }
 
     /**
@@ -228,36 +248,21 @@ public class ClientRequestLogger {
         if (state == null)
             return;
 
-        state.incrementChunkCount();
-        state.updateLastChunkTime();
-
         switch (event.getType()) {
-            case "message_start":
-                // 记录消息ID
-                if (event instanceof AnthropicMessageStartEvent) {
-                    AnthropicMessageStartEvent startEvent = (AnthropicMessageStartEvent) event;
-                    if (startEvent.getMessage() != null && startEvent.getMessage().getId() != null) {
-                        state.setResponseId(startEvent.getMessage().getId());
-                    }
-                }
-                break;
-
             case "content_block_delta":
                 // 精确计算响应token数和记录第一个token延迟
                 if (event instanceof AnthropicContentBlockDeltaEvent) {
                     AnthropicContentBlockDeltaEvent deltaEvent = (AnthropicContentBlockDeltaEvent) event;
                     if (deltaEvent.getDelta() != null && deltaEvent.getDelta().getDeltaContent() != null) {
-                        String modelName = state.getRequest() != null ? state.getRequest().getModel() : null;
+                        String modelName = state.getModelName();
                         int tokens = tokenCountingService.countAnthropicStreamEventToken(event, modelName);
                         state.incrementEstimatedResponseTokens(tokens);
 
                         // 记录第一个token的延迟
-                        if (state.getFirstTokenTime() == null) {
-                            state.setFirstTokenTime(LocalDateTime.now());
-                            state.setFirstTokenLatencyMs(
-                                    Duration.between(state.getStartTime(), state.getFirstTokenTime()).toMillisPart());
-                            log.info("Anthropic stream request {} first token received after {}ms", requestId,
-                                    state.getFirstTokenLatencyMs());
+                        if (state.getFirstTokenLatencyMs() == null) {
+                            long firstTokenLatency = Duration.between(state.getStartTime(), LocalDateTime.now()).toMillis();
+                            state.setFirstTokenLatencyMs((int) firstTokenLatency);
+                            log.info("Anthropic stream request {} first token received after {}ms", requestId, firstTokenLatency);
                         }
                     }
                 }
@@ -270,21 +275,17 @@ public class ClientRequestLogger {
                     if (deltaEvent.getUsage() != null) {
                         state.setPromptTokens(deltaEvent.getUsage().getInputTokens());
                         state.setCompletionTokens(deltaEvent.getUsage().getOutputTokens());
-                        state.setTotalTokens(deltaEvent.getUsage().getInputTokens() + deltaEvent.getUsage().getOutputTokens());
+                        state.setTotalTokens(
+                                deltaEvent.getUsage().getInputTokens() + deltaEvent.getUsage().getOutputTokens());
                     }
                 }
                 break;
 
+            case "message_start":
             case "message_stop":
-                // 消息结束，不需要特殊处理
-                break;
-
             case "ping":
-                // 心跳事件，不需要处理
-                break;
-
             case "error":
-                // 错误事件，可以记录错误信息
+                // 这些事件不需要特殊处理
                 break;
         }
     }
@@ -292,7 +293,7 @@ public class ClientRequestLogger {
     /**
      * 完成流式请求记录
      */
-    public void completeStreamRequest(String requestId, ChatCompletionRequest request, String endpointType) {
+    public void completeStreamRequest(String requestId, ChatCompletionRequest request) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
             return;
@@ -305,8 +306,7 @@ public class ClientRequestLogger {
             data.requestId(requestId);
             data.userId(userId);
             data.apiKeyId(apiKeyId);
-            data.modelName(request != null ? request.getModel() : null);
-            data.endpointType(endpointType);
+            data.modelName(state.getModelName());
             data.isStream(true);
             data.vendorModelName(state.getVendorModelName());
             data.providerId(state.getProviderId());
@@ -326,20 +326,20 @@ public class ClientRequestLogger {
             data.completionTokens(completionTokens);
             data.totalTokens(totalTokens);
             data.firstTokenLatencyMs(state.getFirstTokenLatencyMs());
-            data.tokenSource(completionTokens != null ? "stream_accumulated" : "stream_jtokkit_calculated");
+            data.tokenSource(completionTokens != null ? "usage" : "jtokkit");
 
             long duration = Duration.between(state.getStartTime(), LocalDateTime.now()).toMillis();
-            log.info("Stream request {} completed: {} chunks, total tokens: {}, duration: {}ms",
-                    requestId, state.getChunkCount(), totalTokens, duration);
+            log.info("Stream request {} completed: total tokens: {}, duration: {}ms",
+                    requestId, totalTokens, duration);
 
-            return requestLogService.createSuccessLog(data.build()).then();
+            return createSuccessLog(data.build()).then();
         }).subscribe();
     }
 
     /**
      * 完成Anthropic流式请求记录
      */
-    public void completeStreamRequest(String requestId, AnthropicChatRequest request, String endpointType) {
+    public void completeStreamRequest(String requestId, AnthropicChatRequest request) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
             return;
@@ -352,8 +352,7 @@ public class ClientRequestLogger {
             data.requestId(requestId);
             data.userId(userId);
             data.apiKeyId(apiKeyId);
-            data.modelName(request != null ? request.getModel() : null);
-            data.endpointType(endpointType);
+            data.modelName(state.getModelName());
             data.isStream(true);
             data.vendorModelName(state.getVendorModelName());
             data.providerId(state.getProviderId());
@@ -376,17 +375,18 @@ public class ClientRequestLogger {
             data.tokenSource(completionTokens != null ? "stream_accumulated" : "stream_jtokkit_calculated");
 
             long duration = Duration.between(state.getStartTime(), LocalDateTime.now()).toMillis();
-            log.info("Anthropic stream request {} completed: {} chunks, total tokens: {}, duration: {}ms",
-                    requestId, state.getChunkCount(), totalTokens, duration);
+            log.info("Anthropic stream request {} completed: total tokens: {}, duration: {}ms",
+                    requestId, totalTokens, duration);
 
-            return requestLogService.createSuccessLog(data.build()).then();
+            return createSuccessLog(data.build()).then();
         }).subscribe();
     }
 
     /**
      * 记录流式请求失败
      */
-    public void failStreamRequest(String requestId, ChatCompletionRequest request, String endpointType, Throwable error) {
+    public void failStreamRequest(String requestId, ChatCompletionRequest request, String endpointType,
+            Throwable error) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
             return;
@@ -403,14 +403,15 @@ public class ClientRequestLogger {
             data.endpointType(endpointType);
             data.isStream(true);
 
-            return requestLogService.createFailureLog(data.build()).then();
+            return createFailureLog(data.build()).then();
         }).subscribe();
     }
 
     /**
      * 记录Anthropic流式请求失败
      */
-    public void failStreamRequest(String requestId, AnthropicChatRequest request, String endpointType, Throwable error) {
+    public void failStreamRequest(String requestId, AnthropicChatRequest request, String endpointType,
+            Throwable error) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
             return;
@@ -427,40 +428,94 @@ public class ClientRequestLogger {
             data.endpointType(endpointType);
             data.isStream(true);
 
-            return requestLogService.createFailureLog(data.build()).then();
+            return createFailureLog(data.build()).then();
         }).subscribe();
+    }
+
+    /**
+     * 计算持续时间（毫秒）
+     */
+    private Integer calculateDurationMs(LocalDateTime startTime) {
+        return (int) java.time.Duration.between(startTime, LocalDateTime.now())
+                .toMillis();
+    }
+
+    /**
+     * 计算每秒token数
+     */
+    private BigDecimal calculateTokensPerSecond(Integer totalTokens, Integer durationMs) {
+        if (totalTokens == null || durationMs == null || durationMs == 0) {
+            return null;
+        }
+
+        double tokensPerSecond = (totalTokens.doubleValue() / durationMs) * 1000;
+        return BigDecimal.valueOf(tokensPerSecond).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 创建成功的请求日志
+     */
+    public Mono<RequestLog> createSuccessLog(RequestLog requestLog) {
+        LocalDateTime startTime = requestStartTimeMap.remove(requestLog.getRequestId());
+        if (startTime == null) {
+            startTime = LocalDateTime.now();
+        }
+
+        // 计算总持续时间
+        Integer durationMs = calculateDurationMs(startTime);
+
+        // 注意：由于RequestLog没有VendorModel字段，我们需要通过其他方式获取成本信息
+        // 这里简化处理，实际项目中可能需要从数据库获取VendorModel
+        BigDecimal inputCost = BigDecimal.ZERO;
+        BigDecimal outputCost = BigDecimal.ZERO;
+        BigDecimal totalCost = BigDecimal.ZERO;
+        String currency = "USD";
+
+        RequestLog.RequestLogBuilder builder = requestLog.toBuilder()
+                .durationMs(durationMs)
+                .inputCost(inputCost)
+                .outputCost(outputCost)
+                .totalCost(totalCost)
+                .currency(currency)
+                .tokensPerSecond(calculateTokensPerSecond(requestLog.getCompletionTokens(), durationMs))
+                .isSuccess(true);
+
+        return requestLogService.createRequestLog(builder.build());
+    }
+
+    /**
+     * 创建失败的请求日志
+     */
+    public Mono<RequestLog> createFailureLog(RequestLog requestLog) {
+        LocalDateTime startTime = requestStartTimeMap.remove(requestLog.getRequestId());
+        if (startTime == null) {
+            startTime = LocalDateTime.now();
+        }
+
+        RequestLog.RequestLogBuilder builder = requestLog.toBuilder()
+                .durationMs(calculateDurationMs(startTime))
+                .isSuccess(false);
+
+        return requestLogService.createRequestLog(builder.build());
     }
 
     // 流式请求状态跟踪类
     @lombok.Data
     private static class StreamRequestState {
         private String requestId;
-        private UnifiedChatRequest request;
         private String endpointType;
         private LocalDateTime startTime;
-        private LocalDateTime firstTokenTime;
         private Integer firstTokenLatencyMs;
         private Integer promptTokens;
         private Integer completionTokens;
         private Integer totalTokens;
-        private Integer chunkCount = 0;
-        private String responseId;
         private Integer estimatedResponseTokens = 0;
-        private LocalDateTime lastChunkTime;
-        private VendorModel vendorModel;
+        private String modelName;
         private String vendorModelName;
         private Long providerId;
 
-        public void incrementChunkCount() {
-            this.chunkCount++;
-        }
-
         public void incrementEstimatedResponseTokens(int tokens) {
             this.estimatedResponseTokens += tokens;
-        }
-
-        public void updateLastChunkTime() {
-            this.lastChunkTime = LocalDateTime.now();
         }
     }
 }
