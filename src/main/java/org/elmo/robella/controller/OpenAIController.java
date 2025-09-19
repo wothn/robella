@@ -44,9 +44,10 @@ public class OpenAIController {
                 .flatMap(modelKey -> {
                     // 更新请求中的模型名称为供应商模型调用标识
                     request.setModel(modelKey);
-                    
+
                     // 直接使用OpenAI转换器进行统一处理
                     UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
+                    unifiedRequest.setEndpointType("openai");
 
                     if (Boolean.TRUE.equals(request.getStream())) {
                         String uuid = UUID.randomUUID().toString();

@@ -20,7 +20,7 @@ public class UnifiedChatRequest {
 
     private String model;                        // 逻辑模型名
     private ProviderType providerType;                 // 供应商名称，用于获取配置信息
-    
+    private String endpointType;                   // 端点类型 (openai/anthropic)
     private List<OpenAIMessage> messages;          // 对话历史
     private Boolean stream;                      // 是否流式
     private StreamOptions streamOptions;         // 流式参数

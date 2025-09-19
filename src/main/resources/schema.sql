@@ -190,3 +190,66 @@ COMMENT ON COLUMN api_key.last_used_at IS '最后使用时间';
 COMMENT ON COLUMN api_key.expires_at IS '过期时间';
 COMMENT ON COLUMN api_key.created_at IS '创建时间';
 COMMENT ON COLUMN api_key.updated_at IS '更新时间';
+
+-- 请求日志表
+CREATE TABLE IF NOT EXISTS request_log (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    api_key_id BIGINT,
+    model_name VARCHAR(100),
+    vendor_model_name VARCHAR(100),
+    provider_id BIGINT,
+    endpoint_type VARCHAR(20),
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    total_tokens INTEGER,
+    token_source VARCHAR(20),
+    calculation_method VARCHAR(20),
+    input_cost DECIMAL(19, 6),
+    output_cost DECIMAL(19, 6),
+    total_cost DECIMAL(19, 6),
+    currency VARCHAR(10),
+    duration_ms INTEGER,
+    first_token_latency_ms INTEGER,
+    tokens_per_second DECIMAL(19, 6),
+    is_stream BOOLEAN,
+    is_success BOOLEAN,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (api_key_id) REFERENCES api_key(id) ON DELETE SET NULL,
+    FOREIGN KEY (provider_id) REFERENCES provider(id) ON DELETE SET NULL
+);
+
+-- request_log表索引
+CREATE INDEX IF NOT EXISTS idx_request_log_user_id ON request_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_request_log_api_key_id ON request_log(api_key_id);
+CREATE INDEX IF NOT EXISTS idx_request_log_provider_id ON request_log(provider_id);
+CREATE INDEX IF NOT EXISTS idx_request_log_model_name ON request_log(model_name);
+CREATE INDEX IF NOT EXISTS idx_request_log_created_at ON request_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_request_log_is_success ON request_log(is_success);
+CREATE INDEX IF NOT EXISTS idx_request_log_endpoint_type ON request_log(endpoint_type);
+
+-- request_log表注释
+COMMENT ON TABLE request_log IS 'API请求日志表';
+COMMENT ON COLUMN request_log.id IS '日志ID';
+COMMENT ON COLUMN request_log.user_id IS '用户ID';
+COMMENT ON COLUMN request_log.api_key_id IS 'API密钥ID';
+COMMENT ON COLUMN request_log.model_name IS '请求模型名称';
+COMMENT ON COLUMN request_log.vendor_model_name IS '供应商模型名称';
+COMMENT ON COLUMN request_log.provider_id IS '提供商ID';
+COMMENT ON COLUMN request_log.endpoint_type IS '端点类型';
+COMMENT ON COLUMN request_log.prompt_tokens IS '输入令牌数';
+COMMENT ON COLUMN request_log.completion_tokens IS '输出令牌数';
+COMMENT ON COLUMN request_log.total_tokens IS '总令牌数';
+COMMENT ON COLUMN request_log.token_source IS '令牌来源';
+COMMENT ON COLUMN request_log.calculation_method IS '计算方法';
+COMMENT ON COLUMN request_log.input_cost IS '输入成本';
+COMMENT ON COLUMN request_log.output_cost IS '输出成本';
+COMMENT ON COLUMN request_log.total_cost IS '总成本';
+COMMENT ON COLUMN request_log.currency IS '货币类型';
+COMMENT ON COLUMN request_log.duration_ms IS '请求持续时间(毫秒)';
+COMMENT ON COLUMN request_log.first_token_latency_ms IS '首令牌延迟(毫秒)';
+COMMENT ON COLUMN request_log.tokens_per_second IS '每秒令牌数';
+COMMENT ON COLUMN request_log.is_stream IS '是否流式请求';
+COMMENT ON COLUMN request_log.is_success IS '是否成功';
+COMMENT ON COLUMN request_log.created_at IS '创建时间';

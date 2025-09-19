@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 import org.elmo.robella.client.ClientFactory;
-import org.elmo.robella.common.EndpointType;
 
 import java.util.List;
 

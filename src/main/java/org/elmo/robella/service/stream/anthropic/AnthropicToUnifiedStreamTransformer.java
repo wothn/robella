@@ -8,6 +8,7 @@ import org.elmo.robella.model.anthropic.stream.AnthropicMessageDeltaEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicContentBlockStopEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicMessageStopEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicPingEvent;
+import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicErrorEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicDelta;
 import org.elmo.robella.model.anthropic.content.AnthropicContent;
@@ -36,13 +37,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 需要维护会话状态，如消息ID、工具调用索引等
  */
 @Component
-public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStreamTransformer<Object> {
+public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStreamTransformer<AnthropicStreamEvent> {
 
     // 会话状态存储，实际应用中可能需要使用更持久化的存储方案
     private final Map<String, AnthropicStreamSessionState> sessionStates = new ConcurrentHashMap<>();
 
     @Override
-    public Flux<UnifiedStreamChunk> transform(Flux<Object> vendorStream, String sessionId) {
+    public Flux<UnifiedStreamChunk> transform(Flux<AnthropicStreamEvent> vendorStream, String sessionId) {
         // 初始化会话状态
         sessionStates.putIfAbsent(sessionId, new AnthropicStreamSessionState());
 
@@ -55,7 +56,7 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
         });
     }
 
-    private UnifiedStreamChunk processEvent(Object event, AnthropicStreamSessionState state) {
+    private UnifiedStreamChunk processEvent(AnthropicStreamEvent event, AnthropicStreamSessionState state) {
         if (event instanceof AnthropicMessageStartEvent messageStart) {
             // 流式开始，保存必要的会话状态
             state.setMessageId(messageStart.getMessage().getId());

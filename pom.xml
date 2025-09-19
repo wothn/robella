@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.5</version>
-        <relativePath/>
+        <relativePath />
     </parent>
 
     <groupId>org.elmo</groupId>
@@ -113,21 +112,21 @@
             <scope>runtime</scope>
         </dependency>
 
-  
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        
+
         <!-- Reactor Test for testing reactive streams -->
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-test</artifactId>
             <scope>test</scope>
         </dependency>
-        
+
         <!-- Jupiter engine for JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -138,6 +137,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <!-- 统计模型使用token-->
+        <dependency>
+            <groupId>com.knuddels</groupId>
+            <artifactId>jtokkit</artifactId>
+            <version>1.1.0</version>
         </dependency>
     </dependencies>
 

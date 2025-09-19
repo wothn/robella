@@ -60,6 +60,7 @@ public class AnthropicController {
 
                     // 转换请求为统一格式
                     UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
+                    unifiedRequest.setEndpointType("anthropic");
 
                     if (Boolean.TRUE.equals(request.getStream())) {
                         // 处理流式响应

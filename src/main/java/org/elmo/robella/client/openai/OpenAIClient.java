@@ -17,6 +17,7 @@ import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
 import org.elmo.robella.service.transform.EndpointTransform;
 import org.elmo.robella.service.transform.provider.VendorTransform;
 import org.elmo.robella.util.JsonUtils;
+import org.elmo.robella.client.logging.ClientRequestLogger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * OpenAI API 客户端实现
@@ -44,9 +46,12 @@ public class OpenAIClient implements ApiClient {
     private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAIEndpointTransform;
     private final EndpointToUnifiedStreamTransformer<ChatCompletionChunk> streamTransformer;
     private final Map<ProviderType, VendorTransform<ChatCompletionRequest, ChatCompletionResponse>> openaiProviderTransformMap;
+    private final ClientRequestLogger clientRequestLogger;
 
     @Override
     public Mono<UnifiedChatResponse> chatCompletion(UnifiedChatRequest request, Provider provider) {
+        String requestId = clientRequestLogger.startRequest();
+
         ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
@@ -83,9 +88,11 @@ public class OpenAIClient implements ApiClient {
                 .bodyValue(finalRequest)
                 .retrieve()
                 .bodyToMono(ChatCompletionResponse.class)
+                .doOnNext(response -> clientRequestLogger.OpenAIlogSuccess(requestId, finalRequest, response))
                 .map(response -> openAIEndpointTransform.endpointToUnifiedResponse(response))
                 .timeout(webClientProperties.getTimeout().getRead())
                 .onErrorMap(ex -> mapToProviderException(ex, "OpenAI API call"))
+                .onErrorResume(error -> clientRequestLogger.OpenAIlogFailure(requestId, finalRequest, error).then(Mono.error(error)))
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
                         log.debug("[OpenAIClient] chatCompletion success provider={} model={}", provider.getName(), finalRequest.getModel());
@@ -95,6 +102,8 @@ public class OpenAIClient implements ApiClient {
 
     @Override
     public Flux<UnifiedStreamChunk> streamChatCompletion(UnifiedChatRequest request, Provider provider) {
+        String requestId = clientRequestLogger.startRequest();
+
         ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
@@ -109,7 +118,7 @@ public class OpenAIClient implements ApiClient {
         final ChatCompletionRequest finalRequest = openaiRequest;
 
         String url = buildChatCompletionsUrl(provider);
-        String uuid = java.util.UUID.randomUUID().toString();
+        String uuid = UUID.randomUUID().toString();
 
         double multiplier = webClientProperties.getTimeout().getStreamReadMultiplier();
         if (multiplier <= 0) multiplier = 5.0;
@@ -118,6 +127,8 @@ public class OpenAIClient implements ApiClient {
         if (log.isDebugEnabled()) {
             log.debug("[OpenAIClient] streamChatCompletion start provider={} model={} stream=true", provider.getName(), finalRequest.getModel());
         }
+
+        clientRequestLogger.startStreamRequest(requestId, request, "openai");
 
         return streamTransformer.transform(webClient.post()
                 .uri(url)
@@ -133,15 +144,20 @@ public class OpenAIClient implements ApiClient {
                 .timeout(streamTimeout)
                 .onErrorMap(ex -> mapToProviderException(ex, "OpenAI streaming API call"))
                 .doOnNext(chunk -> {
+                    clientRequestLogger.logStreamChunk(requestId, chunk);
                     if (log.isTraceEnabled()) {
-                        log.trace("[OpenAIClient] stream chunk: id={}, choices={}, usage={}, model={}", 
+                        log.trace("[OpenAIClient] stream chunk: id={}, choices={}, usage={}, model={}",
                             chunk.getId(),
                             chunk.getChoices() != null ? chunk.getChoices().size() : "null",
                             chunk.getUsage() != null ? "present" : "null",
                             chunk.getModel());
                     }
                 })
-                .doOnError(err -> log.debug("[OpenAIClient] streamChatCompletion error provider={} model={} msg={}", provider.getName(), finalRequest.getModel(), err.toString())), uuid);
+                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest, "openai"))
+                .doOnError(err -> {
+                    clientRequestLogger.failStreamRequest(requestId, finalRequest, "openai", err);
+                    log.debug("[OpenAIClient] streamChatCompletion error provider={} model={} msg={}", provider.getName(), finalRequest.getModel(), err.toString());
+                }), uuid);
     }
 
     private ProviderException mapToProviderException(Throwable ex, String operationType) {
