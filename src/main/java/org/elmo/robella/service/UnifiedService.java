@@ -71,15 +71,8 @@ public class UnifiedService {
                         request.setProviderType(clientWithProvider.getProvider().getProviderType());
                     }
 
-                    // 创建包含日志信息的上下文
-                    Context loggingContext = Context.of(
-                        "vendorModelName", clientWithProvider.getVendorModel().getVendorModelKey(),
-                        "providerId", clientWithProvider.getVendorModel().getProviderId()
-                    );
-
                     // 发起流式请求并传递日志上下文
-                    return clientWithProvider.getClient().streamChatCompletion(request, clientWithProvider.getProvider())
-                            .contextWrite(loggingContext);
+                    return clientWithProvider.getClient().streamChatCompletion(request, clientWithProvider.getProvider());
                 })
                 .filter(Objects::nonNull);
     }

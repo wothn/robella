@@ -89,11 +89,13 @@ public class AnthropicClient implements ApiClient {
                 .bodyValue(finalRequest)
                 .retrieve()
                 .bodyToMono(AnthropicMessage.class)
-                .doOnNext(response -> clientRequestLogger.anthropicLogSuccess(requestId, finalRequest, response))
+                .flatMap(response -> clientRequestLogger.anthropicLogSuccess(requestId, finalRequest, response)
+                    .thenReturn(response))
                 .map(response -> anthropicEndpointTransform.endpointToUnifiedResponse(response))
                 .timeout(webClientProperties.getTimeout().getRead())
                 .onErrorMap(ex -> mapToProviderException(ex, "Anthropic API call"))
-                .onErrorResume(error -> clientRequestLogger.anthropicLogFailure(requestId, finalRequest, error).then(Mono.error(error)))
+                .onErrorResume(error -> clientRequestLogger.anthropicLogFailure(requestId, finalRequest, error)
+                    .then(Mono.error(error)))
                 .doOnSuccess(resp -> {
                     if (log.isDebugEnabled())
                         log.debug("[AnthropicClient] chatCompletion success provider={} model={}", provider.getName(),
@@ -161,12 +163,16 @@ public class AnthropicClient implements ApiClient {
                             event != null ? "present" : "null");
                     }
                 })
-                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest))
+                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest)
+                    .subscribe()) // 在最外层订阅，保持响应式链
                 .doOnError(err -> {
-                    clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic", err);
+                    clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic", err)
+                        .subscribe(); // 在最外层订阅，保持响应式链
                     log.debug("[AnthropicClient] streamChatCompletion error provider={} model={} msg={}",
                             provider.getName(), finalRequest.getModel(), err.toString());
-                }), uuid);
+                }), uuid)
+                .doOnCancel(() -> clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic",
+                    new RuntimeException("Stream cancelled")).subscribe());
     }
 
     private String buildMessagesUrl(Provider provider) {

@@ -293,14 +293,15 @@ public class ClientRequestLogger {
     /**
      * 完成流式请求记录
      */
-    public void completeStreamRequest(String requestId, ChatCompletionRequest request) {
+    public Mono<Void> completeStreamRequest(String requestId, ChatCompletionRequest request) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
-            return;
+            return Mono.empty();
 
-        Mono.deferContextual(context -> {
+        return Mono.deferContextual(context -> {
             Long userId = context.getOrDefault("userId", null);
             Long apiKeyId = context.getOrDefault("apiKeyId", null);
+            log.debug("Completing stream request {} for user {}", requestId, userId);
 
             RequestLog.RequestLogBuilder data = RequestLog.builder();
             data.requestId(requestId);
@@ -333,20 +334,21 @@ public class ClientRequestLogger {
                     requestId, totalTokens, duration);
 
             return createSuccessLog(data.build()).then();
-        }).subscribe();
+        });
     }
 
     /**
      * 完成Anthropic流式请求记录
      */
-    public void completeStreamRequest(String requestId, AnthropicChatRequest request) {
+    public Mono<Void> completeStreamRequest(String requestId, AnthropicChatRequest request) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
-            return;
+            return Mono.empty();
 
-        Mono.deferContextual(context -> {
+        return Mono.deferContextual(context -> {
             Long userId = context.getOrDefault("userId", null);
             Long apiKeyId = context.getOrDefault("apiKeyId", null);
+            log.debug("Completing Anthropic stream request {} for user {}", requestId, userId);
 
             RequestLog.RequestLogBuilder data = RequestLog.builder();
             data.requestId(requestId);
@@ -379,19 +381,19 @@ public class ClientRequestLogger {
                     requestId, totalTokens, duration);
 
             return createSuccessLog(data.build()).then();
-        }).subscribe();
+        });
     }
 
     /**
      * 记录流式请求失败
      */
-    public void failStreamRequest(String requestId, ChatCompletionRequest request, String endpointType,
+    public Mono<Void> failStreamRequest(String requestId, ChatCompletionRequest request, String endpointType,
             Throwable error) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
-            return;
+            return Mono.empty();
 
-        Mono.deferContextual(context -> {
+        return Mono.deferContextual(context -> {
             Long userId = context.getOrDefault("userId", null);
             Long apiKeyId = context.getOrDefault("apiKeyId", null);
 
@@ -404,19 +406,19 @@ public class ClientRequestLogger {
             data.isStream(true);
 
             return createFailureLog(data.build()).then();
-        }).subscribe();
+        });
     }
 
     /**
      * 记录Anthropic流式请求失败
      */
-    public void failStreamRequest(String requestId, AnthropicChatRequest request, String endpointType,
+    public Mono<Void> failStreamRequest(String requestId, AnthropicChatRequest request, String endpointType,
             Throwable error) {
         StreamRequestState state = streamStateMap.remove(requestId);
         if (state == null)
-            return;
+            return Mono.empty();
 
-        Mono.deferContextual(context -> {
+        return Mono.deferContextual(context -> {
             Long userId = context.getOrDefault("userId", null);
             Long apiKeyId = context.getOrDefault("apiKeyId", null);
 
@@ -429,7 +431,7 @@ public class ClientRequestLogger {
             data.isStream(true);
 
             return createFailureLog(data.build()).then();
-        }).subscribe();
+        });
     }
 
     /**
