@@ -26,7 +26,7 @@ public class UnifiedService {
         return modelRepository.findByPublishedTrue()
             .map(model -> {
                 ModelInfo modelInfo = new ModelInfo();
-                modelInfo.setId(model.getName());
+                modelInfo.setId(model.getModelKey());
                 modelInfo.setObject("model");
                 modelInfo.setOwnedBy(model.getOrganization() != null ? model.getOrganization() : "robella");
                 return modelInfo;
