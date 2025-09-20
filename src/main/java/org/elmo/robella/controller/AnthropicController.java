@@ -52,38 +52,45 @@ public class AnthropicController {
     public Mono<ResponseEntity<?>> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
         String originalModelName = request.getModel();
 
-        // 首先进行模型映射，获取供应商模型调用标识
+        // 使用新的路由方法，一次性获取客户端和供应商信息
         return Mono.deferContextual(ctx -> {
             String requestId = ctx.getOrDefault("requestId", UUID.randomUUID().toString());
 
-            return routingService.mapToVendorModelKey(originalModelName)
-                    .flatMap(modelKey -> {
-                        // 更新请求中的模型名称为供应商模型调用标识
-                        request.setModel(modelKey);
-
-                        // 转换请求为统一格式
+            return routingService.routeAndClient(originalModelName)
+                    .flatMap(clientWithProvider -> {
+                        // 直接使用Anthropic转换器进行统一处理
                         UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
                         unifiedRequest.setEndpointType("anthropic");
+                        // 使用供应商模型调用标识
+                        unifiedRequest.setModel(clientWithProvider.getVendorModel().getVendorModelKey());
 
                         if (Boolean.TRUE.equals(request.getStream())) {
-                            // 处理流式响应
                             Flux<ServerSentEvent<String>> sseStream = unifiedToAnthropicStreamTransformer.transform(
-                                            unifiedService.sendStreamRequest(unifiedRequest), requestId)
-                                    .mapNotNull(event -> {
-                                        String eventType = extractEventType(event);
-                                        String eventData = JsonUtils.toJson(event);
-                                        return ServerSentEvent.<String>builder()
-                                                .event(eventType)
-                                                .data(eventData)
-                                                .build();
-                                    });
+                                unifiedService.sendStreamRequestWithClient(unifiedRequest, clientWithProvider)
+                                    .contextWrite(innerCtx -> innerCtx
+                                        .put("modelKey", originalModelName)
+                                        .put("providerId", clientWithProvider.getProvider().getId())
+                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey())
+                                        .put("endpointType", "anthropic")),
+                                requestId)
+                                .mapNotNull(event -> {
+                                    String eventType = extractEventType(event);
+                                    String eventData = JsonUtils.toJson(event);
+                                    return ServerSentEvent.<String>builder()
+                                            .event(eventType)
+                                            .data(eventData)
+                                            .build();
+                                });
                             return Mono.just(ResponseEntity.ok()
                                     .contentType(MediaType.TEXT_EVENT_STREAM)
                                     .body(sseStream)
                             );
                         } else {
-                            // 处理非流式响应
-                            return unifiedService.sendChatRequest(unifiedRequest)
+                            return unifiedService.sendChatRequestWithClient(unifiedRequest, clientWithProvider)
+                                    .contextWrite(innerCtx -> innerCtx
+                                        .put("modelKey", originalModelName)
+                                        .put("providerId", clientWithProvider.getProvider().getId())
+                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey()))
                                     .map(response -> ResponseEntity.ok().body(response));
                         }
                     });

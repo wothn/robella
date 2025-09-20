@@ -56,6 +56,7 @@ public class ClientRequestLogger {
             state.setEndpointType(context.getOrDefault("endpointType", "openai"));
             state.setModelKey(context.getOrDefault("modelKey", null));
             state.setProviderId(context.getOrDefault("providerId", null));
+            state.setEndpointType(context.getOrDefault("endpointType", "openai"));
 
             // 如果提供了request，计算prompt tokens
             if (request != null && request.getMessages() != null) {
@@ -91,6 +92,7 @@ public class ClientRequestLogger {
             state.setEndpointType(context.getOrDefault("endpointType", "anthropic"));
             state.setModelKey(context.getOrDefault("modelKey", null));
             state.setProviderId(context.getOrDefault("providerId", null));
+            state.setEndpointType(context.getOrDefault("endpointType", "anthropic"));
 
             // 如果提供了request，计算prompt tokens
             if (request != null && request.getMessages() != null) {
@@ -111,19 +113,12 @@ public class ClientRequestLogger {
      */
     public Mono<Void> OpenAIlogSuccess(String requestId, ChatCompletionRequest request,
             ChatCompletionResponse response) {
-        RequestState state = requestStateMap.get(requestId);
-        if (state == null) {
-            log.warn("Request state not found for request: {}", requestId);
+        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, false);
+        if (baseLog == null) {
             return Mono.empty();
         }
 
-        RequestLog.RequestLogBuilder data = RequestLog.builder();
-        data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
-        data.vendorModelKey(request.getModel());
-        data.isStream(state.isStream());
+        RequestLog.RequestLogBuilder data = baseLog.toBuilder();
 
         // 提取token信息
         if (response.getUsage() != null) {
@@ -151,21 +146,12 @@ public class ClientRequestLogger {
      */
     public Mono<Void> OpenAIlogFailure(String requestId, ChatCompletionRequest request,
             Throwable error) {
-        RequestState state = requestStateMap.get(requestId);
-        if (state == null) {
-            log.warn("Request state not found for request: {}", requestId);
+        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, false);
+        if (baseLog == null) {
             return Mono.empty();
         }
 
-        RequestLog.RequestLogBuilder data = RequestLog.builder();
-        data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
-        data.vendorModelKey(request.getModel());
-        data.isStream(state.isStream());
-
-        return createFailureLog(data.build()).then();
+        return createFailureLog(baseLog).then();
     }
 
     /**
@@ -174,18 +160,12 @@ public class ClientRequestLogger {
     public Mono<Void> anthropicLogSuccess(String requestId, AnthropicChatRequest request,
             AnthropicMessage response) {
         RequestState state = requestStateMap.get(requestId);
-        if (state == null) {
-            log.warn("Request state not found for request: {}", requestId);
+        RequestLog baseLog = buildBaseRequestLog(requestId, state != null ? state.getVendorModelKey() : (request != null ? request.getModel() : null), state != null && state.isStream());
+        if (baseLog == null) {
             return Mono.empty();
         }
 
-        RequestLog.RequestLogBuilder data = RequestLog.builder();
-        data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
-        data.vendorModelKey(state.getVendorModelKey());
-        data.isStream(state.isStream());
+        RequestLog.RequestLogBuilder data = baseLog.toBuilder();
 
         // 提取token信息
         if (response.getUsage() != null) {
@@ -214,20 +194,12 @@ public class ClientRequestLogger {
     public Mono<Void> anthropicLogFailure(String requestId, AnthropicChatRequest request,
             Throwable error) {
         RequestState state = requestStateMap.get(requestId);
-        if (state == null) {
-            log.warn("Request state not found for request: {}", requestId);
+        RequestLog baseLog = buildBaseRequestLog(requestId, state != null ? state.getVendorModelKey() : (request != null ? request.getModel() : null), state != null && state.isStream());
+        if (baseLog == null) {
             return Mono.empty();
         }
 
-        RequestLog.RequestLogBuilder data = RequestLog.builder();
-        data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
-        data.vendorModelKey(request.getModel());
-        data.isStream(state.isStream());
-
-        return createFailureLog(data.build()).then();
+        return createFailureLog(baseLog).then();
     }
 
   
@@ -406,18 +378,13 @@ public class ClientRequestLogger {
      */
     public Mono<Void> failStreamRequest(String requestId, ChatCompletionRequest request, String endpointType,
             Throwable error) {
-        RequestState state = requestStateMap.remove(requestId);
-        if (state == null)
+        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, true);
+        if (baseLog == null) {
             return Mono.empty();
+        }
 
-        RequestLog.RequestLogBuilder data = RequestLog.builder();
-        data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
-        data.vendorModelKey(request.getModel());
-        data.endpointType(endpointType);
-        data.isStream(state.isStream());
+        RequestLog.RequestLogBuilder data = baseLog.toBuilder()
+                .endpointType(endpointType);
 
         return createFailureLog(data.build()).then();
     }
@@ -427,18 +394,13 @@ public class ClientRequestLogger {
      */
     public Mono<Void> failStreamRequest(String requestId, AnthropicChatRequest request, String endpointType,
             Throwable error) {
-        RequestState state = requestStateMap.remove(requestId);
-        if (state == null)
+        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, true);
+        if (baseLog == null) {
             return Mono.empty();
+        }
 
-        RequestLog.RequestLogBuilder data = RequestLog.builder();
-        data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
-        data.vendorModelKey(request.getModel());
-        data.endpointType(endpointType);
-        data.isStream(true);
+        RequestLog.RequestLogBuilder data = baseLog.toBuilder()
+                .endpointType(endpointType);
 
         return createFailureLog(data.build()).then();
     }
@@ -461,6 +423,28 @@ public class ClientRequestLogger {
 
         double tokensPerSecond = (completionTokens.doubleValue() / durationMs) * 1000;
         return BigDecimal.valueOf(tokensPerSecond).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 从RequestState构建基础RequestLog数据
+     */
+    private RequestLog buildBaseRequestLog(String requestId, String vendorModelKey, boolean isStream) {
+        RequestState state = requestStateMap.get(requestId);
+        if (state == null) {
+            log.warn("Request state not found for request: {}", requestId);
+            return null;
+        }
+
+        return RequestLog.builder()
+                .requestId(requestId)
+                .userId(state.getUserId())
+                .apiKeyId(state.getApiKeyId())
+                .modelKey(state.getModelKey())
+                .vendorModelKey(vendorModelKey)
+                .providerId(state.getProviderId())
+                .endpointType(state.getEndpointType())
+                .isStream(isStream)
+                .build();
     }
 
     /**

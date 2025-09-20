@@ -35,17 +35,21 @@ public class ApiKeyFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-        // 提取API key
+        // 提取API key - 支持Authorization Bearer和X-API-Key两种方式
+        String apiKey = null;
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("Missing or invalid Authorization header for path: {}", path);
-            return handleUnauthorized(exchange, "Missing or invalid API key");
+        String xApiKey = request.getHeaders().getFirst("X-API-Key");
+        
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            apiKey = authHeader.substring(7);
+        } else if (xApiKey != null && !xApiKey.isBlank()) {
+            // Anthropic API使用X-API-Key头部，直接包含密钥值
+            apiKey = xApiKey;
         }
-
-        String apiKey = authHeader.substring(7);
-        if (apiKey.isBlank()) {
-            log.warn("Empty API key for path: {}", path);
-            return handleUnauthorized(exchange, "Empty API key");
+        
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("Missing or invalid API key for path: {}", path);
+            return handleUnauthorized(exchange, "Missing or invalid API key");
         }
 
         // 验证API key

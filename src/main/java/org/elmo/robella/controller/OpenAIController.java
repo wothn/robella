@@ -57,7 +57,8 @@ public class OpenAIController {
                                     .contextWrite(innerCtx -> innerCtx
                                         .put("modelKey", originalModelName)
                                         .put("providerId", clientWithProvider.getProvider().getId())
-                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey())),
+                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey())
+                                        .put("endpointType", "openai")),
                                 requestId)
                                 .mapNotNull(chunk -> JsonUtils.toJson(chunk))
                                 .concatWith(Flux.just("[DONE]"));
