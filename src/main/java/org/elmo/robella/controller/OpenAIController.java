@@ -39,31 +39,42 @@ public class OpenAIController {
     public Mono<ResponseEntity<?>> chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
         String originalModelName = request.getModel();
 
-        // 首先进行模型映射，获取供应商模型调用标识
-        return routingService.mapToVendorModelKey(originalModelName)
-                .flatMap(modelKey -> {
-                    // 更新请求中的模型名称为供应商模型调用标识
-                    request.setModel(modelKey);
+        // 使用新的路由方法，一次性获取客户端和供应商信息
+        return Mono.deferContextual(ctx -> {
+            String requestId = ctx.getOrDefault("requestId", UUID.randomUUID().toString());
 
-                    // 直接使用OpenAI转换器进行统一处理
-                    UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
-                    unifiedRequest.setEndpointType("openai");
+            return routingService.routeAndClient(originalModelName)
+                    .flatMap(clientWithProvider -> {
+                        // 直接使用OpenAI转换器进行统一处理
+                        UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
+                        unifiedRequest.setEndpointType("openai");
+                        // 使用供应商模型调用标识
+                        unifiedRequest.setModel(clientWithProvider.getVendorModel().getVendorModelKey());
 
-                    if (Boolean.TRUE.equals(request.getStream())) {
-                        String uuid = UUID.randomUUID().toString();
-                        Flux<String> sseStream = unifiedToOpenAIStreamTransformer.transform(
-                            unifiedService.sendStreamRequest(unifiedRequest), uuid)
-                            .mapNotNull(chunk -> JsonUtils.toJson(chunk))
-                            .concatWith(Flux.just("[DONE]"));
-                        return Mono.just(ResponseEntity.ok()
-                                .contentType(MediaType.TEXT_EVENT_STREAM)
-                                .body(sseStream)
-                        );
-                    } else {
-                        return unifiedService.sendChatRequest(unifiedRequest)
-                                .map(response -> ResponseEntity.ok().body(response));
-                    }
-                });
+                        if (Boolean.TRUE.equals(request.getStream())) {
+                            Flux<String> sseStream = unifiedToOpenAIStreamTransformer.transform(
+                                unifiedService.sendStreamRequestWithClient(unifiedRequest, clientWithProvider)
+                                    .contextWrite(innerCtx -> innerCtx
+                                        .put("modelKey", originalModelName)
+                                        .put("providerId", clientWithProvider.getProvider().getId())
+                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey())),
+                                requestId)
+                                .mapNotNull(chunk -> JsonUtils.toJson(chunk))
+                                .concatWith(Flux.just("[DONE]"));
+                            return Mono.just(ResponseEntity.ok()
+                                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                                    .body(sseStream)
+                            );
+                        } else {
+                            return unifiedService.sendChatRequestWithClient(unifiedRequest, clientWithProvider)
+                                    .contextWrite(innerCtx -> innerCtx
+                                        .put("modelKey", originalModelName)
+                                        .put("providerId", clientWithProvider.getProvider().getId())
+                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey()))
+                                    .map(response -> ResponseEntity.ok().body(response));
+                        }
+                    });
+        });
     }
 
     @GetMapping("/models")

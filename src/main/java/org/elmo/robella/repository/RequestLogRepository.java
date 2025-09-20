@@ -18,7 +18,7 @@ public interface RequestLogRepository extends R2dbcRepository<RequestLog, Long> 
 
     Flux<RequestLog> findByProviderId(Long providerId);
 
-    Flux<RequestLog> findByModelName(String modelName);
+    Flux<RequestLog> findByModelKey(String modelKey);
 
     Flux<RequestLog> findByEndpointType(String endpointType);
 

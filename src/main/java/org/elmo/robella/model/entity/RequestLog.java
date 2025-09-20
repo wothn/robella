@@ -30,11 +30,11 @@ public class RequestLog {
     @Column("api_key_id")
     private Long apiKeyId;
 
-    @Column("model_name")
-    private String modelName;
+    @Column("model_key")
+    private String modelKey;
 
-    @Column("vendor_model_name")
-    private String vendorModelName;
+    @Column("vendor_model_key")
+    private String vendorModelKey;
 
     @Column("provider_id")
     private Long providerId;
@@ -53,9 +53,6 @@ public class RequestLog {
 
     @Column("token_source")
     private String tokenSource;
-
-    @Column("calculation_method")
-    private String calculationMethod;
 
     @Column("input_cost")
     private BigDecimal inputCost;

@@ -40,6 +40,39 @@ public class UnifiedService {
             });
     }
 
+    /**
+     * 发送聊天请求（已路由版本）
+     * 直接使用传入的客户端和供应商信息，避免重复路由查询
+     */
+    public Mono<UnifiedChatResponse> sendChatRequestWithClient(UnifiedChatRequest request, RoutingService.ClientWithProvider clientWithProvider) {
+        // 填充 ProviderType，优先使用 VendorModel 的 ProviderType
+        if (clientWithProvider.getVendorModel().getProviderType() != null) {
+            request.setProviderType(clientWithProvider.getVendorModel().getProviderType());
+        } else if (clientWithProvider.getProvider().getProviderType() != null) {
+            request.setProviderType(clientWithProvider.getProvider().getProviderType());
+        }
+
+        // 发起请求并传递日志上下文
+        return clientWithProvider.getClient().chatCompletion(request, clientWithProvider.getProvider());
+    }
+
+    /**
+     * 发送流式聊天请求（已路由版本）
+     * 直接使用传入的客户端和供应商信息，避免重复路由查询
+     */
+    public Flux<UnifiedStreamChunk> sendStreamRequestWithClient(UnifiedChatRequest request, RoutingService.ClientWithProvider clientWithProvider) {
+        // 填充 ProviderType，优先使用 VendorModel 的 ProviderType
+        if (clientWithProvider.getVendorModel().getProviderType() != null) {
+            request.setProviderType(clientWithProvider.getVendorModel().getProviderType());
+        } else {
+            request.setProviderType(clientWithProvider.getProvider().getProviderType());
+        }
+
+        // 发起流式请求并传递日志上下文
+        return clientWithProvider.getClient().streamChatCompletion(request, clientWithProvider.getProvider())
+                .filter(Objects::nonNull);
+    }
+
     public Mono<UnifiedChatResponse> sendChatRequest(UnifiedChatRequest request) {
         String modelName = request.getModel();
 

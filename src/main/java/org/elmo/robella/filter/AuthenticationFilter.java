@@ -1,4 +1,4 @@
-package org.elmo.robella.interceptor;
+package org.elmo.robella.filter;
 
 import org.elmo.robella.util.JwtUtil;
 import org.elmo.robella.model.common.Role;
@@ -17,6 +17,7 @@ import org.springframework.lang.NonNull;
 import reactor.util.context.Context;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -30,28 +31,37 @@ public class AuthenticationFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
+        // 检查是否已有RequestId，如果没有则生成新的
+        String requestId = exchange.getAttribute("requestId");
+        if (requestId == null) {
+            requestId = UUID.randomUUID().toString();
+            exchange.getAttributes().put("requestId", requestId);
+        }
+
         // 公开端点跳过JWT验证
         if (isPublicEndpoint(path)) {
-            log.debug("Public endpoint accessed: {}", path);
-            return chain.filter(exchange);
+            log.debug("Public endpoint accessed: {}, requestId: {}", path, requestId);
+            Context publicContext = Context.of("requestId", requestId);
+            return chain.filter(exchange)
+                .contextWrite(publicContext);
         }
 
         // 提取JWT令牌
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("Missing or invalid Authorization header for path: {}", path);
+            log.warn("Missing or invalid Authorization header for path: {}, requestId: {}", path, requestId);
             return handleUnauthorized(exchange, "Missing or invalid Authorization header");
         }
 
         String token = authHeader.substring(7);
         if (token.isBlank()) {
-            log.warn("Empty JWT token for path: {}", path);
+            log.warn("Empty JWT token for path: {}, requestId: {}", path, requestId);
             return handleUnauthorized(exchange, "Empty JWT token");
         }
 
         // 验证JWT令牌
         if (!jwtUtil.validateToken(token)) {
-            log.warn("Invalid JWT token for path: {}", path);
+            log.warn("Invalid JWT token for path: {}, requestId: {}", path, requestId);
             return handleUnauthorized(exchange, "Invalid JWT token");
         }
 
@@ -65,10 +75,11 @@ public class AuthenticationFilter implements WebFilter {
                 "username", username,
                 "role", role.getValue(),
                 "token", token,
-                "userId", jwtUtil.extractClaim(token, claims -> claims.get("userId", Long.class))
+                "userId", jwtUtil.extractClaim(token, claims -> claims.get("userId", Long.class)),
+                "requestId", requestId
             );
             
-            log.debug("JWT validation successful for user: {} on path: {}", username, path);
+            log.debug("JWT validation successful for user: {} on path: {}, requestId: {}", username, path, requestId);
             
             // 将上下文传递给下一个过滤器
             return chain.filter(exchange)

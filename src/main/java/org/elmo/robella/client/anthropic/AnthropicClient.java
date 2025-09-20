@@ -51,8 +51,6 @@ public class AnthropicClient implements ApiClient {
 
     @Override
     public Mono<UnifiedChatResponse> chatCompletion(UnifiedChatRequest request, Provider provider) {
-        String requestId = clientRequestLogger.startRequest();
-
         AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
@@ -66,49 +64,51 @@ public class AnthropicClient implements ApiClient {
         // 为了在 lambda 中使用，创建 final 变量
         final AnthropicChatRequest finalRequest = anthropicRequest;
 
-        String url = buildMessagesUrl(provider);
+        return clientRequestLogger.startRequest(false, finalRequest)
+                .flatMap(requestId -> {
 
-        if (log.isDebugEnabled()) {
-            log.debug("[AnthropicClient] chatCompletion start provider={} model={} stream=false", provider.getName(),
-                    finalRequest.getModel());
-            try {
-                String requestJson = JsonUtils.toJson(finalRequest);
-                log.debug("[AnthropicClient] chatCompletion request: {}", requestJson);
-            } catch (Exception e) {
-                log.debug("[AnthropicClient] Failed to serialize request: {}", e.getMessage());
-            }
-        }
+                    String url = buildMessagesUrl(provider);
 
-        return webClient.post()
-                .uri(url)
-                .headers(headers -> {
-                    headers.set("x-api-key", provider.getApiKey());
-                    headers.set("anthropic-version", ANTHROPIC_VERSION);
-                    headers.set("Content-Type", "application/json");
-                })
-                .bodyValue(finalRequest)
-                .retrieve()
-                .bodyToMono(AnthropicMessage.class)
-                .flatMap(response -> clientRequestLogger.anthropicLogSuccess(requestId, finalRequest, response)
-                    .thenReturn(response))
-                .map(response -> anthropicEndpointTransform.endpointToUnifiedResponse(response))
-                .timeout(webClientProperties.getTimeout().getRead())
-                .onErrorMap(ex -> mapToProviderException(ex, "Anthropic API call"))
-                .onErrorResume(error -> clientRequestLogger.anthropicLogFailure(requestId, finalRequest, error)
-                    .then(Mono.error(error)))
-                .doOnSuccess(resp -> {
-                    if (log.isDebugEnabled())
-                        log.debug("[AnthropicClient] chatCompletion success provider={} model={}", provider.getName(),
+                    if (log.isDebugEnabled()) {
+                        log.debug("[AnthropicClient] chatCompletion start provider={} model={} stream=false", provider.getName(),
                                 finalRequest.getModel());
-                })
-                .doOnError(err -> log.debug("[AnthropicClient] chatCompletion error provider={} model={} msg={}",
-                        provider.getName(), finalRequest.getModel(), err.toString()));
+                        try {
+                            String requestJson = JsonUtils.toJson(finalRequest);
+                            log.debug("[AnthropicClient] chatCompletion request: {}", requestJson);
+                        } catch (Exception e) {
+                            log.debug("[AnthropicClient] Failed to serialize request: {}", e.getMessage());
+                        }
+                    }
+
+                    return webClient.post()
+                            .uri(url)
+                            .headers(headers -> {
+                                headers.set("x-api-key", provider.getApiKey());
+                                headers.set("anthropic-version", ANTHROPIC_VERSION);
+                                headers.set("Content-Type", "application/json");
+                            })
+                            .bodyValue(finalRequest)
+                            .retrieve()
+                            .bodyToMono(AnthropicMessage.class)
+                            .flatMap(response -> clientRequestLogger.anthropicLogSuccess(requestId, finalRequest, response)
+                                .thenReturn(response))
+                            .map(response -> anthropicEndpointTransform.endpointToUnifiedResponse(response))
+                            .timeout(webClientProperties.getTimeout().getRead())
+                            .onErrorMap(ex -> mapToProviderException(ex, "Anthropic API call"))
+                            .onErrorResume(error -> clientRequestLogger.anthropicLogFailure(requestId, finalRequest, error)
+                                .then(Mono.error(error)))
+                            .doOnSuccess(resp -> {
+                                if (log.isDebugEnabled())
+                                    log.debug("[AnthropicClient] chatCompletion success provider={} model={}", provider.getName(),
+                                            finalRequest.getModel());
+                            })
+                            .doOnError(err -> log.debug("[AnthropicClient] chatCompletion error provider={} model={} msg={}",
+                                    provider.getName(), finalRequest.getModel(), err.toString()));
+                });
     }
 
     @Override
     public Flux<UnifiedStreamChunk> streamChatCompletion(UnifiedChatRequest request, Provider provider) {
-        String requestId = clientRequestLogger.startRequest();
-
         AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
 
         // 根据ProviderType调用对应的ProviderTransform
@@ -122,57 +122,57 @@ public class AnthropicClient implements ApiClient {
         // 为了在 lambda 中使用，创建 final 变量
         final AnthropicChatRequest finalRequest = anthropicRequest;
 
-        String url = buildMessagesUrl(provider);
-        String uuid = UUID.randomUUID().toString();
+        return clientRequestLogger.startRequest(true, finalRequest)
+                .flatMapMany(requestId -> {
+                    String url = buildMessagesUrl(provider);
 
-        double multiplier = webClientProperties.getTimeout().getStreamReadMultiplier();
-        if (multiplier <= 0)
-            multiplier = 5.0;
-        Duration streamTimeout = Duration
-                .ofMillis((long) (webClientProperties.getTimeout().getRead().toMillis() * multiplier));
+                    double multiplier = webClientProperties.getTimeout().getStreamReadMultiplier();
+                    if (multiplier <= 0)
+                        multiplier = 5.0;
+                    Duration streamTimeout = Duration
+                            .ofMillis((long) (webClientProperties.getTimeout().getRead().toMillis() * multiplier));
 
-        if (log.isDebugEnabled()) {
-            log.debug("[AnthropicClient] streamChatCompletion start provider={} model={} stream=true",
-                    provider.getName(), finalRequest.getModel());
-        }
-
-        clientRequestLogger.startStreamRequest(requestId, finalRequest);
-
-        return streamTransformer.transform(webClient.post()
-                .uri(url)
-                .headers(headers -> {
-                    headers.set("x-api-key", provider.getApiKey());
-                    headers.set("anthropic-version", ANTHROPIC_VERSION);
-                    headers.set(HttpHeaders.ACCEPT, "text/event-stream");
-                    headers.set("Content-Type", "application/json");
-                })
-                .bodyValue(finalRequest)
-                .retrieve()
-                .bodyToFlux(String.class)
-                .timeout(streamTimeout)
-                .onErrorMap(WebClientResponseException.class, this::handleApiError)
-                .onErrorMap(ex -> mapToProviderException(ex, "Anthropic streaming API call"))
-                .map(this::parseStreamRaw)
-                .mapNotNull(event -> event)
-                .doOnNext(event -> {
-                    clientRequestLogger.logStreamChunk(requestId, event);
-                    if (log.isTraceEnabled()) {
-                        log.trace("[AnthropicClient] stream event: id={}, type={}, content={}",
-                            event != null ? event.toString() : "null",
-                            "anthropic",
-                            event != null ? "present" : "null");
+                    if (log.isDebugEnabled()) {
+                        log.debug("[AnthropicClient] streamChatCompletion start provider={} model={} stream=true",
+                                provider.getName(), finalRequest.getModel());
                     }
-                })
-                .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest)
-                    .subscribe()) // 在最外层订阅，保持响应式链
-                .doOnError(err -> {
-                    clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic", err)
-                        .subscribe(); // 在最外层订阅，保持响应式链
-                    log.debug("[AnthropicClient] streamChatCompletion error provider={} model={} msg={}",
-                            provider.getName(), finalRequest.getModel(), err.toString());
-                }), uuid)
-                .doOnCancel(() -> clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic",
-                    new RuntimeException("Stream cancelled")).subscribe());
+
+                    return streamTransformer.transform(webClient.post()
+                                    .uri(url)
+                                    .headers(headers -> {
+                                        headers.set("x-api-key", provider.getApiKey());
+                                        headers.set("anthropic-version", ANTHROPIC_VERSION);
+                                        headers.set(HttpHeaders.ACCEPT, "text/event-stream");
+                                        headers.set("Content-Type", "application/json");
+                                    })
+                                    .bodyValue(finalRequest)
+                                    .retrieve()
+                                    .bodyToFlux(String.class)
+                                    .timeout(streamTimeout)
+                                    .onErrorMap(WebClientResponseException.class, this::handleApiError)
+                                    .onErrorMap(ex -> mapToProviderException(ex, "Anthropic streaming API call"))
+                                    .map(this::parseStreamRaw)
+                                    .mapNotNull(event -> event)
+                                    .doOnNext(event -> {
+                                        clientRequestLogger.logStreamChunk(requestId, event);
+                                        if (log.isTraceEnabled()) {
+                                            log.trace("[AnthropicClient] stream event: id={}, type={}, content={}",
+                                                event != null ? event.toString() : "null",
+                                                "anthropic",
+                                                event != null ? "present" : "null");
+                                        }
+                                    })
+                                    .doOnComplete(() -> clientRequestLogger.completeStreamRequest(requestId, finalRequest)
+                                        .subscribe()) // 在最外层订阅，保持响应式链
+                                    .doOnError(err -> {
+                                        clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic", err)
+                                            .subscribe(); // 在最外层订阅，保持响应式链
+                                        log.debug("[AnthropicClient] streamChatCompletion error provider={} model={} msg={}",
+                                                provider.getName(), finalRequest.getModel(), err.toString());
+                                    }), requestId)
+                                    .doOnCancel(() -> clientRequestLogger.failStreamRequest(requestId, finalRequest, "anthropic",
+                                        new RuntimeException("Stream cancelled")).subscribe());
+                });
     }
 
     private String buildMessagesUrl(Provider provider) {

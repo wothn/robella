@@ -8,7 +8,7 @@ import reactor.core.publisher.Flux;
  * @param <T> 端点特定的流式响应类型
  */
 public interface UnifiedToEndpointStreamTransformer<T> {
-    
+
     /**
      * 将统一格式的流式响应转换为端点特定格式的流式响应
      * @param unifiedStream 统一格式的流式响应
@@ -16,5 +16,5 @@ public interface UnifiedToEndpointStreamTransformer<T> {
      * @return 端点特定格式的流式响应
      */
     Flux<T> transform(Flux<UnifiedStreamChunk> unifiedStream, String sessionId);
-    
+
 }

@@ -50,6 +50,26 @@ public class RoutingService {
     }
 
     /**
+     * 根据客户端模型调用标识获取对应的 API 客户端和 Provider。
+     * <p>
+     * 该方法通过客户端模型标识进行负载均衡选择供应商模型，
+     * 然后获取对应的 Provider 和 ApiClient 实例。
+     * 一次性完成所有路由查询，避免重复数据库访问。
+     *
+     * @param clientModelKey 客户端请求中的模型调用标识
+     * @return Mono<ClientWithProvider> 对应的 API 客户端、Provider 和 VendorModel，如果未找到则为空
+     */
+    public Mono<ClientWithProvider> routeAndClient(String clientModelKey) {
+        return selectVendorWithLoadBalancing(clientModelKey)
+            .flatMap(vendorModel -> providerService.findById(vendorModel.getProviderId())
+                .map(provider -> {
+                    ApiClient client = clientFactory.getClient(provider.getEndpointType());
+                    return new ClientWithProvider(client, provider, vendorModel);
+                })
+            );
+    }
+
+    /**
      * 将客户端模型调用标识映射到供应商模型调用标识
      *
      * @param clientModelKey 客户端请求中的模型调用标识

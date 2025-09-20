@@ -1,9 +1,10 @@
 package org.elmo.robella.config;
 
-import org.elmo.robella.interceptor.AuthenticationFilter;
+import org.elmo.robella.filter.ApiKeyFilter;
+import org.elmo.robella.filter.AuthenticationFilter;
 import org.elmo.robella.service.ApiKeyService;
 import org.elmo.robella.util.JwtUtil;
-import org.elmo.robella.interceptor.ApiKeyFilter;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.annotation.Bean;

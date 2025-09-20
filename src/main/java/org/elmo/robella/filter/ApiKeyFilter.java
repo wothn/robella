@@ -1,4 +1,4 @@
-package org.elmo.robella.interceptor;
+package org.elmo.robella.filter;
 
 import org.elmo.robella.service.ApiKeyService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +16,7 @@ import org.springframework.lang.NonNull;
 import reactor.util.context.Context;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -51,17 +52,20 @@ public class ApiKeyFilter implements WebFilter {
         return apiKeyService.validateApiKey(apiKey)
                 .flatMap(validKey -> {
                     if (validKey != null) {
-                        // 将用户信息添加到上下文
-                        Context userContext = Context.of(
-                            "userId", validKey.getUserId(),
-                            "apiKeyId", validKey.getId(),
-                            "apiKeyPrefix", validKey.getKeyPrefix()
-                        );
-
                         log.debug("API key validation successful for user: {} on path: {}", validKey.getUserId(), path);
 
+                        // 合并Context而不是覆盖，保留现有的requestId等信息
                         return chain.filter(exchange)
-                            .contextWrite(userContext);
+                            .contextWrite(ctx -> {
+                                // 保留现有Context中的requestId
+                                String existingRequestId = ctx.getOrDefault("requestId", UUID.randomUUID().toString());
+                                // 添加用户信息到Context
+                                return Context.of(
+                                    "userId", validKey.getUserId(),
+                                    "apiKeyId", validKey.getId(),
+                                    "requestId", existingRequestId
+                                );
+                            });
                     } else {
                         log.warn("Invalid API key for path: {}", path);
                         return handleUnauthorized(exchange, "Invalid API key");

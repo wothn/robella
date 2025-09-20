@@ -21,12 +21,12 @@ public class OpenAIToUnifiedStreamTransformer implements EndpointToUnifiedStream
         return vendorStream.mapNotNull(chunk -> {
             // 添加日志来调试usage chunk
             if (chunk.getUsage() != null) {
-                log.debug("[OpenAIToUnifiedStreamTransformer] transform - 收到包含usage的chunk: id={}, choicesSize={}, usage={}", 
-                    chunk.getId(), 
+                log.debug("[OpenAIToUnifiedStreamTransformer] transform - 收到包含usage的chunk: id={}, choicesSize={}, usage={}",
+                    chunk.getId(),
                     chunk.getChoices() != null ? chunk.getChoices().size() : "null",
                     chunk.getUsage());
             }
-            
+
             UnifiedStreamChunk unifiedChunk = new UnifiedStreamChunk();
             unifiedChunk.setId(chunk.getId());
             unifiedChunk.setCreated(chunk.getCreated());

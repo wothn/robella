@@ -53,38 +53,41 @@ public class AnthropicController {
         String originalModelName = request.getModel();
 
         // 首先进行模型映射，获取供应商模型调用标识
-        return routingService.mapToVendorModelKey(originalModelName)
-                .flatMap(modelKey -> {
-                    // 更新请求中的模型名称为供应商模型调用标识
-                    request.setModel(modelKey);
+        return Mono.deferContextual(ctx -> {
+            String requestId = ctx.getOrDefault("requestId", UUID.randomUUID().toString());
 
-                    // 转换请求为统一格式
-                    UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
-                    unifiedRequest.setEndpointType("anthropic");
+            return routingService.mapToVendorModelKey(originalModelName)
+                    .flatMap(modelKey -> {
+                        // 更新请求中的模型名称为供应商模型调用标识
+                        request.setModel(modelKey);
 
-                    if (Boolean.TRUE.equals(request.getStream())) {
-                        // 处理流式响应
-                        String uuid = UUID.randomUUID().toString();
-                        Flux<ServerSentEvent<String>> sseStream = unifiedToAnthropicStreamTransformer.transform(
-                                        unifiedService.sendStreamRequest(unifiedRequest), uuid)
-                                .mapNotNull(event -> {
-                                    String eventType = extractEventType(event);
-                                    String eventData = JsonUtils.toJson(event);
-                                    return ServerSentEvent.<String>builder()
-                                            .event(eventType)
-                                            .data(eventData)
-                                            .build();
-                                });
-                        return Mono.just(ResponseEntity.ok()
-                                .contentType(MediaType.TEXT_EVENT_STREAM)
-                                .body(sseStream)
-                        );
-                    } else {
-                        // 处理非流式响应
-                        return unifiedService.sendChatRequest(unifiedRequest)
-                                .map(response -> ResponseEntity.ok().body(response));
-                    }
-                });
+                        // 转换请求为统一格式
+                        UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
+                        unifiedRequest.setEndpointType("anthropic");
+
+                        if (Boolean.TRUE.equals(request.getStream())) {
+                            // 处理流式响应
+                            Flux<ServerSentEvent<String>> sseStream = unifiedToAnthropicStreamTransformer.transform(
+                                            unifiedService.sendStreamRequest(unifiedRequest), requestId)
+                                    .mapNotNull(event -> {
+                                        String eventType = extractEventType(event);
+                                        String eventData = JsonUtils.toJson(event);
+                                        return ServerSentEvent.<String>builder()
+                                                .event(eventType)
+                                                .data(eventData)
+                                                .build();
+                                    });
+                            return Mono.just(ResponseEntity.ok()
+                                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                                    .body(sseStream)
+                            );
+                        } else {
+                            // 处理非流式响应
+                            return unifiedService.sendChatRequest(unifiedRequest)
+                                    .map(response -> ResponseEntity.ok().body(response));
+                        }
+                    });
+        });
     }
 
     /**
