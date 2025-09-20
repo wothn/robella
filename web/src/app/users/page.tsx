@@ -43,7 +43,7 @@ export default function UsersPage() {
     email: "",
     password: "",
     displayName: "",
-    role: 1,
+    role: 'USER',
     phone: "",
     active: true
   })
@@ -163,7 +163,7 @@ export default function UsersPage() {
       email: "",
       password: "",
       displayName: "",
-      role: 1,
+      role: 'USER',
       phone: "",
       active: true
     })
@@ -412,15 +412,15 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Select value={formData.role?.toString() || "1"} onValueChange={(value) => setFormData({...formData, role: parseInt(value)})}>
+                  <Select value={formData.role || "USER"} onValueChange={(value) => setFormData({...formData, role: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">Guest</SelectItem>
-                      <SelectItem value="1">User</SelectItem>
-                      <SelectItem value="10">Admin</SelectItem>
-                      <SelectItem value="100">Root</SelectItem>
+                      <SelectItem value="GUEST">Guest</SelectItem>
+                      <SelectItem value="USER">User</SelectItem>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="ROOT">Root</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -485,15 +485,15 @@ export default function UsersPage() {
                   </div>
                   <div>
                     <Label htmlFor="edit-role">Role</Label>
-                    <Select value={formData.role?.toString() || "1"} onValueChange={(value) => setFormData({...formData, role: parseInt(value)})}>
+                    <Select value={formData.role || "USER"} onValueChange={(value) => setFormData({...formData, role: value})}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="0">Guest</SelectItem>
-                        <SelectItem value="1">User</SelectItem>
-                        <SelectItem value="10">Admin</SelectItem>
-                        <SelectItem value="100">Root</SelectItem>
+                        <SelectItem value="GUEST">Guest</SelectItem>
+                        <SelectItem value="USER">User</SelectItem>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="ROOT">Root</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

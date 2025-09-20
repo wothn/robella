@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder(toBuilder = true)
@@ -80,8 +80,6 @@ public class RequestLog {
 
     @Column("is_success")
     private Boolean isSuccess;
-
-    @CreatedDate
     @Column("created_at")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

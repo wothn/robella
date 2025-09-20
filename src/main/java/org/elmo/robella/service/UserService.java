@@ -5,6 +5,8 @@ import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.request.UserProfileUpdateRequest;
+import org.elmo.robella.model.request.UserCreateRequest;
+import org.elmo.robella.model.request.UserUpdateRequest;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.repository.UserRepository;
@@ -18,18 +20,25 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class UserService {
-    
+
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
-    
-    public Mono<UserResponse> createUser(User user) {
+
+    public Mono<UserResponse> createUser(UserCreateRequest request) {
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setEmail(request.getEmail());
+        user.setDisplayName(request.getDisplayName() != null ? request.getDisplayName() : request.getUsername());
+        user.setAvatar(request.getAvatar());
+
         return userRepository.existsByUsername(user.getUsername())
             .flatMap(existsByUsername -> {
                 if (existsByUsername) {
@@ -41,79 +50,117 @@ public class UserService {
                 if (existsByEmail) {
                     return Mono.error(new ResourceConflictException("User", "email", user.getEmail()));
                 }
-                
+
                 user.setActive(true);
                 user.setRole(Role.USER);
-                user.setCreatedAt(LocalDateTime.now());
-                user.setUpdatedAt(LocalDateTime.now());
-                
+                user.setCreatedAt(OffsetDateTime.now());
+                user.setUpdatedAt(OffsetDateTime.now());
+
                 return userRepository.save(user);
             })
             .map(this::convertToResponse)
             .doOnSuccess(createdUser -> log.info("用户创建成功: {}", createdUser.getUsername()))
             .doOnError(error -> log.error("用户创建失败: {}", error.getMessage()));
     }
-    
+
+    public Flux<UserResponse> getUsers(Boolean active) {
+        if (active != null) {
+            return userRepository.findByActive(active)
+                .map(this::convertToResponse);
+        }
+        return userRepository.findAll()
+            .map(this::convertToResponse);
+    }
+
     public Mono<UserResponse> getUserById(Long id) {
         return userRepository.findById(id)
             .map(this::convertToResponse)
             .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)));
     }
-    
+
     public Mono<UserResponse> getUserByUsername(String username) {
         return userRepository.findByUsername(username)
             .map(this::convertToResponse)
             .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", username)));
     }
-    
-      
-    public Flux<UserResponse> getAllUsers() {
-        return userRepository.findAll()
-            .map(this::convertToResponse);
-    }
-    
-    public Flux<UserResponse> getActiveUsers() {
-        return userRepository.findByActive(true)
-            .map(this::convertToResponse);
-    }
-    
-    public Mono<UserResponse> updateUser(Long id, User user) {
+
+    public Mono<UserResponse> updateUser(Long id, UserUpdateRequest request) {
         return userRepository.findById(id)
             .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
             .flatMap(existingUser -> {
-                if (!existingUser.getUsername().equals(user.getUsername())) {
-                    return userRepository.existsByUsername(user.getUsername())
+                if (request.getUsername() != null && !existingUser.getUsername().equals(request.getUsername())) {
+                    return userRepository.existsByUsername(request.getUsername())
                         .flatMap(exists -> exists ?
-                            Mono.error(new ResourceConflictException("User", "username", user.getUsername())) :
+                            Mono.error(new ResourceConflictException("User", "username", request.getUsername())) :
                             Mono.just(existingUser));
                 }
                 return Mono.just(existingUser);
             })
             .flatMap(existingUser -> {
-                if (!existingUser.getEmail().equals(user.getEmail())) {
-                    return userRepository.existsByEmail(user.getEmail())
+                if (request.getEmail() != null && !existingUser.getEmail().equals(request.getEmail())) {
+                    return userRepository.existsByEmail(request.getEmail())
                         .flatMap(exists -> exists ?
-                            Mono.error(new ResourceConflictException("User", "email", user.getEmail())) :
+                            Mono.error(new ResourceConflictException("User", "email", request.getEmail())) :
                             Mono.just(existingUser));
                 }
                 return Mono.just(existingUser);
             })
             .flatMap(existingUser -> {
-                BeanUtils.copyProperties(user, existingUser, "id", "password", "createdAt", "emailVerified", "phoneVerified");
-                
-                if (user.getPassword() != null && !user.getPassword().isEmpty()) {
-                    existingUser.setPassword(user.getPassword());
+                boolean needsUpdate = false;
+
+                if (request.getUsername() != null && !request.getUsername().equals(existingUser.getUsername())) {
+                    existingUser.setUsername(request.getUsername());
+                    needsUpdate = true;
                 }
-                
-                existingUser.setUpdatedAt(LocalDateTime.now());
-                
+
+                if (request.getEmail() != null && !request.getEmail().equals(existingUser.getEmail())) {
+                    existingUser.setEmail(request.getEmail());
+                    needsUpdate = true;
+                }
+
+                if (request.getDisplayName() != null && !request.getDisplayName().equals(existingUser.getDisplayName())) {
+                    existingUser.setDisplayName(request.getDisplayName());
+                    needsUpdate = true;
+                }
+
+                if (request.getAvatar() != null && !request.getAvatar().equals(existingUser.getAvatar())) {
+                    existingUser.setAvatar(request.getAvatar());
+                    needsUpdate = true;
+                }
+
+  
+                if (request.getActive() != null && !request.getActive().equals(existingUser.getActive())) {
+                    existingUser.setActive(request.getActive());
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    existingUser.setUpdatedAt(OffsetDateTime.now());
+                }
+
                 return userRepository.save(existingUser);
             })
             .map(this::convertToResponse)
             .doOnSuccess(updatedUser -> log.info("用户更新成功: {}", updatedUser.getUsername()))
             .doOnError(error -> log.error("用户更新失败: {}", error.getMessage()));
     }
-    
+
+    public Mono<UserResponse> setUserActive(Long id, Boolean active) {
+        return userRepository.findById(id)
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
+            .flatMap(user -> {
+                if (!user.getActive().equals(active)) {
+                    user.setActive(active);
+                    user.setUpdatedAt(OffsetDateTime.now());
+                    return userRepository.save(user);
+                }
+                return Mono.just(user);
+            })
+            .map(this::convertToResponse)
+            .doOnSuccess(user -> log.info("用户状态更新成功: {} -> {}", user.getUsername(), active))
+            .doOnError(error -> log.error("用户状态更新失败: {}", error.getMessage()));
+    }
+
     public Mono<Void> deleteUser(Long id) {
         return userRepository.findById(id)
             .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
@@ -121,30 +168,37 @@ public class UserService {
             .doOnSuccess(v -> log.info("用户删除成功: {}", id))
             .doOnError(error -> log.error("用户删除失败: {}", error.getMessage()));
     }
-    
-    public Mono<UserResponse> activateUser(Long id) {
-        return userRepository.findById(id)
-            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
+
+    public Mono<Void> deleteUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", username)))
+            .flatMap(user -> userRepository.delete(user))
+            .doOnSuccess(v -> log.info("用户删除成功: {}", username))
+            .doOnError(error -> log.error("用户删除失败: {}", error.getMessage()));
+    }
+
+    public Mono<Void> changePassword(String username, String currentPassword, String newPassword) {
+        return userRepository.findByUsername(username)
+            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", username)))
             .flatMap(user -> {
-                user.setActive(true);
-                user.setUpdatedAt(LocalDateTime.now());
+                if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                    return Mono.error(new InvalidCredentialsException("当前密码不正确"));
+                }
+
+                if (!user.getActive()) {
+                    return Mono.error(new UserDisabledException(username));
+                }
+
+                user.setPassword(passwordEncoder.encode(newPassword));
+                user.setUpdatedAt(OffsetDateTime.now());
+
                 return userRepository.save(user);
             })
-            .map(this::convertToResponse);
+            .doOnSuccess(v -> log.info("密码修改成功: {}", username))
+            .doOnError(error -> log.error("密码修改失败: {}", error.getMessage()))
+            .then();
     }
-    
-    public Mono<UserResponse> deactivateUser(Long id) {
-        return userRepository.findById(id)
-            .switchIfEmpty(Mono.error(new ResourceNotFoundException("User", id)))
-            .flatMap(user -> {
-                user.setActive(false);
-                user.setUpdatedAt(LocalDateTime.now());
-                return userRepository.save(user);
-            })
-            .map(this::convertToResponse);
-    }
-    
-      
+
     public Mono<AuthTokens> login(LoginRequest loginRequest) {
         return userRepository.findByUsername(loginRequest.getUsername())
             .switchIfEmpty(Mono.error(new InvalidCredentialsException()))
@@ -152,20 +206,20 @@ public class UserService {
                 if (!user.getActive()) {
                     return Mono.error(new UserDisabledException(user.getUsername()));
                 }
-                
+
                 if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                     return Mono.error(new InvalidCredentialsException(user.getUsername()));
                 }
-                
-                user.setLastLoginAt(LocalDateTime.now());
+
+                user.setLastLoginAt(OffsetDateTime.now());
                 String accessToken = jwtUtil.generateAccessToken(user);
                 String refreshToken = jwtUtil.generateRefreshToken(user);
-                
+
                 return userRepository.save(user)
                     .then(Mono.just(createAuthTokens(accessToken, refreshToken)));
             });
     }
-    
+
     public Mono<LoginResponse> refreshToken(String refreshToken) {
         return Mono.fromCallable(() -> jwtUtil.validateToken(refreshToken))
             .filter(valid -> valid)
@@ -182,21 +236,39 @@ public class UserService {
                 return Mono.just(new LoginResponse(newAccessToken, newRefreshToken));
             });
     }
-    
-    
+
     private AuthTokens createAuthTokens(String accessToken, String refreshToken) {
         AuthTokens tokens = new AuthTokens();
         tokens.setAccessToken(accessToken);
         tokens.setRefreshToken(refreshToken);
         return tokens;
     }
-    
+
     public UserResponse convertToResponse(User user) {
         UserResponse response = new UserResponse();
-        BeanUtils.copyProperties(user, response);
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setEmail(user.getEmail());
+        response.setDisplayName(user.getDisplayName());
+        response.setAvatar(user.getAvatar());
+        response.setActive(user.getActive());
+
+        // Convert Role enum to string
+        if (user.getRole() != null) {
+            response.setRole(user.getRole().getValue());
+        } else {
+            response.setRole(Role.USER.getValue());
+        }
+
+        // Set OffsetDateTime directly
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
+        response.setLastLoginAt(user.getLastLoginAt());
+
+        response.setGithubId(user.getGithubId());
         return response;
     }
-    
+
     public Mono<User> getUserByGithubId(String githubId) {
         return userRepository.findByGithubId(githubId);
     }
@@ -250,7 +322,7 @@ public class UserService {
                                 }
 
                                 if (needsUpdate || updateRequest.getUsername() != null || updateRequest.getEmail() != null) {
-                                    user.setUpdatedAt(LocalDateTime.now());
+                                    user.setUpdatedAt(OffsetDateTime.now());
                                 }
 
                                 return user;

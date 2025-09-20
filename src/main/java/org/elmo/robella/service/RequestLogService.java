@@ -9,7 +9,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Slf4j
 @Service
@@ -28,7 +28,7 @@ public class RequestLogService {
         return requestLogRepository.findByUserId(userId);
     }
 
-    public Flux<RequestLog> getUserLogsBetweenDates(Long userId, LocalDateTime startTime, LocalDateTime endTime) {
+    public Flux<RequestLog> getUserLogsBetweenDates(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
         return requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime);
     }
 
@@ -40,15 +40,15 @@ public class RequestLogService {
         return requestLogRepository.findTop100ByOrderByCreatedAtDesc();
     }
 
-    public Mono<Long> getUserRequestCount(Long userId, LocalDateTime startTime, LocalDateTime endTime) {
+    public Mono<Long> getUserRequestCount(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
         return requestLogRepository.countByUserIdAndCreatedAtBetween(userId, startTime, endTime);
     }
 
-    public Mono<Long> getUserTotalTokens(Long userId, LocalDateTime startTime, LocalDateTime endTime) {
+    public Mono<Long> getUserTotalTokens(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
         return requestLogRepository.sumTotalTokensByUserIdAndCreatedAtBetween(userId, startTime, endTime);
     }
 
-    public Mono<BigDecimal> getUserTotalCost(Long userId, LocalDateTime startTime, LocalDateTime endTime) {
+    public Mono<BigDecimal> getUserTotalCost(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
         return requestLogRepository.sumTotalCostByUserIdAndCreatedAtBetween(userId, startTime, endTime);
     }
 

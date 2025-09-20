@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
@@ -84,11 +84,11 @@ public class ApiKeyService {
 
         return apiKeyRepository.findByKeyPrefix(keyPrefix)
                 .filter(key -> key.getActive() &&
-                        (key.getExpiresAt() == null || key.getExpiresAt().isAfter(LocalDateTime.now())))
+                        (key.getExpiresAt() == null || key.getExpiresAt().isAfter(OffsetDateTime.now())))
                 .filterWhen(key -> Mono.fromCallable(() ->
                         passwordEncoder.matches(apiKey, key.getKeyHash())))
                 .flatMap(key -> {
-                    key.setLastUsedAt(LocalDateTime.now());
+                    key.setLastUsedAt(OffsetDateTime.now());
                     return apiKeyRepository.save(key);
                 });
     }

@@ -17,6 +17,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -95,14 +96,14 @@ public class GitHubOAuthService {
                             .active(true)
                             .role(Role.USER)
                             .password(null) // OAuth用户没有密码
-                            .createdAt(java.time.LocalDateTime.now())
-                            .updatedAt(java.time.LocalDateTime.now())
+                            .createdAt(OffsetDateTime.now())
+                            .updatedAt(OffsetDateTime.now())
                             .build();
                     
                     return userRepository.save(newUser);
                 }))
                 .flatMap(user -> {
-                    user.setLastLoginAt(java.time.LocalDateTime.now());
+                    user.setLastLoginAt(OffsetDateTime.now());
                     return userRepository.save(user);
                 })
                 .flatMap(user -> {

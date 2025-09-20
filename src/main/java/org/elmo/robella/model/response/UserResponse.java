@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -22,18 +22,16 @@ public class UserResponse {
     private String displayName;
     
     private String avatar;
-    
-    private String phone;
-    
+
     private Boolean active;
     
-    private Integer role;
+    private String role;
     
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
     
-    private LocalDateTime lastLoginAt;
+    private OffsetDateTime lastLoginAt;
     
     private String githubId;
 }

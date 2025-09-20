@@ -21,21 +21,25 @@ public class RoleAspect {
 
     @Before("@within(org.elmo.robella.annotation.RequiredRole) || @annotation(org.elmo.robella.annotation.RequiredRole)")
     public Mono<Void> checkRole(JoinPoint joinPoint) {
+        log.debug("Checking role for method: {}", joinPoint.getSignature().getName());
         // 获取当前方法或类的注解
         RequiredRole requiredRole = getRequiredRoleAnnotation(joinPoint);
         if (requiredRole == null) {
+            log.debug("No RequiredRole annotation found for method: {}", joinPoint.getSignature().getName());
             return Mono.empty();
         }
 
         // 获取所需的最小角色
         Role required = requiredRole.value();
         if (required == null) {
+            log.debug("No specific role required for method: {}", joinPoint.getSignature().getName());
             return Mono.empty();
         }
 
         // 从Reactor上下文中获取当前用户角色
         return Mono.deferContextual(contextView -> {
             String roleValue = contextView.getOrDefault("role", "");
+            log.debug("Current user role: {}", roleValue);
             if (roleValue.isEmpty()) {
                 log.warn("No role found in context for method: {}", joinPoint.getSignature().getName());
                 return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required"));

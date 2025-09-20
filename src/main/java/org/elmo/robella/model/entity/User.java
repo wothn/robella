@@ -11,7 +11,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -32,20 +32,18 @@ public class User {
     private String displayName;
     
     private String avatar;
-    
+
     private Boolean active;
     private Role role;
     
-    @CreatedDate
     @Column("created_at")
-    private LocalDateTime createdAt;
-    
-    @LastModifiedDate
+    private OffsetDateTime createdAt;
+
     @Column("updated_at")
-    private LocalDateTime updatedAt;
-    
+    private OffsetDateTime updatedAt;
+
     @Column("last_login_at")
-    private LocalDateTime lastLoginAt;
+    private OffsetDateTime lastLoginAt;
     
     @Column("github_id")
     private String githubId;

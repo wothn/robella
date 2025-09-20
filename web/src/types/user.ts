@@ -6,22 +6,22 @@ export interface User {
   avatar?: string | null
   phone?: string | null
   active: boolean
-  role: number
+  role: string
   createdAt: string
   updatedAt: string
   lastLoginAt?: string | null
   githubId?: string | null
 }
 
-export function getRoleDisplayText(role: number): string {
+export function getRoleDisplayText(role: string): string {
   switch (role) {
-    case 0:
+    case 'GUEST':
       return 'Guest'
-    case 1:
+    case 'USER':
       return 'User'
-    case 10:
+    case 'ADMIN':
       return 'Admin'
-    case 100:
+    case 'ROOT':
       return 'Root'
     default:
       return 'User'
@@ -38,9 +38,14 @@ export interface CreateUserRequest {
   email: string
   password: string
   displayName?: string
-  role?: number
+  role?: string
 }
 
 export interface RefreshTokenRequest {
   refreshToken: string
+}
+
+export interface UserProfileUpdateRequest {
+  displayName?: string
+  phone?: string | null
 }

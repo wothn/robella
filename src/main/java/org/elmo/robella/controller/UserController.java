@@ -6,6 +6,8 @@ import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.request.RefreshTokenRequest;
 import org.elmo.robella.model.request.UserProfileUpdateRequest;
+import org.elmo.robella.model.request.UserCreateRequest;
+import org.elmo.robella.model.request.UserUpdateRequest;
 import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
@@ -33,56 +35,42 @@ public class UserController {
 
     @PostMapping
     @RequiredRole(Role.ADMIN)
-    public Mono<UserResponse> createUser(@Valid @RequestBody User user) {
-        return userService.createUser(user);
-    }
-
-    @GetMapping("/{id}")
-    public Mono<UserResponse> getUserById(@PathVariable @NotNull Long id) {
-        return userService.getUserById(id);
-    }
-
-    @GetMapping("/username/{username}")
-    public Mono<UserResponse> getUserByUsername(@PathVariable @NotBlank String username) {
-        return userService.getUserByUsername(username);
+    public Mono<UserResponse> createUser(@Valid @RequestBody UserCreateRequest request) {
+        return userService.createUser(request);
     }
 
     @GetMapping
     @RequiredRole(Role.ADMIN)
-    public Flux<UserResponse> getAllUsers() {
-        return userService.getAllUsers();
+    public Flux<UserResponse> getUsers(@RequestParam(required = false) Boolean active) {
+        return userService.getUsers(active);
     }
 
-    @GetMapping("/active")
+    @GetMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public Flux<UserResponse> getActiveUsers() {
-        return userService.getActiveUsers();
+    public Mono<UserResponse> getUserById(@PathVariable @NotNull Long id) {
+        return userService.getUserById(id);
     }
 
     @PutMapping("/{id}")
     @RequiredRole(Role.ADMIN)
     public Mono<UserResponse> updateUser(
             @PathVariable @NotNull Long id,
-            @Valid @RequestBody User user) {
-        return userService.updateUser(id, user);
+            @Valid @RequestBody UserUpdateRequest request) {
+        return userService.updateUser(id, request);
+    }
+
+    @PutMapping("/{id}/active")
+    @RequiredRole(Role.ADMIN)
+    public Mono<UserResponse> setUserActive(
+            @PathVariable @NotNull Long id,
+            @RequestParam Boolean active) {
+        return userService.setUserActive(id, active);
     }
 
     @DeleteMapping("/{id}")
     @RequiredRole(Role.ADMIN)
     public Mono<Void> deleteUser(@PathVariable @NotNull Long id) {
         return userService.deleteUser(id);
-    }
-
-    @PutMapping("/{id}/activate")
-    @RequiredRole(Role.ADMIN)
-    public Mono<UserResponse> activateUser(@PathVariable @NotNull Long id) {
-        return userService.activateUser(id);
-    }
-
-    @PutMapping("/{id}/deactivate")
-    @RequiredRole(Role.ADMIN)
-    public Mono<UserResponse> deactivateUser(@PathVariable @NotNull Long id) {
-        return userService.deactivateUser(id);
     }
 
     @PostMapping("/login")
@@ -94,35 +82,5 @@ public class UserController {
     @PostMapping("/refresh")
     public Mono<LoginResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
         return userService.refreshToken(request.getRefreshToken());
-    }
-
-    @GetMapping("/me")
-    public Mono<UserResponse> getCurrentUser() {
-        return Mono.deferContextual(contextView -> {
-            String username = contextView.get("username");
-
-            if (username == null) {
-                return Mono.error(new InvalidCredentialsException());
-            }
-            log.info("当前用户: {}", username);
-
-            return userService.getUserByUsername(username);
-        });
-    }
-
-    @PutMapping("/me")
-    public Mono<UserResponse> updateCurrentUser(
-            @Valid @RequestBody UserProfileUpdateRequest updateRequest) {
-        return Mono.deferContextual(contextView -> {
-            String username = contextView.get("username");
-
-            if (username == null) {
-                return Mono.error(new InvalidCredentialsException());
-            }
-
-            log.info("更新用户资料: {}", username);
-
-            return userService.updateUserProfile(username, updateRequest);
-        });
     }
 }

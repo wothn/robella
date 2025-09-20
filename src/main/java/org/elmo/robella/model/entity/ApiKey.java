@@ -10,7 +10,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -47,16 +47,15 @@ public class ApiKey {
     private Boolean active;
 
     @Column("last_used_at")
-    private LocalDateTime lastUsedAt;
+    private OffsetDateTime lastUsedAt;
 
     @Column("expires_at")
-    private LocalDateTime expiresAt;
+    private OffsetDateTime expiresAt;
 
-    @CreatedDate
+
     @Column("created_at")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
-    @LastModifiedDate
     @Column("updated_at")
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 }

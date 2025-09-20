@@ -28,7 +28,6 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * OpenAI API 客户端实现

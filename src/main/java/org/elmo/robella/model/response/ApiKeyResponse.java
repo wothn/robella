@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime; 
 
 @Data
 @Builder
@@ -22,8 +22,8 @@ public class ApiKeyResponse {
     private Integer monthlyLimit;
     private Integer rateLimit;
     private Boolean active;
-    private LocalDateTime lastUsedAt;
-    private LocalDateTime expiresAt;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime lastUsedAt;
+    private OffsetDateTime expiresAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

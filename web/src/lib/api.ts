@@ -122,53 +122,63 @@ class ApiClient {
 
   // 获取当前用户信息
   async getCurrentUser(): Promise<User> {
-    return this.get('/users/me')
+    return this.get('/profile')
   }
 
-  // 获取用户信息
-  async getUserByUsername(username: string): Promise<User> {
-    return this.get(`/users/username/${username}`)
-  }
-
-
-  // 获取所有用户
-  async getAllUsers(): Promise<User[]> {
-    return this.get('/users')
-  }
-
-  // 获取活跃用户
-  async getActiveUsers(): Promise<User[]> {
-    return this.get('/users/active')
-  }
-
-  // 创建用户
+  // 创建用户 (管理员)
   async createUser(userData: CreateUserRequest): Promise<User> {
     return this.post('/users', userData)
   }
 
-  // 更新用户
+  // 更新用户 (管理员)
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
     return this.put(`/users/${id}`, userData)
   }
 
-  // 删除用户
+  // 删除用户 (管理员)
   async deleteUser(id: number): Promise<void> {
     return this.delete(`/users/${id}`)
   }
 
-  // 激活用户
+  // 更新当前用户资料
+  async updateCurrentUser(userData: UserProfileUpdateRequest): Promise<User> {
+    return this.put('/profile', userData)
+  }
+
+  // 删除当前用户
+  async deleteCurrentUser(): Promise<void> {
+    return this.delete('/profile')
+  }
+
+  // 修改当前用户密码
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    return this.put(`/profile/password?currentPassword=${encodeURIComponent(currentPassword)}&newPassword=${encodeURIComponent(newPassword)}`)
+  }
+
+  // 激活用户 (管理员)
   async activateUser(id: number): Promise<User> {
-    return this.put(`/users/${id}/activate`)
+    return this.put(`/users/${id}/active?active=true`)
   }
 
-  // 停用用户
+  // 停用用户 (管理员)
   async deactivateUser(id: number): Promise<User> {
-    return this.put(`/users/${id}/deactivate`)
+    return this.put(`/users/${id}/active?active=false`)
   }
 
-  // 用户登出
-  async logout(): Promise<void> {
-    return this.post('/users/logout')
+  // 获取用户信息 (管理员)
+  async getUserById(id: number): Promise<User> {
+    return this.get(`/users/${id}`)
+  }
+
+  // 获取所有用户 (管理员)
+  async getAllUsers(active?: boolean): Promise<User[]> {
+    const params = active !== undefined ? `?active=${active}` : ''
+    return this.get(`/users${params}`)
+  }
+
+  // 获取活跃用户 (管理员)
+  async getActiveUsers(): Promise<User[]> {
+    return this.getAllUsers(true)
   }
 
   // 刷新令牌
@@ -443,6 +453,152 @@ class ApiClient {
     return this.delete(`/providers/models/${modelId}`)
   }
 
+  // ================= Statistics API =================
+  // 获取系统概览
+  async getSystemOverview(startTime: string, endTime: string): Promise<SystemOverviewResponse> {
+    return this.get(`/statistics/overview?startTime=${startTime}&endTime=${endTime}`)
+  }
+
+  // 获取用户概览
+  async getUserOverview(userId: number, startTime: string, endTime: string): Promise<UserOverviewResponse> {
+    return this.get(`/statistics/overview/user/${userId}?startTime=${startTime}&endTime=${endTime}`)
+  }
+
+  // 获取令牌使用情况
+  async getTokenUsage(startTime: string, endTime: string, userId?: number): Promise<TokenUsageResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/usage/tokens?${params}`)
+  }
+
+  // 获取成本使用情况
+  async getCostUsage(startTime: string, endTime: string, userId?: number): Promise<CostUsageResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/usage/costs?${params}`)
+  }
+
+  // 获取请求使用情况
+  async getRequestUsage(startTime: string, endTime: string, userId?: number): Promise<RequestUsageResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/usage/requests?${params}`)
+  }
+
+  // 获取延迟统计
+  async getLatencyStats(startTime: string, endTime: string, userId?: number): Promise<LatencyStatsResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/performance/latency?${params}`)
+  }
+
+  // 获取令牌速度统计
+  async getTokenSpeedStats(startTime: string, endTime: string, userId?: number): Promise<TokenSpeedResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/performance/tokens-per-second?${params}`)
+  }
+
+  // 获取模型流行度
+  async getModelPopularity(startTime: string, endTime: string, limit: number = 10, userId?: number): Promise<ModelPopularityResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime,
+      limit: limit.toString()
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/models/popularity?${params}`)
+  }
+
+  // 获取模型成本
+  async getModelCosts(startTime: string, endTime: string, userId?: number): Promise<ModelCostResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/models/costs?${params}`)
+  }
+
+  // 获取使用情况时间序列
+  async getUsageTimeSeries(startTime: string, endTime: string, interval: string = 'hour', userId?: number): Promise<TimeSeriesResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime,
+      interval
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/timeseries/usage?${params}`)
+  }
+
+  // 获取成本时间序列
+  async getCostTimeSeries(startTime: string, endTime: string, interval: string = 'hour', userId?: number): Promise<TimeSeriesResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime,
+      interval
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/timeseries/costs?${params}`)
+  }
+
+  // 获取错误率
+  async getErrorRate(startTime: string, endTime: string, userId?: number): Promise<ErrorRateResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/errors/rate?${params}`)
+  }
+
+  // 获取按模型分组的错误
+  async getErrorsByModel(startTime: string, endTime: string, userId?: number): Promise<ErrorByModelResponse> {
+    const params = new URLSearchParams({
+      startTime,
+      endTime
+    })
+    if (userId) {
+      params.append('userId', userId.toString())
+    }
+    return this.get(`/statistics/errors/by-model?${params}`)
+  }
+
 }
 
 // 导入类型定义
@@ -450,6 +606,7 @@ import type {
   User,
   LoginResponse,
   CreateUserRequest,
+  UserProfileUpdateRequest,
   Provider,
   VendorModel,
   CreateProviderRequest,
@@ -463,6 +620,20 @@ import type {
   ApiKey,
   ApiKeyCreateRequest
 } from '@/types'
+import type {
+  SystemOverviewResponse,
+  UserOverviewResponse,
+  TokenUsageResponse,
+  CostUsageResponse,
+  RequestUsageResponse,
+  LatencyStatsResponse,
+  TokenSpeedResponse,
+  ModelPopularityResponse,
+  ModelCostResponse,
+  TimeSeriesResponse,
+  ErrorRateResponse,
+  ErrorByModelResponse
+} from '@/types/statistics'
 import { storage } from './storage'
 
 // 创建API客户端实例
