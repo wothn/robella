@@ -20,6 +20,7 @@ public class RoundRobinLoadBalancer implements LoadBalancerStrategy {
     
     public VendorModel select(List<VendorModel> candidates) {
         if (candidates.isEmpty()) {
+            
             return null;
         }
         // 列表的所有都属于同一个模型

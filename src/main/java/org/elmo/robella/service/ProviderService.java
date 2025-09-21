@@ -2,106 +2,87 @@ package org.elmo.robella.service;
 
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.entity.VendorModel;
-import org.elmo.robella.repository.ProviderRepository;
-import org.elmo.robella.repository.VendorModelRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.elmo.robella.exception.ResourceNotFoundException;
+import org.elmo.robella.mapper.ProviderMapper;
+import org.elmo.robella.mapper.VendorModelMapper;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 
 @Service
-public class ProviderService {
-    
-    @Autowired
-    private ProviderRepository providerRepository;
-    
-      
-    @Autowired
-    private VendorModelRepository vendorModelRepository;
-    
+@RequiredArgsConstructor
+public class ProviderService extends ServiceImpl<ProviderMapper, Provider> {
+
+    private final VendorModelMapper vendorModelMapper;
+
     // Provider methods
-    public Flux<Provider> getAllProviders() {
-        return providerRepository.findAll();
+    public List<Provider> getAllProviders() {
+        return list();
     }
-    
-    public Flux<Provider> getEnabledProviders() {
-        return providerRepository.findByEnabledTrue();
+
+    public List<Provider> getEnabledProviders() {
+        LambdaQueryWrapper<Provider> queryWrapper = Wrappers.lambdaQuery();
+        queryWrapper.eq(Provider::getEnabled, true);
+        return list(queryWrapper);
     }
-    
-    public Mono<Provider> getProviderById(Long id) {
-        return providerRepository.findById(id);
+
+    public Provider getProviderById(Long id) {
+        return getById(id);
     }
-    
-    public Mono<Provider> findById(Long id) {
-        return providerRepository.findById(id);
+
+    public Provider getProviderByName(String name) {
+        return this.getOne(Wrappers.<Provider>lambdaQuery().eq(Provider::getName, name));
     }
-    
-    public Mono<Provider> getProviderByName(String name) {
-        return providerRepository.findByName(name);
-    }
-    
-    public Mono<Provider> createProvider(Provider provider) {
+
+    public boolean createProvider(Provider provider) {
         provider.setEnabled(true);
-        return providerRepository.save(provider);
+        return save(provider);
     }
-    
-    public Mono<Provider> updateProvider(Long id, Provider provider) {
-        return providerRepository.findById(id)
-                .flatMap(existingProvider -> {
-                    existingProvider.setName(provider.getName());
-                    existingProvider.setEndpointType(provider.getEndpointType());
-                    existingProvider.setProviderType(provider.getProviderType());
-                    existingProvider.setApiKey(provider.getApiKey());
-                    existingProvider.setBaseUrl(provider.getBaseUrl());
-                    existingProvider.setConfig(provider.getConfig());
-                    existingProvider.setEnabled(provider.getEnabled());
-                    return providerRepository.save(existingProvider);
-                });
+
+    public boolean updateProvider(Long id, Provider provider) {
+        Provider existingProvider = getById(id);
+        if (existingProvider == null) {
+            throw new RuntimeException("Provider not found with id: " + id);
+        }
+
+        provider.setId(id);
+        return updateById(provider);
     }
-    
-      
-    public Mono<Void> deleteProvider(Long id) {
-        return vendorModelRepository.findByProviderId(id)
-                .collectList()
-                .flatMap(vendorModels -> {
-                    if (!vendorModels.isEmpty()) {
-                        return Mono.error(new RuntimeException("Cannot delete provider with existing vendor models"));
-                    }
-                    return providerRepository.deleteById(id);
-                });
+
+    public boolean deleteProvider(Long id) {
+        List<VendorModel> vendorModels = vendorModelMapper.findByProviderId(id);
+        if (!vendorModels.isEmpty()) {
+            throw new RuntimeException("Cannot delete provider with existing vendor models");
+        }
+        return removeById(id);
     }
-    
-      
+
     // VendorModel methods
-    public Flux<VendorModel> getVendorModelsByProviderId(Long providerId) {
-        return vendorModelRepository.findByProviderId(providerId);
+    public List<VendorModel> getVendorModelsByProviderId(Long providerId) {
+        return vendorModelMapper.findByProviderId(providerId);
     }
-    
-    public Mono<VendorModel> createVendorModel(Long providerId, VendorModel vendorModel) {
+
+    public boolean createVendorModel(Long providerId, VendorModel vendorModel) {
         vendorModel.setProviderId(providerId);
         vendorModel.setEnabled(true);
-        return vendorModelRepository.save(vendorModel);
+        return vendorModelMapper.insert(vendorModel) > 0;
     }
-    
-    public Mono<VendorModel> updateVendorModel(Long id, VendorModel vendorModel) {
-        return vendorModelRepository.findById(id)
-                .flatMap(existingVendorModel -> {
-                    existingVendorModel.setProviderId(vendorModel.getProviderId());
-                    existingVendorModel.setVendorModelName(vendorModel.getVendorModelName());
-                    existingVendorModel.setVendorModelKey(vendorModel.getVendorModelKey());
-                    existingVendorModel.setProviderType(vendorModel.getProviderType());
-                    existingVendorModel.setDescription(vendorModel.getDescription());
-                    existingVendorModel.setInputPerMillionTokens(vendorModel.getInputPerMillionTokens());
-                    existingVendorModel.setOutputPerMillionTokens(vendorModel.getOutputPerMillionTokens());
-                    existingVendorModel.setCurrency(vendorModel.getCurrency());
-                    existingVendorModel.setCachedInputPrice(vendorModel.getCachedInputPrice());
-                    existingVendorModel.setCachedOutputPrice(vendorModel.getCachedOutputPrice());
-                    existingVendorModel.setEnabled(vendorModel.getEnabled());
-                    return vendorModelRepository.save(existingVendorModel);
-                });
+
+    public boolean updateVendorModel(Long id, VendorModel vendorModel) {
+        VendorModel existingVendorModel = vendorModelMapper.selectById(id);
+        if (existingVendorModel == null) {
+            throw new ResourceNotFoundException("VendorModel not found with id: " + id);
+        }
+
+        vendorModel.setId(id);
+        return vendorModelMapper.updateById(vendorModel) > 0;
     }
-    
-    public Mono<Void> deleteVendorModel(Long id) {
-        return vendorModelRepository.deleteById(id);
+
+    public boolean deleteVendorModel(Long id) {
+        return vendorModelMapper.deleteById(id) > 0;
     }
 }

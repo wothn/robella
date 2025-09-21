@@ -10,19 +10,22 @@ import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.UnifiedService;
 import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
-import org.elmo.robella.service.RoutingService;
 import org.elmo.robella.service.transform.EndpointTransform;
 import org.elmo.robella.util.JsonUtils;
 
-import java.util.UUID;
+import java.io.IOException;
+import java.util.stream.Stream;
 
+import org.elmo.robella.context.RequestContextHolder;
+import org.elmo.robella.context.RequestContextHolder.RequestContext;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
+import org.elmo.robella.model.internal.UnifiedChatResponse;
+import org.elmo.robella.model.internal.UnifiedStreamChunk;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @Slf4j
 @RestController
@@ -31,56 +34,53 @@ import reactor.core.publisher.Mono;
 public class OpenAIController {
 
     private final UnifiedService unifiedService;
-    private final RoutingService routingService;
     private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAIEndpointTransform;
     private final UnifiedToEndpointStreamTransformer<ChatCompletionChunk> unifiedToOpenAIStreamTransformer;
 
     @PostMapping(value = "/chat/completions", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE })
-    public Mono<ResponseEntity<?>> chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
-        String originalModelName = request.getModel();
+    public Void chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
+        RequestContext ctx = RequestContextHolder.getContext();
+        String requestId = ctx.getRequestId();
+        ctx.setEndpointType("openai");
 
-        // 使用新的路由方法，一次性获取客户端和供应商信息
-        return Mono.deferContextual(ctx -> {
-            String requestId = ctx.getOrDefault("requestId", UUID.randomUUID().toString());
+        UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
+        unifiedRequest.setEndpointType("openai");
 
-            return routingService.routeAndClient(originalModelName)
-                    .flatMap(clientWithProvider -> {
-                        // 直接使用OpenAI转换器进行统一处理
-                        UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
-                        unifiedRequest.setEndpointType("openai");
-                        // 使用供应商模型调用标识
-                        unifiedRequest.setModel(clientWithProvider.getVendorModel().getVendorModelKey());
+        if (Boolean.TRUE.equals(request.getStream())) {
+            Stream<UnifiedStreamChunk> unifiedStream = unifiedService.sendStreamRequest(unifiedRequest);
 
-                        if (Boolean.TRUE.equals(request.getStream())) {
-                            Flux<String> sseStream = unifiedToOpenAIStreamTransformer.transform(
-                                unifiedService.sendStreamRequestWithClient(unifiedRequest, clientWithProvider)
-                                    .contextWrite(innerCtx -> innerCtx
-                                        .put("modelKey", originalModelName)
-                                        .put("providerId", clientWithProvider.getProvider().getId())
-                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey())
-                                        .put("endpointType", "openai")),
-                                requestId)
-                                .mapNotNull(chunk -> JsonUtils.toJson(chunk))
-                                .concatWith(Flux.just("[DONE]"));
-                            return Mono.just(ResponseEntity.ok()
-                                    .contentType(MediaType.TEXT_EVENT_STREAM)
-                                    .body(sseStream)
-                            );
-                        } else {
-                            return unifiedService.sendChatRequestWithClient(unifiedRequest, clientWithProvider)
-                                    .contextWrite(innerCtx -> innerCtx
-                                        .put("modelKey", originalModelName)
-                                        .put("providerId", clientWithProvider.getProvider().getId())
-                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey()))
-                                    .map(response -> ResponseEntity.ok().body(response));
-                        }
-                    });
-        });
+            Stream<String> sseStream = unifiedToOpenAIStreamTransformer.transform(unifiedStream, requestId)
+                    .map(chunk -> "data: " + JsonUtils.toJson(chunk) + "\n\n");
+            
+            // 添加完成标识
+            Stream<String> completeStream = Stream.concat(sseStream, Stream.of("data: [DONE]\n\n"));
+
+            StreamingResponseBody body = os -> {
+                completeStream.forEach(s -> {
+                    try {
+                        os.write(s.getBytes());
+                        os.flush();
+                    } catch (IOException e) {
+                        log.error("Error writing to output stream", e);
+                    }
+                });
+            };
+            
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+                    .body(body);
+
+        } else {
+            UnifiedChatResponse response = unifiedService.sendChatRequest(unifiedRequest);
+            ChatCompletionResponse chatResponse = openAIEndpointTransform.unifiedToEndpointResponse(response);
+            return ResponseEntity.ok().body(chatResponse);
+        }
     }
 
     @GetMapping("/models")
-    public Mono<ResponseEntity<ModelListResponse>> listModels() {
-        return unifiedService.listModels()
-                .map(response -> ResponseEntity.ok().body(response));
+    public ResponseEntity<ModelListResponse> listModels() {
+        ModelListResponse response = unifiedService.listModels();
+        return ResponseEntity.ok().body(response);
     }
 }

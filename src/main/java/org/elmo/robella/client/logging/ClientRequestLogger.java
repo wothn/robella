@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.model.entity.RequestLog;
+import org.elmo.robella.context.RequestContextHolder;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
@@ -15,14 +16,12 @@ import org.elmo.robella.model.anthropic.stream.AnthropicMessageDeltaEvent;
 import org.elmo.robella.service.RequestLogService;
 import org.elmo.robella.service.TokenCountingService;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -34,88 +33,62 @@ public class ClientRequestLogger {
     private final TokenCountingService tokenCountingService;
 
     // 统一的请求状态跟踪
-    private static final Map<String, RequestState> requestStateMap = new ConcurrentHashMap<>();
+    private static final Map<String, LogState> requestStateMap = new ConcurrentHashMap<>();
 
     /**
      * 开始记录请求日志 - OpenAI版本
      */
-    public Mono<String> startRequest(boolean isStream, ChatCompletionRequest request) {
-        return Mono.deferContextual(context -> {
-            // 从context中获取requestId，如果不存在则生成新的
-            String requestId = context.getOrDefault("requestId", UUID.randomUUID().toString());
+    public String startRequest(boolean isStream, ChatCompletionRequest request, String requestId) {
 
-            // 记录请求开始时间
-            RequestState state = new RequestState();
-            state.setRequestId(requestId);
-            state.setStartTime(LocalDateTime.now());
-            state.setStream(isStream);
+        // 记录请求开始时间
+        LogState state = new LogState();
+        state.setRequestId(requestId);
+        state.setStartTime(LocalDateTime.now());
+        state.setStream(isStream);
 
-            // 获取所有必要的context信息
-            state.setUserId(context.getOrDefault("userId", null));
-            state.setApiKeyId(context.getOrDefault("apiKeyId", null));
-            state.setEndpointType(context.getOrDefault("endpointType", "openai"));
-            state.setModelKey(context.getOrDefault("modelKey", null));
-            state.setProviderId(context.getOrDefault("providerId", null));
-            state.setEndpointType(context.getOrDefault("endpointType", "openai"));
 
-            // 如果提供了request，计算prompt tokens
-            if (request != null && request.getMessages() != null) {
-                state.setVendorModelKey(request.getModel());
-                int promptTokens = tokenCountingService.countOpenAIRequestToken(request, request.getModel());
-                state.setPromptTokens(promptTokens);
-                log.debug("OpenAI stream request {} calculated prompt tokens: {} for model {}",
-                        requestId, promptTokens, request.getModel());
-            }
+        // 如果提供了request，计算prompt tokens
+        if (request != null && request.getMessages() != null) {
+            state.setVendorModelKey(request.getModel());
+            int promptTokens = tokenCountingService.countOpenAIRequestToken(request, request.getModel());
+            state.setPromptTokens(promptTokens);
+        }
 
-            requestStateMap.put(requestId, state);
-            return Mono.just(requestId);
-        });
+        requestStateMap.put(requestId, state);
+        return requestId;
     }
 
     /**
      * 开始记录请求日志 - Anthropic版本
      */
-    public Mono<String> startRequest(boolean isStream, AnthropicChatRequest request) {
-        return Mono.deferContextual(context -> {
-            // 从context中获取requestId，如果不存在则生成新的
-            String requestId = context.getOrDefault("requestId", UUID.randomUUID().toString());
+    public String startRequest(boolean isStream, AnthropicChatRequest request, String requestId) {
 
-            // 记录请求开始时间
-            RequestState state = new RequestState();
-            state.setRequestId(requestId);
-            state.setStartTime(LocalDateTime.now());
-            state.setStream(isStream);
+        // 记录请求开始时间
+        LogState state = new LogState();
+        state.setRequestId(requestId);
+        state.setStartTime(LocalDateTime.now());
+        state.setStream(isStream);
 
-            // 获取所有必要的context信息
-            state.setUserId(context.getOrDefault("userId", null));
-            state.setApiKeyId(context.getOrDefault("apiKeyId", null));
-            state.setEndpointType(context.getOrDefault("endpointType", "anthropic"));
-            state.setModelKey(context.getOrDefault("modelKey", null));
-            state.setProviderId(context.getOrDefault("providerId", null));
-            state.setEndpointType(context.getOrDefault("endpointType", "anthropic"));
 
-            // 如果提供了request，计算prompt tokens
-            if (request != null && request.getMessages() != null) {
-                state.setVendorModelKey(request.getModel());
-                int promptTokens = tokenCountingService.countAnthropicRequestToken(request, request.getModel());
-                state.setPromptTokens(promptTokens);
-                log.debug("Anthropic stream request {} calculated prompt tokens: {} for model {}",
-                        requestId, promptTokens, request.getModel());
-            }
+        // 如果提供了request，计算prompt tokens
+        if (request != null && request.getMessages() != null) {
+            state.setVendorModelKey(request.getModel());
+            int promptTokens = tokenCountingService.countAnthropicRequestToken(request, request.getModel());
+            state.setPromptTokens(promptTokens);
+        }
 
-            requestStateMap.put(requestId, state);
-            return Mono.just(requestId);
-        });
+        requestStateMap.put(requestId, state);
+        return requestId;
     }
 
     /**
      * 记录成功的请求（非流式）
      */
-    public Mono<Void> OpenAIlogSuccess(String requestId, ChatCompletionRequest request,
+    public void logSuccess(String requestId, ChatCompletionRequest request,
             ChatCompletionResponse response) {
-        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, false);
+        RequestLog baseLog = buildBaseRequestLog(requestId, false);
         if (baseLog == null) {
-            return Mono.empty();
+            return;
         }
 
         RequestLog.RequestLogBuilder data = baseLog.toBuilder();
@@ -138,31 +111,31 @@ public class ClientRequestLogger {
             }
         }
 
-        return createSuccessLog(data.build()).then();
+        createSuccessLog(data.build());
     }
 
     /**
      * 记录失败的请求
      */
-    public Mono<Void> OpenAIlogFailure(String requestId, ChatCompletionRequest request,
+    public void logFailure(String requestId, ChatCompletionRequest request,
             Throwable error) {
-        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, false);
+        RequestLog baseLog = buildBaseRequestLog(requestId, false);
         if (baseLog == null) {
-            return Mono.empty();
+            return;
         }
 
-        return createFailureLog(baseLog).then();
+        createFailureLog(baseLog);
     }
 
     /**
      * 记录Anthropic成功的请求
      */
-    public Mono<Void> anthropicLogSuccess(String requestId, AnthropicChatRequest request,
+    public void anthropicLogSuccess(String requestId, AnthropicChatRequest request,
             AnthropicMessage response) {
-        RequestState state = requestStateMap.get(requestId);
-        RequestLog baseLog = buildBaseRequestLog(requestId, state != null ? state.getVendorModelKey() : (request != null ? request.getModel() : null), state != null && state.isStream());
+        LogState state = requestStateMap.get(requestId);
+        RequestLog baseLog = buildBaseRequestLog(requestId, state != null && state.isStream());
         if (baseLog == null) {
-            return Mono.empty();
+            return;
         }
 
         RequestLog.RequestLogBuilder data = baseLog.toBuilder();
@@ -185,36 +158,36 @@ public class ClientRequestLogger {
             }
         }
 
-        return createSuccessLog(data.build()).then();
+        createSuccessLog(data.build());
     }
 
     /**
      * 记录Anthropic失败的请求
      */
-    public Mono<Void> anthropicLogFailure(String requestId, AnthropicChatRequest request,
+    public void anthropicLogFailure(String requestId, AnthropicChatRequest request,
             Throwable error) {
-        RequestState state = requestStateMap.get(requestId);
-        RequestLog baseLog = buildBaseRequestLog(requestId, state != null ? state.getVendorModelKey() : (request != null ? request.getModel() : null), state != null && state.isStream());
+        LogState state = requestStateMap.get(requestId);
+        RequestLog baseLog = buildBaseRequestLog(requestId, state != null && state.isStream());
         if (baseLog == null) {
-            return Mono.empty();
+            return;
         }
 
-        return createFailureLog(baseLog).then();
+        createFailureLog(baseLog);
     }
 
-  
     /**
      * 记录流式chunk
      */
     public void logStreamChunk(String requestId, ChatCompletionChunk chunk) {
-        RequestState state = requestStateMap.get(requestId);
+        LogState state = requestStateMap.get(requestId);
         if (state == null || !state.isStream()) {
             return;
         }
+        RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
 
         // 精确计算响应token数
         if (chunk.getChoices() != null && !chunk.getChoices().isEmpty()) {
-            String modelKey = state.getModelKey();
+            String modelKey = ctx.getModelKey();
             int tokens = tokenCountingService.countOpenAIStreamChunkToken(chunk, modelKey);
             state.incrementEstimatedResponseTokens(tokens);
         }
@@ -238,7 +211,7 @@ public class ClientRequestLogger {
      * 记录Anthropic流式chunk
      */
     public void logStreamChunk(String requestId, AnthropicStreamEvent event) {
-        RequestState state = requestStateMap.get(requestId);
+        LogState state = requestStateMap.get(requestId);
         if (state == null || !state.isStream()) {
             return;
         }
@@ -249,7 +222,7 @@ public class ClientRequestLogger {
                 if (event instanceof AnthropicContentBlockDeltaEvent) {
                     AnthropicContentBlockDeltaEvent deltaEvent = (AnthropicContentBlockDeltaEvent) event;
                     if (deltaEvent.getDelta() != null && deltaEvent.getDelta().getDeltaContent() != null) {
-                        String modelKey = state.getModelKey();
+                        String modelKey = state.getVendorModelKey();
                         int tokens = tokenCountingService.countAnthropicStreamEventToken(event, modelKey);
                         state.incrementEstimatedResponseTokens(tokens);
 
@@ -285,24 +258,29 @@ public class ClientRequestLogger {
         }
     }
 
-    public Mono<Void> completeStreamRequest(String requestId, ChatCompletionRequest request) {
-        RequestState state = requestStateMap.remove(requestId);
+    /**
+     * 完成流式请求记录
+     */
+    public void completeStreamRequest(String requestId, ChatCompletionRequest request) {
+        LogState state = requestStateMap.remove(requestId);
         if (state == null) {
             log.warn("Stream state not found for request: {}", requestId);
-            return Mono.empty();
+            return;
         }
 
-        log.debug("Completing stream request {} for user {}", requestId, state.getUserId());
+        RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
+
+        log.debug("Completing stream request {} for user {}", requestId, ctx.getUserId());
 
         RequestLog.RequestLogBuilder data = RequestLog.builder();
         data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
+        data.userId(ctx.getUserId());
+        data.apiKeyId(ctx.getApiKeyId());
+        data.modelKey(ctx.getModelKey());
         data.isStream(state.isStream());
         data.vendorModelKey(state.getVendorModelKey());
-        data.providerId(state.getProviderId());
-        data.endpointType(state.getEndpointType());
+        data.providerId(ctx.getProviderId());
+        data.endpointType(ctx.getEndpointType());
 
         Integer completionTokens = state.getCompletionTokens();
         if (completionTokens == null) {
@@ -325,27 +303,34 @@ public class ClientRequestLogger {
         data.durationMs(duration);
         log.info("Stream request {} completed: total tokens: {}, duration: {}ms", requestId, totalTokens, duration);
 
-        return createSuccessLog(data.build()).then();
+        createSuccessLog(data.build());
     }
 
     /**
      * 完成Anthropic流式请求记录
      */
-    public Mono<Void> completeStreamRequest(String requestId, AnthropicChatRequest request) {
-        RequestState state = requestStateMap.remove(requestId);
-        if (state == null)
-            return Mono.empty();
+    public void completeStreamRequest(String requestId, AnthropicChatRequest request) {
+        LogState state = requestStateMap.remove(requestId);
+        if (state == null) {
+            log.warn("Stream state not found for request: {}", requestId);
+            return;
+        }        
+        RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
 
-        log.debug("Completing Anthropic stream request {} for user {}", requestId, state.getUserId());
+        log.debug("Completing Anthropic stream request {} for user {}", requestId, ctx.getUserId());
+
+
+
 
         RequestLog.RequestLogBuilder data = RequestLog.builder();
         data.requestId(requestId);
-        data.userId(state.getUserId());
-        data.apiKeyId(state.getApiKeyId());
-        data.modelKey(state.getModelKey());
+        data.userId(ctx.getUserId());
+        data.apiKeyId(ctx.getApiKeyId());
+        data.modelKey(ctx.getModelKey());
         data.isStream(state.isStream());
-        data.vendorModelKey(state.getVendorModelKey());
-        data.providerId(state.getProviderId());
+        data.vendorModelKey(ctx.getVendorModel().getVendorModelKey());
+        data.providerId(ctx.getProviderId());
+        data.endpointType(ctx.getEndpointType());
 
         // 优先使用API返回的token统计
         Integer completionTokens = state.getCompletionTokens();
@@ -362,7 +347,7 @@ public class ClientRequestLogger {
         data.completionTokens(completionTokens);
         data.totalTokens(totalTokens);
         data.firstTokenLatencyMs(state.getFirstTokenLatencyMs());
-        data.tokenSource(completionTokens != null ? "stream_accumulated" : "stream_jtokkit_calculated");
+        data.tokenSource(completionTokens != null ? "usage" : "jtokkit");
 
         // 计算持续时间并添加到日志数据中
         int duration = calculateDurationMs(state.getStartTime());
@@ -370,39 +355,39 @@ public class ClientRequestLogger {
         log.info("Anthropic stream request {} completed: total tokens: {}, duration: {}ms",
                 requestId, totalTokens, duration);
 
-        return createSuccessLog(data.build()).then();
+        createSuccessLog(data.build());
     }
 
     /**
      * 记录流式请求失败
      */
-    public Mono<Void> failStreamRequest(String requestId, ChatCompletionRequest request, String endpointType,
+    public void failStreamRequest(String requestId, ChatCompletionRequest request, String endpointType,
             Throwable error) {
-        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, true);
+        RequestLog baseLog = buildBaseRequestLog(requestId, true);
         if (baseLog == null) {
-            return Mono.empty();
+            return;
         }
 
         RequestLog.RequestLogBuilder data = baseLog.toBuilder()
                 .endpointType(endpointType);
 
-        return createFailureLog(data.build()).then();
+        createFailureLog(data.build());
     }
 
     /**
      * 记录Anthropic流式请求失败
      */
-    public Mono<Void> failStreamRequest(String requestId, AnthropicChatRequest request, String endpointType,
+    public void failStreamRequest(String requestId, AnthropicChatRequest request, String endpointType,
             Throwable error) {
-        RequestLog baseLog = buildBaseRequestLog(requestId, request != null ? request.getModel() : null, true);
+        RequestLog baseLog = buildBaseRequestLog(requestId, true);
         if (baseLog == null) {
-            return Mono.empty();
+            return;
         }
 
         RequestLog.RequestLogBuilder data = baseLog.toBuilder()
                 .endpointType(endpointType);
 
-        return createFailureLog(data.build()).then();
+        createFailureLog(data.build());
     }
 
     /**
@@ -428,21 +413,23 @@ public class ClientRequestLogger {
     /**
      * 从RequestState构建基础RequestLog数据
      */
-    private RequestLog buildBaseRequestLog(String requestId, String vendorModelKey, boolean isStream) {
-        RequestState state = requestStateMap.get(requestId);
+    private RequestLog buildBaseRequestLog(String requestId, boolean isStream) {
+        LogState state = requestStateMap.get(requestId);
         if (state == null) {
             log.warn("Request state not found for request: {}", requestId);
             return null;
         }
 
+        RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
+
         return RequestLog.builder()
                 .requestId(requestId)
-                .userId(state.getUserId())
-                .apiKeyId(state.getApiKeyId())
-                .modelKey(state.getModelKey())
-                .vendorModelKey(vendorModelKey)
-                .providerId(state.getProviderId())
-                .endpointType(state.getEndpointType())
+                .userId(ctx.getUserId())
+                .apiKeyId(ctx.getApiKeyId())
+                .modelKey(ctx.getModelKey())
+                .vendorModelKey(ctx.getVendorModel().getVendorModelKey())
+                .providerId(ctx.getProviderId())
+                .endpointType(ctx.getEndpointType())
                 .isStream(isStream)
                 .build();
     }
@@ -450,8 +437,8 @@ public class ClientRequestLogger {
     /**
      * 创建成功的请求日志
      */
-    public Mono<RequestLog> createSuccessLog(RequestLog requestLog) {
-        RequestState state = requestStateMap.remove(requestLog.getRequestId());
+    public RequestLog createSuccessLog(RequestLog requestLog) {
+        LogState state = requestStateMap.remove(requestLog.getRequestId());
 
         // 对于流式请求，durationMs 已经在 completeStreamRequest 中计算并设置
         // 对于非流式请求，需要在这里计算 durationMs
@@ -475,38 +462,33 @@ public class ClientRequestLogger {
                 .tokensPerSecond(calculateTokensPerSecond(requestLog.getCompletionTokens(), durationMs))
                 .isSuccess(true);
 
-        return requestLogService.createRequestLog(builder.build());
+        return requestLogService.createRequestLogSync(builder.build());
     }
 
     /**
      * 创建失败的请求日志
      */
-    public Mono<RequestLog> createFailureLog(RequestLog requestLog) {
-        RequestState state = requestStateMap.remove(requestLog.getRequestId());
+    public RequestLog createFailureLog(RequestLog requestLog) {
+        LogState state = requestStateMap.remove(requestLog.getRequestId());
         LocalDateTime startTime = state != null ? state.getStartTime() : LocalDateTime.now();
 
         RequestLog.RequestLogBuilder builder = requestLog.toBuilder()
                 .durationMs(calculateDurationMs(startTime))
                 .isSuccess(false);
 
-        return requestLogService.createRequestLog(builder.build());
+        return requestLogService.createRequestLogSync(builder.build());
     }
 
     // 统一的请求状态跟踪类
     @Data
-    private static class RequestState {
+    private static class LogState {
         private String requestId;
-        private String endpointType;
         private LocalDateTime startTime;
         private Integer firstTokenLatencyMs;
         private Integer promptTokens;
         private Integer completionTokens;
         private Integer totalTokens;
         private Integer estimatedResponseTokens = 0;
-        private Long providerId;
-        private Long userId;
-        private Long apiKeyId;
-        private String modelKey;
         private String vendorModelKey;
         private boolean stream;
 

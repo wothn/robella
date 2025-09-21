@@ -1,53 +1,44 @@
 package org.elmo.robella.config;
 
-import org.elmo.robella.filter.ApiKeyFilter;
-import org.elmo.robella.filter.AuthenticationFilter;
-import org.elmo.robella.service.ApiKeyService;
-import org.elmo.robella.util.JwtUtil;
-
+import org.elmo.robella.interceptor.AuthenticationInterceptor;
+import org.elmo.robella.interceptor.ApiKeyInterceptor;
+import org.elmo.robella.interceptor.ContextCleanupInterceptor;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter;
-import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import org.springframework.web.server.WebFilter;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 @RequiredArgsConstructor
-public class WebConfig {
+public class WebConfig implements WebMvcConfigurer {
 
-    private final JwtUtil jwtUtil;
-    private final ApiKeyService apiKeyService;
+    private final AuthenticationInterceptor authenticationInterceptor;
+    private final ApiKeyInterceptor apiKeyInterceptor;
+    private final ContextCleanupInterceptor contextCleanupInterceptor;
 
-    @Bean
-    @Order(1)
-    public WebFilter authenticationFilter() {
-        return new AuthenticationFilter(jwtUtil);
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(authenticationInterceptor)
+                .order(1)
+                .addPathPatterns("/**");
+
+        registry.addInterceptor(apiKeyInterceptor)
+                .order(2)
+                .addPathPatterns("/**");
+
+        registry.addInterceptor(contextCleanupInterceptor)
+                .order(3)
+                .addPathPatterns("/**");
     }
 
-
-    @Bean
-    @Order(2)
-    public WebFilter apiKeyFilter() {
-        return new ApiKeyFilter(apiKeyService);
-    }
-
-  
-    @Bean
-    @Order(0)
-    public CorsWebFilter corsWebFilter() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.addAllowedOrigin("*");
-        config.addAllowedMethod("*");
-        config.addAllowedHeader("*");
-        config.setAllowCredentials(false);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-
-        return new CorsWebFilter(source);
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOrigins("*")
+                .allowedMethods("*")
+                .allowedHeaders("*")
+                .allowCredentials(false);
     }
 }

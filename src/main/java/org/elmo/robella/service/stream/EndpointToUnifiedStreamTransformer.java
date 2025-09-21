@@ -1,7 +1,8 @@
 package org.elmo.robella.service.stream;
 
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
-import reactor.core.publisher.Flux;
+
+import java.util.stream.Stream;
 
 /**
  * 将厂商特定的流式响应转换为统一格式的流式响应
@@ -15,6 +16,7 @@ public interface EndpointToUnifiedStreamTransformer<T> {
      * @param sessionId 会话ID，用于状态管理
      * @return 统一格式的流式响应
      */
-    Flux<UnifiedStreamChunk> transform(Flux<T> vendorStream, String sessionId);
+    Stream<UnifiedStreamChunk> transform(Stream<T> vendorStream, String sessionId);
+
 
 }

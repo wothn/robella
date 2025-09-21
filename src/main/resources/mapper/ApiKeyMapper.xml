@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.elmo.robella.mapper.ApiKeyMapper">
+
+    <select id="findByUserId" resultType="org.elmo.robella.model.entity.ApiKey">
+        SELECT * FROM api_key WHERE user_id = #{userId} ORDER BY created_at DESC
+    </select>
+
+    <select id="findByKeyHash" resultType="org.elmo.robella.model.entity.ApiKey">
+        SELECT * FROM api_key WHERE key_hash = #{keyHash}
+    </select>
+
+    <select id="findByUserIdAndActive" resultType="org.elmo.robella.model.entity.ApiKey">
+        SELECT * FROM api_key WHERE user_id = #{userId} AND active = #{active} ORDER BY created_at DESC
+    </select>
+
+    <select id="findByKeyPrefix" resultType="org.elmo.robella.model.entity.ApiKey">
+        SELECT * FROM api_key WHERE key_prefix = #{keyPrefix}
+    </select>
+
+    <delete id="deleteByIdAndUserId">
+        DELETE FROM api_key WHERE id = #{id} AND user_id = #{userId}
+    </delete>
+
+</mapper>

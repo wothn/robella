@@ -1,9 +1,9 @@
 package org.elmo.robella.model.entity;
 
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.data.relational.core.mapping.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -16,70 +16,71 @@ import java.time.OffsetDateTime;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("request_log")
+@TableName("request_log")
 public class RequestLog {
 
-    @Id
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     private String requestId;
 
-    @Column("user_id")
+    @TableField("user_id")
     private Long userId;
 
-    @Column("api_key_id")
+    @TableField("api_key_id")
     private Long apiKeyId;
 
-    @Column("model_key")
+    @TableField("model_key")
     private String modelKey;
 
-    @Column("vendor_model_key")
+    @TableField("vendor_model_key")
     private String vendorModelKey;
 
-    @Column("provider_id")
+    @TableField("provider_id")
     private Long providerId;
 
-    @Column("endpoint_type")
+    @TableField("endpoint_type")
     private String endpointType;
 
-    @Column("prompt_tokens")
+    @TableField("prompt_tokens")
     private Integer promptTokens;
 
-    @Column("completion_tokens")
+    @TableField("completion_tokens")
     private Integer completionTokens;
 
-    @Column("total_tokens")
+    @TableField("total_tokens")
     private Integer totalTokens;
 
-    @Column("token_source")
+    @TableField("token_source")
     private String tokenSource;
 
-    @Column("input_cost")
+    @TableField("input_cost")
     private BigDecimal inputCost;
 
-    @Column("output_cost")
+    @TableField("output_cost")
     private BigDecimal outputCost;
 
-    @Column("total_cost")
+    @TableField("total_cost")
     private BigDecimal totalCost;
 
-    @Column("currency")
+    @TableField("currency")
     private String currency;
 
-    @Column("duration_ms")
+    @TableField("duration_ms")
     private Integer durationMs;
 
-    @Column("first_token_latency_ms")
+    @TableField("first_token_latency_ms")
     private Integer firstTokenLatencyMs;
 
-    @Column("tokens_per_second")
+    @TableField("tokens_per_second")
     private BigDecimal tokensPerSecond;
 
-    @Column("is_stream")
+    @TableField("is_stream")
     private Boolean isStream;
 
-    @Column("is_success")
+    @TableField("is_success")
     private Boolean isSuccess;
-    @Column("created_at")
+
+    @TableField("created_at")
     private OffsetDateTime createdAt;
 }

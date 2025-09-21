@@ -4,10 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.model.entity.RequestLog;
 import org.elmo.robella.model.response.*;
-import org.elmo.robella.repository.RequestLogRepository;
+import org.elmo.robella.mapper.RequestLogMapper;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,116 +19,100 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StatisticsService {
 
-    private final RequestLogRepository requestLogRepository;
+    private final RequestLogMapper requestLogMapper;
 
-    public Mono<SystemOverviewResponse> getSystemOverview(OffsetDateTime startTime, OffsetDateTime endTime) {
-        return requestLogRepository.findByCreatedAtBetween(startTime, endTime)
-                .collectList()
-                .map(this::calculateSystemOverview);
+    public SystemOverviewResponse getSystemOverview(OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateSystemOverview(logs);
     }
 
-    public Mono<UserOverviewResponse> getUserOverview(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        return requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                .collectList()
-                .map(logs -> calculateUserOverview(userId, logs, startTime, endTime));
+    public UserOverviewResponse getUserOverview(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime);
+        return calculateUserOverview(userId, logs, startTime, endTime);
     }
 
-    public Mono<TokenUsageResponse> getTokenUsage(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(this::calculateTokenUsage);
+    public TokenUsageResponse getTokenUsage(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateTokenUsage(logs);
     }
 
-    public Mono<CostUsageResponse> getCostUsage(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(logs -> calculateCostUsage(logs, startTime, endTime));
+    public CostUsageResponse getCostUsage(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateCostUsage(logs, startTime, endTime);
     }
 
-    public Mono<RequestUsageResponse> getRequestUsage(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(logs -> calculateRequestUsage(logs, startTime, endTime));
+    public RequestUsageResponse getRequestUsage(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateRequestUsage(logs, startTime, endTime);
     }
 
-    public Mono<LatencyStatsResponse> getLatencyStats(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
+    public LatencyStatsResponse getLatencyStats(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
 
-        return logsFlux.filter(log -> log.getDurationMs() != null)
+        List<Integer> durations = logs.stream()
+                .filter(log -> log.getDurationMs() != null)
                 .map(RequestLog::getDurationMs)
-                .collectList()
-                .map(this::calculateLatencyStats);
+                .collect(Collectors.toList());
+        return calculateLatencyStats(durations);
     }
 
-    public Mono<TokenSpeedResponse> getTokenSpeedStats(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
+    public TokenSpeedResponse getTokenSpeedStats(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
 
-        return logsFlux.filter(log -> log.getTokensPerSecond() != null)
+        List<BigDecimal> tokenSpeeds = logs.stream()
+                .filter(log -> log.getTokensPerSecond() != null)
                 .map(RequestLog::getTokensPerSecond)
-                .collectList()
-                .map(this::calculateTokenSpeedStats);
+                .collect(Collectors.toList());
+        return calculateTokenSpeedStats(tokenSpeeds);
     }
 
-    public Mono<ModelPopularityResponse> getModelPopularity(Long userId, OffsetDateTime startTime, OffsetDateTime endTime, int limit) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(logs -> calculateModelPopularity(logs, startTime, endTime, limit));
+    public ModelPopularityResponse getModelPopularity(Long userId, OffsetDateTime startTime, OffsetDateTime endTime, int limit) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateModelPopularity(logs, startTime, endTime, limit);
     }
 
-    public Mono<ModelCostResponse> getModelCosts(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(logs -> calculateModelCosts(logs, startTime, endTime));
+    public ModelCostResponse getModelCosts(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateModelCosts(logs, startTime, endTime);
     }
 
-    public Mono<TimeSeriesResponse> getUsageTimeSeries(Long userId, OffsetDateTime startTime, OffsetDateTime endTime, String interval) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(logs -> calculateTimeSeries(logs, startTime, endTime, interval));
+    public TimeSeriesResponse getUsageTimeSeries(Long userId, OffsetDateTime startTime, OffsetDateTime endTime, String interval) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateTimeSeries(logs, startTime, endTime, interval);
     }
 
-    public Mono<TimeSeriesResponse> getCostTimeSeries(Long userId, OffsetDateTime startTime, OffsetDateTime endTime, String interval) {
+    public TimeSeriesResponse getCostTimeSeries(Long userId, OffsetDateTime startTime, OffsetDateTime endTime, String interval) {
         return getUsageTimeSeries(userId, startTime, endTime, interval);
     }
 
-    public Mono<ErrorRateResponse> getErrorRate(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(this::calculateErrorRate);
+    public ErrorRateResponse getErrorRate(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateErrorRate(logs);
     }
 
-    public Mono<ErrorByModelResponse> getErrorsByModel(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
-        Flux<RequestLog> logsFlux = userId != null
-                ? requestLogRepository.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
-                : requestLogRepository.findByCreatedAtBetween(startTime, endTime);
-
-        return logsFlux.collectList()
-                .map(logs -> calculateErrorsByModel(logs, startTime, endTime));
+    public ErrorByModelResponse getErrorsByModel(Long userId, OffsetDateTime startTime, OffsetDateTime endTime) {
+        List<RequestLog> logs = userId != null
+                ? requestLogMapper.findByUserIdAndCreatedAtBetween(userId, startTime, endTime)
+                : requestLogMapper.findByCreatedAtBetween(startTime, endTime);
+        return calculateErrorsByModel(logs, startTime, endTime);
     }
 
     private SystemOverviewResponse calculateSystemOverview(List<RequestLog> logs) {

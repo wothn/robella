@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 import jakarta.validation.constraints.NotNull;
 import java.time.OffsetDateTime;
@@ -25,14 +24,14 @@ public class StatisticsController {
 
     @GetMapping("/overview")
     @RequiredRole(Role.ADMIN)
-    public Mono<SystemOverviewResponse> getSystemOverview(
+    public SystemOverviewResponse getSystemOverview(
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
         return statisticsService.getSystemOverview(startTime, endTime);
     }
 
     @GetMapping("/overview/user/{userId}")
-    public Mono<UserOverviewResponse> getUserOverview(
+    public UserOverviewResponse getUserOverview(
             @PathVariable @NotNull Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -40,7 +39,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/usage/tokens")
-    public Mono<TokenUsageResponse> getTokenUsage(
+    public TokenUsageResponse getTokenUsage(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -48,7 +47,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/usage/costs")
-    public Mono<CostUsageResponse> getCostUsage(
+    public CostUsageResponse getCostUsage(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -56,7 +55,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/usage/requests")
-    public Mono<RequestUsageResponse> getRequestUsage(
+    public RequestUsageResponse getRequestUsage(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -64,7 +63,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/performance/latency")
-    public Mono<LatencyStatsResponse> getLatencyStats(
+    public LatencyStatsResponse getLatencyStats(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -72,7 +71,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/performance/tokens-per-second")
-    public Mono<TokenSpeedResponse> getTokenSpeedStats(
+    public TokenSpeedResponse getTokenSpeedStats(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -80,7 +79,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/models/popularity")
-    public Mono<ModelPopularityResponse> getModelPopularity(
+    public ModelPopularityResponse getModelPopularity(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime,
@@ -89,7 +88,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/models/costs")
-    public Mono<ModelCostResponse> getModelCosts(
+    public ModelCostResponse getModelCosts(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -97,7 +96,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/timeseries/usage")
-    public Mono<TimeSeriesResponse> getUsageTimeSeries(
+    public TimeSeriesResponse getUsageTimeSeries(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime,
@@ -106,7 +105,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/timeseries/costs")
-    public Mono<TimeSeriesResponse> getCostTimeSeries(
+    public TimeSeriesResponse getCostTimeSeries(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime,
@@ -115,7 +114,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/errors/rate")
-    public Mono<ErrorRateResponse> getErrorRate(
+    public ErrorRateResponse getErrorRate(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {
@@ -123,7 +122,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/errors/by-model")
-    public Mono<ErrorByModelResponse> getErrorsByModel(
+    public ErrorByModelResponse getErrorsByModel(
             @RequestParam(required = false) Long userId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startTime,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endTime) {

@@ -4,26 +4,29 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.UUID;
-
+import org.elmo.robella.context.RequestContextHolder;
+import org.elmo.robella.context.RequestContextHolder.RequestContext;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
 import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
 import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
+import org.elmo.robella.model.internal.UnifiedChatResponse;
+import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.service.UnifiedService;
-import org.elmo.robella.service.RoutingService;
 import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
 import org.elmo.robella.service.transform.EndpointTransform;
 import org.elmo.robella.util.JsonUtils;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import java.io.IOException;
+import java.util.stream.Stream;
 
 /**
  * Anthropic Messages API 控制器
@@ -36,7 +39,6 @@ import reactor.core.publisher.Mono;
 public class AnthropicController {
 
     private final UnifiedService unifiedService;
-    private final RoutingService routingService;
     private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicEndpointTransform;
     private final UnifiedToEndpointStreamTransformer<AnthropicStreamEvent> unifiedToAnthropicStreamTransformer;
 
@@ -49,62 +51,56 @@ public class AnthropicController {
     @PostMapping(value = "/messages",
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
             consumes = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<?>> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
-        String originalModelName = request.getModel();
+    public ResponseEntity<?> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
 
-        // 使用新的路由方法，一次性获取客户端和供应商信息
-        return Mono.deferContextual(ctx -> {
-            String requestId = ctx.getOrDefault("requestId", UUID.randomUUID().toString());
+        RequestContext ctx = RequestContextHolder.getContext();
+        String requestId = ctx.getRequestId();
+        ctx.setEndpointType("anthropic");
 
-            return routingService.routeAndClient(originalModelName)
-                    .flatMap(clientWithProvider -> {
-                        // 直接使用Anthropic转换器进行统一处理
-                        UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
-                        unifiedRequest.setEndpointType("anthropic");
-                        // 使用供应商模型调用标识
-                        unifiedRequest.setModel(clientWithProvider.getVendorModel().getVendorModelKey());
+        UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
+        unifiedRequest.setEndpointType("anthropic");
 
-                        if (Boolean.TRUE.equals(request.getStream())) {
-                            Flux<ServerSentEvent<String>> sseStream = unifiedToAnthropicStreamTransformer.transform(
-                                unifiedService.sendStreamRequestWithClient(unifiedRequest, clientWithProvider)
-                                    .contextWrite(innerCtx -> innerCtx
-                                        .put("modelKey", originalModelName)
-                                        .put("providerId", clientWithProvider.getProvider().getId())
-                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey())
-                                        .put("endpointType", "anthropic")),
-                                requestId)
-                                .mapNotNull(event -> {
-                                    String eventType = extractEventType(event);
-                                    String eventData = JsonUtils.toJson(event);
-                                    return ServerSentEvent.<String>builder()
-                                            .event(eventType)
-                                            .data(eventData)
-                                            .build();
-                                });
-                            return Mono.just(ResponseEntity.ok()
-                                    .contentType(MediaType.TEXT_EVENT_STREAM)
-                                    .body(sseStream)
-                            );
-                        } else {
-                            return unifiedService.sendChatRequestWithClient(unifiedRequest, clientWithProvider)
-                                    .contextWrite(innerCtx -> innerCtx
-                                        .put("modelKey", originalModelName)
-                                        .put("providerId", clientWithProvider.getProvider().getId())
-                                        .put("vendorModelKey", clientWithProvider.getVendorModel().getVendorModelKey()))
-                                    .map(response -> ResponseEntity.ok().body(response));
-                        }
+        if (Boolean.TRUE.equals(request.getStream())) {
+            Stream<UnifiedStreamChunk> unifiedStream = unifiedService.sendStreamRequest(unifiedRequest);
+
+            Stream<String> sseStream = unifiedToAnthropicStreamTransformer.transform(unifiedStream, requestId)
+                    .map(event -> {
+                        String eventType = extractEventType(event);
+                        String eventData = JsonUtils.toJson(event);
+                        return "event: " + eventType + "\ndata: " + eventData + "\n\n";
                     });
-        });
+
+            StreamingResponseBody body = os -> {
+                sseStream.forEach(s -> {
+                    try {
+                        os.write(s.getBytes());
+                        os.flush();
+                    } catch (IOException e) {
+                        log.error("Error writing to output stream", e);
+                    }
+                });
+            };
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+                    .body(body);
+
+        } else {
+            UnifiedChatResponse response = unifiedService.sendChatRequest(unifiedRequest);
+            AnthropicMessage anthropicResponse = anthropicEndpointTransform.unifiedToEndpointResponse(response);
+            return ResponseEntity.ok().body(anthropicResponse);
+        }
     }
 
     /**
      * 获取可用模型列表
      */
     @GetMapping("/models")
-    public Mono<ResponseEntity<AnthropicModelListResponse>> listModels() {
-        return unifiedService.listModels()
-                .map(this::convertToAnthropicModelList)
-                .map(response -> ResponseEntity.ok().body(response));
+    public ResponseEntity<AnthropicModelListResponse> listModels() {
+        ModelListResponse openaiResponse = unifiedService.listModels();
+        AnthropicModelListResponse response = convertToAnthropicModelList(openaiResponse);
+        return ResponseEntity.ok().body(response);
     }
 
     /**

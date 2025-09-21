@@ -1,6 +1,7 @@
 package org.elmo.robella.service.stream.anthropic;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.model.anthropic.stream.AnthropicMessageStartEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicContentBlockStartEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicContentBlockDeltaEvent;
@@ -24,18 +25,21 @@ import org.elmo.robella.model.openai.content.OpenAITextContent;
 import org.elmo.robella.model.anthropic.core.AnthropicUsage;
 import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Flux;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Objects;
 
 /**
  * Anthropic流式响应到统一格式的转换器
  * 需要维护会话状态，如消息ID、工具调用索引等
+ * 参考 OpenAI 实现进行简化，同时保持必要的复杂事件处理逻辑
  */
+@Slf4j
 @Component
 public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStreamTransformer<AnthropicStreamEvent> {
 
@@ -43,17 +47,37 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
     private final Map<String, AnthropicStreamSessionState> sessionStates = new ConcurrentHashMap<>();
 
     @Override
-    public Flux<UnifiedStreamChunk> transform(Flux<AnthropicStreamEvent> vendorStream, String sessionId) {
+    public Stream<UnifiedStreamChunk> transform(Stream<AnthropicStreamEvent> vendorStream, String sessionId) {
         // 初始化会话状态
         sessionStates.putIfAbsent(sessionId, new AnthropicStreamSessionState());
+        log.info("[AnthropicTransformer] 开始流式转换，sessionId: {}", sessionId);
 
-        return vendorStream.mapNotNull(event -> {
-            AnthropicStreamSessionState state = sessionStates.get(sessionId);
-            return processEvent(event, state);
-        }).doFinally(signalType -> {
-            // 清理会话状态
-            sessionStates.remove(sessionId);
-        });
+        try {
+            return vendorStream
+                    .map(event -> {
+                        try {
+                            AnthropicStreamSessionState state = sessionStates.get(sessionId);
+                            UnifiedStreamChunk result = processEvent(event, state);
+                            if (result != null) {
+                                log.debug("[AnthropicTransformer] 成功处理事件: {}, sessionId: {}", event.getClass().getSimpleName(), sessionId);
+                            }
+                            return result;
+                        } catch (Exception e) {
+                            log.error("[AnthropicTransformer] 处理事件时发生异常: {}, sessionId: {}",
+                                    event.getClass().getSimpleName(), sessionId, e);
+                            throw new RuntimeException("流式转换失败: " + e.getMessage(), e);
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .onClose(() -> {
+                        // 清理会话状态
+                        sessionStates.remove(sessionId);
+                        log.info("[AnthropicTransformer] 流式转换结束，sessionId: {}", sessionId);
+                    });
+        } catch (Exception e) {
+            log.error("[AnthropicTransformer] 流式转换过程中发生异常: sessionId: {}", sessionId, e);
+            throw new RuntimeException("流式转换失败: " + e.getMessage(), e);
+        }
     }
 
     private UnifiedStreamChunk processEvent(AnthropicStreamEvent event, AnthropicStreamSessionState state) {
@@ -206,6 +230,7 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
 
     /**
      * 创建统一的流式响应chunk，统一设置基本字段
+     * 参考 OpenAI 实现的简洁风格
      *
      * @param state 会话状态
      * @param choices 选择列表
@@ -218,11 +243,14 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
         chunk.setModel(state.getModel());
         chunk.setCreated(state.getCreated());
         chunk.setChoices(choices);
+        log.trace("[AnthropicTransformer] 创建chunk: id={}, model={}, choicesCount={}",
+                state.getMessageId(), state.getModel(), choices.size());
         return chunk;
     }
 
     /**
      * 将AnthropicUsage转换为OpenAI的Usage
+     * 参考 OpenAI 实现的简洁风格，同时添加适当的日志记录
      *
      * @param currentUsage 当前事件中的使用量统计
      * @param initialUsage 初始使用量统计（可能包含input_tokens）
@@ -230,26 +258,35 @@ public class AnthropicToUnifiedStreamTransformer implements EndpointToUnifiedStr
      */
     private Usage convertUsage(AnthropicUsage currentUsage, AnthropicUsage initialUsage) {
         if (currentUsage == null) {
+            log.trace("[AnthropicTransformer] 转换usage: currentUsage为null");
             return null;
         }
 
-        Usage usage = new Usage();
+        try {
+            Usage usage = new Usage();
 
-        // 使用初始使用量中的input_tokens（如果存在）
-        Integer inputTokens = 0;
-        if (initialUsage != null && initialUsage.getInputTokens() != null) {
-            inputTokens = initialUsage.getInputTokens();
+            // 使用初始使用量中的input_tokens（如果存在）
+            Integer inputTokens = 0;
+            if (initialUsage != null && initialUsage.getInputTokens() != null) {
+                inputTokens = initialUsage.getInputTokens();
+            }
+            usage.setPromptTokens(inputTokens);
+
+            // 使用当前使用量中的output_tokens
+            Integer outputTokens = currentUsage.getOutputTokens() != null ? currentUsage.getOutputTokens() : 0;
+            usage.setCompletionTokens(outputTokens);
+
+            // 计算总token数
+            usage.setTotalTokens(inputTokens + outputTokens);
+
+            log.debug("[AnthropicTransformer] 转换usage: prompt={}, completion={}, total={}",
+                    inputTokens, outputTokens, inputTokens + outputTokens);
+
+            return usage;
+        } catch (Exception e) {
+            log.error("[AnthropicTransformer] 转换usage时发生异常", e);
+            throw new RuntimeException("Usage转换失败: " + e.getMessage(), e);
         }
-        usage.setPromptTokens(inputTokens);
-
-        // 使用当前使用量中的output_tokens
-        Integer outputTokens = currentUsage.getOutputTokens() != null ? currentUsage.getOutputTokens() : 0;
-        usage.setCompletionTokens(outputTokens);
-
-        // 计算总token数
-        usage.setTotalTokens(inputTokens + outputTokens);
-
-        return usage;
     }
 
     /**

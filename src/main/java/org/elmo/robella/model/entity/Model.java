@@ -1,31 +1,40 @@
 package org.elmo.robella.model.entity;
 
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.relational.core.mapping.Table;
+import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.elmo.robella.handler.ModelCapabilityTypeHandler;
+
 import java.time.OffsetDateTime;
 import java.util.List;
 
 @Data
 @Slf4j
-@Table("model")
+@TableName("model")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Model {
-    @Id
+    @TableId(type = IdType.AUTO)
     private Long id;
+
     private String name;
+
+    @TableField("model_key")
     private String modelKey;
-    
+
     private String description;
     private String organization;
+
+    @TableField(typeHandler = ModelCapabilityTypeHandler.class)
     private List<ModelCapability> capabilities;
+
     private Integer contextWindow;
     private Boolean published;
+
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private OffsetDateTime createdAt;
+
+    @TableField(value = "updated_at", fill = FieldFill.UPDATE)
     private OffsetDateTime updatedAt;
 
 }

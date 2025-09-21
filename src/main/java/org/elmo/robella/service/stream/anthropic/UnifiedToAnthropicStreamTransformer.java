@@ -13,9 +13,9 @@ import org.elmo.robella.model.openai.stream.Delta;
 import org.elmo.robella.model.openai.tool.ToolCall;
 import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Flux;
 
 import java.util.*;
+import java.util.stream.Stream;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -26,17 +26,24 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
     private final Map<String, SessionState> sessionStates = new ConcurrentHashMap<>();
 
     @Override
-    public Flux<AnthropicStreamEvent> transform(Flux<UnifiedStreamChunk> unifiedStream, String sessionId) {
+    public Stream<AnthropicStreamEvent> transform(Stream<UnifiedStreamChunk> unifiedStream, String sessionId) {
         SessionState state = sessionStates.computeIfAbsent(sessionId, k -> new SessionState());
         log.info("[AnthropicTransformer] 开始流式转换，sessionId: {}", sessionId);
-        return unifiedStream.concatMap(chunk -> processChunk(chunk, state))
-                .doFinally(sig -> {
-                    sessionStates.remove(sessionId);
-                    log.info("[AnthropicTransformer] 流式转换结束，sessionId: {}", sessionId);
-                });
+
+        try {
+            return unifiedStream
+                    .flatMap(chunk -> processChunk(chunk, state).stream())
+                    .onClose(() -> {
+                        sessionStates.remove(sessionId);
+                        log.info("[AnthropicTransformer] 流式转换结束，sessionId: {}", sessionId);
+                    });
+        } catch (Exception e) {
+            log.error("[AnthropicTransformer] 流式转换过程中发生异常: sessionId: {}", sessionId, e);
+            throw new RuntimeException("流式转换失败: " + e.getMessage(), e);
+        }
     }
 
-    private Flux<AnthropicStreamEvent> processChunk(UnifiedStreamChunk chunk, SessionState state) {
+    private List<AnthropicStreamEvent> processChunk(UnifiedStreamChunk chunk, SessionState state) {
         log.debug("[AnthropicTransformer] 处理chunk，model: {}", chunk.getModel());
         
         // 添加详细日志来调试usage chunk
@@ -105,11 +112,11 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
                 log.debug("[AnthropicTransformer] 处理消息结束");
             }
 
-            return Flux.fromIterable(events);
+            return events;
 
         } catch (Exception e) {
             log.error("[AnthropicTransformer] 处理chunk时发生异常", e);
-            return Flux.error(new RuntimeException("流式转换失败: " + e.getMessage(), e));
+            throw new RuntimeException("流式转换失败: " + e.getMessage(), e);
         }
     }
 

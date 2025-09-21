@@ -1,33 +1,34 @@
 package org.elmo.robella.service;
 
 import org.elmo.robella.model.entity.ApiKey;
-import org.elmo.robella.repository.ApiKeyRepository;
+import org.elmo.robella.mapper.ApiKeyMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-
+import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ApiKeyService {
+public class ApiKeyService extends ServiceImpl<ApiKeyMapper, ApiKey> {
 
-    private final ApiKeyRepository apiKeyRepository;
     private final PasswordEncoder passwordEncoder;
 
     private static final String API_KEY_PREFIX = "rk-";
     private static final int API_KEY_LENGTH = 32;
 
-    public Mono<ApiKey> createApiKey(Long userId, String name, String description) {
+    public ApiKey createApiKey(Long userId, String name, String description) {
         return createApiKey(userId, name, description, null, null, 60);
     }
 
-    public Mono<ApiKey> createApiKey(Long userId, String name, String description,
+    public ApiKey createApiKey(Long userId, String name, String description,
                                      Integer dailyLimit, Integer monthlyLimit, Integer rateLimit) {
         String apiKey = generateApiKey();
         String keyHash = passwordEncoder.encode(apiKey);
@@ -43,66 +44,91 @@ public class ApiKeyService {
                 .monthlyLimit(monthlyLimit)
                 .rateLimit(rateLimit)
                 .active(true)
+                .createdAt(OffsetDateTime.now())
+                .updatedAt(OffsetDateTime.now())
                 .build();
 
-        return apiKeyRepository.save(newApiKey)
-                .map(savedKey -> {
-                    // 返回完整的API密钥（只在创建时显示一次）
-                    savedKey.setKeyHash(apiKey); // 临时存储完整密钥用于返回
-                    return savedKey;
-                });
+        boolean success = save(newApiKey);
+        if (success) {
+            // 返回完整的API密钥（只在创建时显示一次）
+            newApiKey.setKeyHash(apiKey); // 临时存储完整密钥用于返回
+            return newApiKey;
+        }
+        throw new RuntimeException("Failed to create API key");
     }
 
-    public Flux<ApiKey> getUserApiKeys(Long userId) {
-        return apiKeyRepository.findByUserId(userId)
-                .map(key -> {
+    public List<ApiKey> getUserApiKeys(Long userId) {
+        LambdaQueryWrapper<ApiKey> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ApiKey::getUserId, userId)
+                   .orderByDesc(ApiKey::getCreatedAt);
+
+        List<ApiKey> keys = list(queryWrapper);
+        return keys.stream()
+                .peek(key -> {
                     // 隐藏密钥的哈希值
                     key.setKeyHash("********");
-                    return key;
-                });
+                })
+                .collect(Collectors.toList());
     }
 
-    public Mono<Void> deleteApiKey(Long id, Long userId) {
-        return apiKeyRepository.deleteByIdAndUserId(id, userId);
+    public boolean deleteApiKey(Long id, Long userId) {
+        LambdaQueryWrapper<ApiKey> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ApiKey::getId, id)
+                   .eq(ApiKey::getUserId, userId);
+
+        return remove(queryWrapper);
     }
 
-    public Mono<ApiKey> toggleApiKeyStatus(Long id, Long userId) {
-        return apiKeyRepository.findById(id)
-                .filter(key -> key.getUserId().equals(userId))
-                .flatMap(key -> {
-                    key.setActive(!key.getActive());
-                    return apiKeyRepository.save(key);
-                });
+    public ApiKey toggleApiKeyStatus(Long id, Long userId) {
+        LambdaQueryWrapper<ApiKey> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ApiKey::getId, id)
+                   .eq(ApiKey::getUserId, userId);
+
+        ApiKey key = getOne(queryWrapper);
+        if (key == null) {
+            throw new RuntimeException("API key not found or unauthorized");
+        }
+
+        key.setActive(!key.getActive());
+        key.setUpdatedAt(OffsetDateTime.now());
+        boolean success = updateById(key);
+        if (success) {
+            return key;
+        }
+        throw new RuntimeException("Failed to toggle API key status");
     }
 
-    public Mono<ApiKey> validateApiKey(String apiKey) {
+    public ApiKey validateApiKey(String apiKey) {
         if (apiKey == null || !apiKey.startsWith(API_KEY_PREFIX)) {
-            return Mono.empty();
+            return null;
         }
 
         String keyPrefix = apiKey.substring(0, 16);
+        LambdaQueryWrapper<ApiKey> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ApiKey::getKeyPrefix, keyPrefix);
 
-        return apiKeyRepository.findByKeyPrefix(keyPrefix)
-                .filter(key -> key.getActive() &&
-                        (key.getExpiresAt() == null || key.getExpiresAt().isAfter(OffsetDateTime.now())))
-                .filterWhen(key -> Mono.fromCallable(() ->
-                        passwordEncoder.matches(apiKey, key.getKeyHash())))
-                .flatMap(key -> {
-                    key.setLastUsedAt(OffsetDateTime.now());
-                    return apiKeyRepository.save(key);
-                });
+        ApiKey key = getOne(queryWrapper);
+        if (key != null && key.getActive() &&
+                (key.getExpiresAt() == null || key.getExpiresAt().isAfter(OffsetDateTime.now()))) {
+            if (passwordEncoder.matches(apiKey, key.getKeyHash())) {
+                key.setLastUsedAt(OffsetDateTime.now());
+                updateById(key);
+                return key;
+            }
+        }
+        return null;
     }
 
-    public Mono<Boolean> checkRateLimit(Long userId, String keyPrefix) {
-        return Mono.just(true);
+    public boolean checkRateLimit(Long userId, String keyPrefix) {
+        return true;
     }
 
-    public Mono<Boolean> checkDailyLimit(Long userId, String keyPrefix) {
-        return Mono.just(true);
+    public boolean checkDailyLimit(Long userId, String keyPrefix) {
+        return true;
     }
 
-    public Mono<Boolean> checkMonthlyLimit(Long userId, String keyPrefix) {
-        return Mono.just(true);
+    public boolean checkMonthlyLimit(Long userId, String keyPrefix) {
+        return true;
     }
 
     private String generateApiKey() {
@@ -116,9 +142,11 @@ public class ApiKeyService {
         return sb.toString();
     }
 
-    public Mono<Boolean> isApiKeyOwner(Long apiKeyId, Long userId) {
-        return apiKeyRepository.findById(apiKeyId)
-                .map(key -> key.getUserId().equals(userId))
-                .defaultIfEmpty(false);
+    public boolean isApiKeyOwner(Long apiKeyId, Long userId) {
+        LambdaQueryWrapper<ApiKey> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ApiKey::getId, apiKeyId)
+                   .eq(ApiKey::getUserId, userId);
+
+        return exists(queryWrapper);
     }
 }

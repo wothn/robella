@@ -8,8 +8,8 @@ import org.elmo.robella.service.ProviderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/providers")
@@ -19,71 +19,87 @@ public class ProviderController {
     private ProviderService providerService;
 
     @GetMapping
-    public Flux<Provider> getAllProviders() {
+    public List<Provider> getAllProviders() {
         return providerService.getAllProviders();
     }
 
     @GetMapping("/active")
     @RequiredRole(Role.ROOT)
-    public Flux<Provider> getActiveProviders() {
+    public List<Provider> getActiveProviders() {
         return providerService.getEnabledProviders();
     }
 
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<Provider>> getProviderById(@PathVariable Long id) {
-        return providerService.getProviderById(id)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+    public ResponseEntity<Provider> getProviderById(@PathVariable Long id) {
+        Provider provider = providerService.getProviderById(id);
+        if (provider != null) {
+            return ResponseEntity.ok(provider);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
     @RequiredRole(Role.ROOT)
-    public Mono<ResponseEntity<Provider>> createProvider(@RequestBody Provider provider) {
-        return providerService.createProvider(provider)
-                .map(savedProvider -> ResponseEntity.ok(savedProvider));
+    public ResponseEntity<Provider> createProvider(@RequestBody Provider provider) {
+        boolean created = providerService.createProvider(provider);
+        if (created) {
+            return ResponseEntity.ok(provider);
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @PutMapping("/{id}")
     @RequiredRole(Role.ROOT)
-    public Mono<ResponseEntity<Provider>> updateProvider(@PathVariable Long id, @RequestBody Provider provider) {
-        return providerService.updateProvider(id, provider)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+    public ResponseEntity<Provider> updateProvider(@PathVariable Long id, @RequestBody Provider provider) {
+        boolean updated = providerService.updateProvider(id, provider);
+        if (updated) {
+            return ResponseEntity.ok(provider);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
     @RequiredRole(Role.ROOT)
-    public Mono<ResponseEntity<Void>> deleteProvider(@PathVariable Long id) {
-        return providerService.deleteProvider(id)
-                .then(Mono.just(ResponseEntity.ok().<Void>build()))
-                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().build()));
+    public ResponseEntity<Void> deleteProvider(@PathVariable Long id) {
+        providerService.deleteProvider(id);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}/models")
-    public Flux<VendorModel> getVendorModelsByProviderId(@PathVariable Long id) {
+    public List<VendorModel> getVendorModelsByProviderId(@PathVariable Long id) {
         return providerService.getVendorModelsByProviderId(id);
     }
 
     @PostMapping("/{id}/models")
     @RequiredRole(Role.ROOT)
-    public Mono<ResponseEntity<VendorModel>> createModel(@PathVariable Long id, @RequestBody VendorModel model) {
-        return providerService.createVendorModel(id, model)
-                .map(savedModel -> ResponseEntity.ok(savedModel));
+    public ResponseEntity<VendorModel> createModel(@PathVariable Long id, @RequestBody VendorModel model) {
+        boolean created = providerService.createVendorModel(id, model);
+        if (created) {
+            return ResponseEntity.ok(model);
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @PutMapping("/models/{id}")
     @RequiredRole(Role.ROOT)
-    public Mono<ResponseEntity<VendorModel>> updateModel(@PathVariable Long id, @RequestBody VendorModel model) {
-        return providerService.updateVendorModel(id, model)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+    public ResponseEntity<VendorModel> updateModel(@PathVariable Long id, @RequestBody VendorModel model) {
+        providerService.updateVendorModel(id, model);
+        return ResponseEntity.ok(model);
     }
 
     @DeleteMapping("/models/{id}")
     @RequiredRole(Role.ROOT)
-    public Mono<ResponseEntity<Void>> deleteVendorModel(@PathVariable Long id) {
-        return providerService.deleteVendorModel(id)
-                .then(Mono.just(ResponseEntity.ok().<Void>build()));
+    public ResponseEntity<Void> deleteVendorModel(@PathVariable Long id) {
+        boolean deleted = providerService.deleteVendorModel(id);
+        if (deleted) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
 }

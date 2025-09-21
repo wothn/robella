@@ -1,160 +1,173 @@
 package org.elmo.robella.service;
 
-import org.elmo.robella.repository.ModelRepository;
-import org.elmo.robella.repository.VendorModelRepository;
+import org.elmo.robella.mapper.ModelMapper;
+import org.elmo.robella.mapper.VendorModelMapper;
 import org.springframework.stereotype.Service;
 import org.elmo.robella.model.entity.Model;
 import org.elmo.robella.model.entity.VendorModel;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
-public class ModelService {
-    private final ModelRepository modelRepository;
+public class ModelService extends ServiceImpl<ModelMapper, Model> {
+    public final VendorModelMapper vendorModelMapper;
 
-    public final VendorModelRepository vendorModelRepository;
-
-    public ModelService(ModelRepository modelRepository, VendorModelRepository vendorModelRepository) {
-        this.modelRepository = modelRepository;
-        this.vendorModelRepository = vendorModelRepository;
+    public ModelService(ModelMapper modelMapper, VendorModelMapper vendorModelMapper) {
+        this.vendorModelMapper = vendorModelMapper;
     }
 
-    public Flux<Model> getModels() {
-        return modelRepository.findAll();
+    public List<Model> getModels() {
+        return list();
     }
 
-    public Flux<Model> getPublishedModels() {
-        return modelRepository.findByPublishedTrue();
+    public List<Model> getPublishedModels() {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Model::getPublished, true);
+        return list(wrapper);
     }
 
-    public Flux<Model> getModelsByOrganization(String organization) {
-        return modelRepository.findByOrganization(organization);
+    public List<Model> getModelsByOrganization(String organization) {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Model::getOrganization, organization);
+        return list(wrapper);
     }
 
-    public Mono<Model> createModel(Model model) {
-        return modelRepository.save(model);
+    public int createModel(Model model) {
+        return save(model) ? 1 : 0;
     }
 
-    public Mono<Model> updateModel(Model model) {
+    public int updateModel(Model model) {
         if (model.getId() == null) {
-            return Mono.error(new IllegalArgumentException("Model ID cannot be null"));
+            throw new IllegalArgumentException("Model ID cannot be null");
         }
-        
-        return modelRepository.findById(model.getId())
-                .flatMap(existingModel -> {
-                    // 更新所有字段
-                    existingModel.setName(model.getName());
-                    existingModel.setModelKey(model.getModelKey());
-                    existingModel.setDescription(model.getDescription());
-                    existingModel.setOrganization(model.getOrganization());
-                    existingModel.setCapabilities(model.getCapabilities());
-                    existingModel.setContextWindow(model.getContextWindow());
-                    existingModel.setPublished(model.getPublished());
-                    return modelRepository.save(existingModel);
-                })
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Model not found")));
+
+        Model existingModel = getById(model.getId());
+        if (existingModel == null) {
+            throw new IllegalArgumentException("Model not found");
+        }
+
+        // 更新所有字段
+        existingModel.setName(model.getName());
+        existingModel.setModelKey(model.getModelKey());
+        existingModel.setDescription(model.getDescription());
+        existingModel.setOrganization(model.getOrganization());
+        existingModel.setCapabilities(model.getCapabilities());
+        existingModel.setContextWindow(model.getContextWindow());
+        existingModel.setPublished(model.getPublished());
+
+        return updateById(existingModel) ? 1 : 0;
     }
 
-
-    public Mono<Void> deleteModel(Long id) {
-        return modelRepository.deleteById(id);
+    public int deleteModel(Long id) {
+        return removeById(id) ? 1 : 0;
     }
 
-    public Mono<Model> getModelById(Long id) {
-        return modelRepository.findById(id);
+    public Model getModelById(Long id) {
+        return getById(id);
     }
 
-    public Mono<Model> getModelByModelKey(String modelKey) {
-        return modelRepository.findByModelKey(modelKey);
+    public Model getModelByModelKey(String modelKey) {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Model::getModelKey, modelKey);
+        return getOne(wrapper);
     }
 
-    public Flux<VendorModel> getVendorModelsByModelId(Long modelId) {
-        return vendorModelRepository.findByModelId(modelId);
+    public List<VendorModel> getVendorModelsByModelId(Long modelId) {
+        return vendorModelMapper.findByModelId(modelId);
+    }
+
+    public List<VendorModel> getVendorModelsByModelKey(String modelKey) {
+        return vendorModelMapper.findByModelKeyAndEnabledTrue(modelKey);
     }
 
     // 新增功能：状态管理
-    public Mono<Model> publishModel(Long id) {
-        return modelRepository.findById(id)
-                .flatMap(model -> {
-                    model.setPublished(true);
-                    return modelRepository.save(model);
-                })
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Model not found")));
+    public int publishModel(Long id) {
+        Model model = getById(id);
+        if (model == null) {
+            throw new IllegalArgumentException("Model not found");
+        }
+        model.setPublished(true);
+        return updateById(model) ? 1 : 0;
     }
 
-    public Mono<Model> unpublishModel(Long id) {
-        return modelRepository.findById(id)
-                .flatMap(model -> {
-                    model.setPublished(false);
-                    return modelRepository.save(model);
-                })
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Model not found")));
+    public int unpublishModel(Long id) {
+        Model model = getById(id);
+        if (model == null) {
+            throw new IllegalArgumentException("Model not found");
+        }
+        model.setPublished(false);
+        return updateById(model) ? 1 : 0;
     }
 
     // 新增功能：搜索和筛选
-    public Flux<Model> searchModelsByName(String keyword) {
-        return modelRepository.findAll()
-                .filter(model -> model.getName() != null && 
-                        model.getName().toLowerCase().contains(keyword.toLowerCase()));
+    public List<Model> searchModelsByName(String keyword) {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(Model::getName, keyword);
+        return list(wrapper);
     }
 
-    public Flux<Model> getModelsByCapability(String capability) {
-        return modelRepository.findAll()
-                .filter(model -> model.getCapabilities() != null && 
+    public List<Model> getModelsByCapability(String capability) {
+        List<Model> allModels = list();
+        return allModels.stream()
+                .filter(model -> model.getCapabilities() != null &&
                         model.getCapabilities().stream()
-                                .anyMatch(cap -> cap.name().equalsIgnoreCase(capability)));
+                                .anyMatch(cap -> cap.name().equalsIgnoreCase(capability)))
+                .collect(Collectors.toList());
     }
 
     // 新增功能：统计信息
-    public Mono<Long> countTotalModels() {
-        return modelRepository.count();
+    public long countTotalModels() {
+        return count();
     }
 
-    public Mono<Long> countPublishedModels() {
-        return modelRepository.findByPublishedTrue().count();
+    public long countPublishedModels() {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Model::getPublished, true);
+        return count(wrapper);
     }
 
-    public Mono<Long> countModelsByOrganization(String organization) {
-        return modelRepository.findByOrganization(organization).count();
+    public long countModelsByOrganization(String organization) {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Model::getOrganization, organization);
+        return count(wrapper);
     }
 
     // 新增功能：模型验证
-    public Mono<Boolean> modelExistsByName(String name) {
-        return modelRepository.findByName(name)
-                .map(model -> true)
-                .defaultIfEmpty(false);
+    public boolean modelExistsByName(String name) {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Model::getName, name);
+        return count(wrapper) > 0;
     }
 
-    public Mono<Boolean> modelExistsByModelKey(String modelKey) {
-        return modelRepository.findByModelKey(modelKey)
-                .map(model -> true)
-                .defaultIfEmpty(false);
+    public boolean modelExistsByModelKey(String modelKey) {
+        LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Model::getModelKey, modelKey);
+        return count(wrapper) > 0;
     }
 
-    public Mono<Model> validateAndCreateModel(Model model) {
-        return modelExistsByName(model.getName())
-                .flatMap(nameExists -> {
-                    if (nameExists) {
-                        return Mono.error(new IllegalArgumentException("Model name already exists"));
-                    }
-                    return modelExistsByModelKey(model.getModelKey())
-                            .flatMap(keyExists -> {
-                                if (keyExists) {
-                                    return Mono.error(new IllegalArgumentException("Model key already exists"));
-                                }
-                                return createModel(model);
-                            });
-                });
+    public int validateAndCreateModel(Model model) {
+        if (modelExistsByName(model.getName())) {
+            throw new IllegalArgumentException("Model name already exists");
+        }
+        if (modelExistsByModelKey(model.getModelKey())) {
+            throw new IllegalArgumentException("Model key already exists");
+        }
+        return createModel(model);
     }
 
     // 修正方法名的拼写错误
-    public Mono<VendorModel> addVendorModelForModel(Long modelId, Long vendorModelId) {
-        return vendorModelRepository.findById(vendorModelId)
-                .flatMap(vendorModel -> {
-                    vendorModel.setModelId(modelId);
-                    return vendorModelRepository.save(vendorModel);
-                });
-    }
+    public int addVendorModelForModel(Long modelId, Long vendorModelId) {
 
+        VendorModel vendorModel = vendorModelMapper.selectById(vendorModelId);
+        String modelKey = this.getModelById(modelId).getModelKey();
+        if (vendorModel == null) {
+            throw new IllegalArgumentException("VendorModel not found");
+        }
+        vendorModel.setModelKey(modelKey);
+        vendorModel.setModelId(modelId);
+        return vendorModelMapper.updateById(vendorModel);
+    }
 }

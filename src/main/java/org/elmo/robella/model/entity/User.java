@@ -1,11 +1,10 @@
 package org.elmo.robella.model.entity;
 
 import org.elmo.robella.model.common.Role;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.data.relational.core.mapping.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -17,34 +16,34 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("users")
+@TableName("users")
 public class User {
-    
-    @Id
+
+    @TableId(type = IdType.AUTO)
     private Long id;
-    
+
     private String username;
-    
+
     private String email;
-    
+
     private String password;
-    
+
     private String displayName;
-    
+
     private String avatar;
 
     private Boolean active;
     private Role role;
-    
-    @Column("created_at")
+
+    @TableField("created_at")
     private OffsetDateTime createdAt;
 
-    @Column("updated_at")
+    @TableField("updated_at")
     private OffsetDateTime updatedAt;
 
-    @Column("last_login_at")
+    @TableField("last_login_at")
     private OffsetDateTime lastLoginAt;
-    
-    @Column("github_id")
+
+    @TableField("github_id")
     private String githubId;
 }

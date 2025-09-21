@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.elmo.robella.mapper.UserMapper">
+
+    <select id="findByUsername" resultType="org.elmo.robella.model.entity.User">
+        SELECT * FROM users WHERE username = #{username}
+    </select>
+
+    <select id="findByEmail" resultType="org.elmo.robella.model.entity.User">
+        SELECT * FROM users WHERE email = #{email}
+    </select>
+
+    <select id="findByActive" resultType="org.elmo.robella.model.entity.User">
+        SELECT * FROM users WHERE active = #{active}
+    </select>
+
+    <select id="findByRole" resultType="org.elmo.robella.model.entity.User">
+        SELECT * FROM users WHERE role = #{role}
+    </select>
+
+    <select id="existsByUsername" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM users WHERE username = #{username}
+    </select>
+
+    <select id="existsByEmail" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM users WHERE email = #{email}
+    </select>
+
+    <select id="findByCreatedAtBetween" resultType="org.elmo.robella.model.entity.User">
+        SELECT * FROM users
+        WHERE created_at BETWEEN #{startDate} AND #{endDate}
+        ORDER BY created_at
+    </select>
+
+    <delete id="deleteByUsername">
+        DELETE FROM users WHERE username = #{username}
+    </delete>
+
+    <delete id="deleteByEmail">
+        DELETE FROM users WHERE email = #{email}
+    </delete>
+
+    <select id="findByGithubId" resultType="org.elmo.robella.model.entity.User">
+        SELECT * FROM users WHERE github_id = #{githubId}
+    </select>
+
+    <select id="existsByGithubId" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM users WHERE github_id = #{githubId}
+    </select>
+
+</mapper>

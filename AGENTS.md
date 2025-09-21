@@ -11,7 +11,7 @@ Robella是一个AI API网关，它提供对多个AI服务提供商（OpenAI、An
 ### 应用
 从应用层面来说，项目核心的ai被分为Provider、Model、VendorModel三层：
 - **Provider**: 代表AI服务提供商（如OpenAI、Anthropic等），包含认证信息和API端点。
-- **Model**: 代表AI模型（如gpt-4、claude-2等），包含能力（如推理能力，工具调用等）作为项目暴露给用户调用的模型。
+- **Model**: 代表AI模型（如gpt-4、claude-2等），包含能力（如推理能力，工具调用等）作为项目暴露给用户调用的模型，一个Model可以绑定多个VendorModel。
 - **VendorModel**: 连接Provider和Model，定义某个模型在某个提供商下的具体实现和定价。
 
 模型请求进入系统后，经过路由服务（RoutingService）将用户请求的模型名称映射到具体的提供商模型名称，然后通过统一服务（UnifiedService）将请求转发给相应的提供商API。
@@ -22,8 +22,8 @@ api密钥管理
 
 ### 后端 (Java Spring WebFlux)
 首先：**不**使用Spring Security，仅导入spring-security-crypto进行密码编码
-- **框架**: Spring Boot 3.2.5 配合 WebFlux 进行响应式编程
-- **数据库**: PostgreSQL 配合 R2DBC 进行响应式数据库访问
+- **框架**: Spring Boot 3.2.5 配合 虚拟线程 解决流式阻塞问题
+- **数据库**: PostgreSQL 配合 mybatis-plus 进行数据库访问
 - **认证**: 基于JWT的认证，支持GitHub OAuth
 - **API兼容性**: OpenAI API兼容端点 (`/v1/chat/completions`, `/v1/models`) 和 Anthropic原生API (`/anthropic/v1/messages`)
 - **关键组件**:
@@ -106,7 +106,7 @@ npm run preview
 
 ### 请求流程
 1. 请求到达OpenAI兼容或Anthropic端点
-2. `RoutingService` 将客户端模型名称映射到供应商模型名称
+2. `RoutingService` 将客户端模型名称映射到供应商模型名称和负载均衡
 3. `EndpointTransform` 将请求转换为统一格式
 4. `UnifiedService` 根据供应商模型选择适当的提供商
 5. 通过 `ApiClient` 实现将请求转发给提供商
@@ -118,13 +118,12 @@ npm run preview
 - 基于角色的访问控制 (管理员/用户)
 
 ### 数据库访问
-- R2DBC 用于响应式数据库操作
-- 带有响应式返回类型 (Mono/Flux) 的存储库模式
+- mybatis-plus 用于数据库访问
 - Flyway 已配置但已禁用迁移
 
 ### 转换架构
 - 请求/响应转换的通用 `EndpointTransform<T, R>` 接口
-- `OpenAITransform` 和 `AnthropicTransform` 实现
+- `OpenAIEndpointTransform` 和 `AnthropicEndpointTransform` 实现
 - 支持流式转换的实时响应
 
 ## 重要提示
@@ -146,10 +145,11 @@ npm run preview
 3. 避免过度设计: 不要为了未来可能的需求而过度设计
 4. 单一职责: 每个函数、类、模块只做一件事
 
-**Linus精神**
+**设计原则**
 1. 代码质量至上: 糟糕的代码是技术债务，好的代码是资产
 2. 直接而诚实: 代码评审时直接指出问题，不要含糊其辞
 3. 性能意识: 始终考虑代码的性能影响
+4. 设计时保持克制，不要在一开始就追求完美和极致
 
 **工具使用**
-1. 使用`readFile`或类似获取文件内容的工具时，始终一次阅读 2000 行代码，以确保您有足够的上下文。
+1. 使用`readFile`或类似获取文件内容的工具时，始终指定范围一次阅读 2000 行代码，以确保您有足够的上下文。

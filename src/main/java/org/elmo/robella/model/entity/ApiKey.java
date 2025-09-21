@@ -1,10 +1,9 @@
 package org.elmo.robella.model.entity;
 
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.data.relational.core.mapping.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -16,46 +15,45 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("api_key")
+@TableName("api_key")
 public class ApiKey {
 
-    @Id
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column("user_id")
+    @TableField("user_id")
     private Long userId;
 
-    @Column("key_hash")
+    @TableField("key_hash")
     private String keyHash;
 
-    @Column("key_prefix")
+    @TableField("key_prefix")
     private String keyPrefix;
 
     private String name;
 
     private String description;
 
-    @Column("daily_limit")
+    @TableField("daily_limit")
     private Integer dailyLimit;
 
-    @Column("monthly_limit")
+    @TableField("monthly_limit")
     private Integer monthlyLimit;
 
-    @Column("rate_limit")
+    @TableField("rate_limit")
     private Integer rateLimit;
 
     private Boolean active;
 
-    @Column("last_used_at")
+    @TableField("last_used_at")
     private OffsetDateTime lastUsedAt;
 
-    @Column("expires_at")
+    @TableField("expires_at")
     private OffsetDateTime expiresAt;
 
-
-    @Column("created_at")
+    @TableField("created_at")
     private OffsetDateTime createdAt;
 
-    @Column("updated_at")
+    @TableField("updated_at")
     private OffsetDateTime updatedAt;
 }

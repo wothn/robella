@@ -4,12 +4,11 @@ import org.elmo.robella.model.request.UserProfileUpdateRequest;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
 import org.elmo.robella.exception.InvalidCredentialsException;
+import org.elmo.robella.context.RequestContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import reactor.core.publisher.Mono;
 
 import jakarta.validation.Valid;
 
@@ -23,64 +22,60 @@ public class ProfileController {
     private final UserService userService;
 
     @GetMapping
-    public Mono<UserResponse> getCurrentUser() {
-        return Mono.deferContextual(contextView -> {
-            String username = contextView.get("username");
+    public UserResponse getCurrentUser() {
+        String username = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUsername() : null;
 
-            if (username == null) {
-                return Mono.error(new InvalidCredentialsException());
-            }
-            log.info("获取当前用户信息: {}", username);
+        if (username == null) {
+            throw new InvalidCredentialsException();
+        }
+        log.info("获取当前用户信息: {}", username);
 
-            return userService.getUserByUsername(username);
-        });
+        return userService.getUserByUsername(username);
     }
 
     @PutMapping
-    public Mono<UserResponse> updateCurrentUser(
+    public UserResponse updateCurrentUser(
             @Valid @RequestBody UserProfileUpdateRequest updateRequest) {
-        return Mono.deferContextual(contextView -> {
-            String username = contextView.get("username");
+        String username = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUsername() : null;
 
-            if (username == null) {
-                return Mono.error(new InvalidCredentialsException());
-            }
+        if (username == null) {
+            throw new InvalidCredentialsException();
+        }
 
-            log.info("更新用户资料: {}", username);
+        log.info("更新用户资料: {}", username);
 
-            return userService.updateUserProfile(username, updateRequest);
-        });
+        return userService.updateUserProfile(username, updateRequest);
     }
 
     @DeleteMapping
-    public Mono<Void> deleteCurrentUser() {
-        return Mono.deferContextual(contextView -> {
-            String username = contextView.get("username");
+    public void deleteCurrentUser() {
+        String username = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUsername() : null;
 
-            if (username == null) {
-                return Mono.error(new InvalidCredentialsException());
-            }
+        if (username == null) {
+            throw new InvalidCredentialsException();
+        }
 
-            log.info("删除当前用户: {}", username);
+        log.info("删除当前用户: {}", username);
 
-            return userService.deleteUserByUsername(username);
-        });
+        userService.deleteUserByUsername(username);
     }
 
     @PutMapping("/password")
-    public Mono<Void> changePassword(
+    public void changePassword(
             @RequestParam String currentPassword,
             @RequestParam String newPassword) {
-        return Mono.deferContextual(contextView -> {
-            String username = contextView.get("username");
+        String username = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUsername() : null;
 
-            if (username == null) {
-                return Mono.error(new InvalidCredentialsException());
-            }
+        if (username == null) {
+            throw new InvalidCredentialsException();
+        }
 
-            log.info("修改用户密码: {}", username);
+        log.info("修改用户密码: {}", username);
 
-            return userService.changePassword(username, currentPassword, newPassword);
-        });
+        userService.changePassword(username, currentPassword, newPassword);
     }
 }

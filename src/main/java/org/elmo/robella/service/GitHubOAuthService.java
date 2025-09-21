@@ -8,14 +8,16 @@ import org.elmo.robella.model.dto.GithubAccessTokenResponse;
 import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.response.LoginResponse;
-import org.elmo.robella.repository.UserRepository;
+import org.elmo.robella.mapper.UserMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.elmo.robella.util.JsonUtils;
 import org.elmo.robella.util.JwtUtil;
+import org.elmo.robella.util.OkHttpUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -26,12 +28,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 @Slf4j
 public class GitHubOAuthService {
-
-    private final WebClient webClient;
+    
     private final Map<String, String> stateStore = new ConcurrentHashMap<>();
-    private final UserService userService;
-    private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
+    private final OkHttpUtils okHttpUtils;
 
     @Value("${github.oauth.client-id}")
     private String clientId;
@@ -62,20 +63,26 @@ public class GitHubOAuthService {
                 authUrl, clientId, redirectUri, scope, state);
     }
 
-    public Mono<LoginResponse> handleOAuthCallback(String code, String state) {
+    public LoginResponse handleOAuthCallback(String code, String state) {
         if (!validateState(state)) {
-            return Mono.error(new IllegalArgumentException("Invalid or expired state parameter"));
+            throw new IllegalArgumentException("Invalid or expired state parameter");
         }
 
-        // 获取access token
-        return getAccessToken(code, state)
-                .flatMap(this::getUserInfo)
-                .flatMap(this::processGitHubUser)
-                .doOnSuccess(response -> log.info("GitHub OAuth login successful"))
-                .doOnError(error -> log.error("GitHub OAuth login failed: {}", error.getMessage()));
+        try {
+            // 获取access token
+            String accessToken = getAccessToken(code, state);
+            GitHubUserInfo userInfo = getUserInfo(accessToken);
+
+            LoginResponse response = processGitHubUser(userInfo);
+            log.info("GitHub OAuth login successful");
+            return response;
+        } catch (Exception e) {
+            log.error("GitHub OAuth login failed: {}", e.getMessage());
+            throw new RuntimeException("GitHub OAuth login failed", e);
+        }
     }
 
-    private Mono<LoginResponse> processGitHubUser(GitHubUserInfo userInfo) {
+    private LoginResponse processGitHubUser(GitHubUserInfo userInfo) throws IOException {
         String githubId = String.valueOf(userInfo.getId());
         String username = userInfo.getLogin();
         String email = userInfo.getEmail();
@@ -85,33 +92,35 @@ public class GitHubOAuthService {
         final String finalEmail = (email == null || email.trim().isEmpty()) ? username + "@github.local" : email;
         final String finalName = (name == null || name.trim().isEmpty()) ? username : name;
 
-        return userService.getUserByGithubId(githubId)
-                .switchIfEmpty(Mono.defer(() -> {
-                    User newUser = User.builder()
-                            .username(username)
-                            .email(finalEmail)
-                            .displayName(finalName)
-                            .avatar(avatar)
-                            .githubId(githubId)
-                            .active(true)
-                            .role(Role.USER)
-                            .password(null) // OAuth用户没有密码
-                            .createdAt(OffsetDateTime.now())
-                            .updatedAt(OffsetDateTime.now())
-                            .build();
-                    
-                    return userRepository.save(newUser);
-                }))
-                .flatMap(user -> {
-                    user.setLastLoginAt(OffsetDateTime.now());
-                    return userRepository.save(user);
-                })
-                .flatMap(user -> {
-                    String accessToken = jwtUtil.generateAccessToken(user);
-                    String refreshToken = jwtUtil.generateRefreshToken(user);
-                    
-                    return Mono.just(new LoginResponse(accessToken, refreshToken));
-                });
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getGithubId, githubId);
+        User user = userMapper.selectOne(queryWrapper);
+
+        if (user == null) {
+            User newUser = User.builder()
+                    .username(username)
+                    .email(finalEmail)
+                    .displayName(finalName)
+                    .avatar(avatar)
+                    .githubId(githubId)
+                    .active(true)
+                    .role(Role.USER)
+                    .password(null) // OAuth用户没有密码
+                    .createdAt(OffsetDateTime.now())
+                    .updatedAt(OffsetDateTime.now())
+                    .build();
+
+            userMapper.insert(newUser);
+            user = newUser;
+        }
+
+        user.setLastLoginAt(OffsetDateTime.now());
+        userMapper.updateById(user);
+
+        String accessToken = jwtUtil.generateAccessToken(user);
+        String refreshToken = jwtUtil.generateRefreshToken(user);
+
+        return new LoginResponse(accessToken, refreshToken);
     }
 
     private boolean validateState(String state) {
@@ -141,27 +150,40 @@ public class GitHubOAuthService {
         return UUID.randomUUID().toString();
     }
 
-    public Mono<String> getAccessToken(String code, String state) {
-        return webClient.post()
-                .uri(tokenUrl)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .accept(MediaType.APPLICATION_JSON)
-                .bodyValue("client_id=" + clientId + 
-                          "&client_secret=" + clientSecret + 
-                          "&code=" + code + 
-                          "&redirect_uri=" + redirectUri + 
-                          "&grant_type=authorization_code")
-                .retrieve()
-                .bodyToMono(GithubAccessTokenResponse.class)
-                .map(GithubAccessTokenResponse::getAccessToken);
+    public String getAccessToken(String code, String state) throws IOException {
+        Map<String, String> headers = Map.of(
+                "Content-Type", MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                "Accept", MediaType.APPLICATION_JSON_VALUE
+        );
+
+        Map<String, String> formData = Map.of(
+                "client_id", clientId,
+                "client_secret", clientSecret,
+                "code", code,
+                "redirect_uri", redirectUri,
+                "grant_type", "authorization_code"
+        );
+
+        String responseBody = okHttpUtils.postForm(tokenUrl, formData, headers);
+        try {
+            GithubAccessTokenResponse response = JsonUtils.fromJson(responseBody, GithubAccessTokenResponse.class);
+            return response.getAccessToken();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse access token response", e);
+        }
     }
 
-    public Mono<GitHubUserInfo> getUserInfo(String accessToken) {
-        return webClient.get()
-                .uri(userUrl)
-                .header("Authorization", "Bearer " + accessToken)
-                .accept(MediaType.APPLICATION_JSON)
-                .retrieve()
-                .bodyToMono(GitHubUserInfo.class);
+    public GitHubUserInfo getUserInfo(String accessToken) throws IOException {
+        Map<String, String> headers = Map.of(
+                "Authorization", "Bearer " + accessToken,
+                "Accept", MediaType.APPLICATION_JSON_VALUE
+        );
+
+        String responseBody = okHttpUtils.get(userUrl, headers);
+        try {
+            return JsonUtils.fromJson(responseBody, GitHubUserInfo.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse user info", e);
+        }
     }
 }

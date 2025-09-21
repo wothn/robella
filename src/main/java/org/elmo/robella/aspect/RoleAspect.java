@@ -6,12 +6,11 @@ import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.elmo.robella.annotation.RequiredRole;
 import org.elmo.robella.model.common.Role;
+import org.elmo.robella.context.RequestContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
-import reactor.core.publisher.Mono;
-
 import java.lang.reflect.Method;
 
 @Aspect
@@ -20,44 +19,46 @@ import java.lang.reflect.Method;
 public class RoleAspect {
 
     @Before("@within(org.elmo.robella.annotation.RequiredRole) || @annotation(org.elmo.robella.annotation.RequiredRole)")
-    public Mono<Void> checkRole(JoinPoint joinPoint) {
+    public void checkRole(JoinPoint joinPoint) {
         log.debug("Checking role for method: {}", joinPoint.getSignature().getName());
+
+
         // 获取当前方法或类的注解
         RequiredRole requiredRole = getRequiredRoleAnnotation(joinPoint);
         if (requiredRole == null) {
             log.debug("No RequiredRole annotation found for method: {}", joinPoint.getSignature().getName());
-            return Mono.empty();
+            return;
         }
 
         // 获取所需的最小角色
         Role required = requiredRole.value();
         if (required == null) {
             log.debug("No specific role required for method: {}", joinPoint.getSignature().getName());
-            return Mono.empty();
+            return;
         }
 
-        // 从Reactor上下文中获取当前用户角色
-        return Mono.deferContextual(contextView -> {
-            String roleValue = contextView.getOrDefault("role", "");
-            log.debug("Current user role: {}", roleValue);
-            if (roleValue.isEmpty()) {
-                log.warn("No role found in context for method: {}", joinPoint.getSignature().getName());
-                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required"));
-            }
+        // 从ThreadLocal上下文中获取当前用户角色
+        String roleValue = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getRole() : null;
+        log.debug("Current user role: {}", roleValue);
 
-            Role currentRole = Role.fromValue(roleValue);
+        if (roleValue == null || roleValue.isEmpty()) {
+            log.warn("No role found in context for method: {}", joinPoint.getSignature().getName());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
 
-            // 检查当前角色是否具有所需最小角色的权限
-            if (currentRole.hasPermission(required)) {
-                log.debug("Role check passed for user with role {} accessing method {} (required: {})",
-                         currentRole, joinPoint.getSignature().getName(), required);
-                return Mono.empty();
-            }
+        Role currentRole = Role.fromValue(roleValue);
 
-            log.warn("Role check failed for user with role {} accessing method {}. Required minimum role: {}",
+        // 检查当前角色是否具有所需最小角色的权限
+        if (currentRole.hasPermission(required)) {
+            log.debug("Role check passed for user with role {} accessing method {} (required: {})",
                      currentRole, joinPoint.getSignature().getName(), required);
-            return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient permissions"));
-        });
+            return;
+        }
+
+        log.warn("Role check failed for user with role {} accessing method {}. Required minimum role: {}",
+                 currentRole, joinPoint.getSignature().getName(), required);
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient permissions");
     }
 
     private RequiredRole getRequiredRoleAnnotation(JoinPoint joinPoint) {
