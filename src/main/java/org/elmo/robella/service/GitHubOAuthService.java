@@ -7,7 +7,6 @@ import org.elmo.robella.model.dto.GitHubUserInfo;
 import org.elmo.robella.model.dto.GithubAccessTokenResponse;
 import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.common.Role;
-import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.elmo.robella.util.JsonUtils;
@@ -64,7 +63,7 @@ public class GitHubOAuthService {
                 authUrl, clientId, redirectUri, scope, state);
     }
 
-    public LoginResponse handleOAuthCallback(String code, String state) {
+    public String handleOAuthCallback(String code, String state) {
         if (!validateState(state)) {
             throw new IllegalArgumentException("Invalid or expired state parameter");
         }
@@ -74,16 +73,16 @@ public class GitHubOAuthService {
             String accessToken = getAccessToken(code, state);
             GitHubUserInfo userInfo = getUserInfo(accessToken);
 
-            LoginResponse response = processGitHubUser(userInfo);
+            String refreshToken = processGitHubUser(userInfo);
             log.info("GitHub OAuth login successful");
-            return response;
+            return refreshToken;
         } catch (Exception e) {
             log.error("GitHub OAuth login failed: {}", e.getMessage());
             throw new RuntimeException("GitHub OAuth login failed", e);
         }
     }
 
-    private LoginResponse processGitHubUser(GitHubUserInfo userInfo) throws IOException {
+    private String processGitHubUser(GitHubUserInfo userInfo) throws IOException {
         String githubId = String.valueOf(userInfo.getId());
         String username = userInfo.getLogin();
         String email = userInfo.getEmail();
@@ -117,11 +116,9 @@ public class GitHubOAuthService {
 
         user.setLastLoginAt(OffsetDateTime.now());
         userMapper.updateById(user);
-
-        String accessToken = jwtUtil.generateAccessToken(user);
         String refreshToken = jwtUtil.generateRefreshToken(user);
 
-        return new LoginResponse(accessToken, refreshToken);
+        return refreshToken;
     }
 
     private boolean validateState(String state) {

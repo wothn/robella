@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiClient } from '@/lib/api'
+import { storage } from '@/lib/storage'
 
 export const useAuthSuccess = () => {
   const navigate = useNavigate()
@@ -24,48 +25,28 @@ export const useAuthSuccess = () => {
 
       try {
         console.log('Auth success - Starting authentication process')
-        
-        const params = new URLSearchParams(window.location.search)
-        const token = params.get('token')
-        const refreshToken = params.get('refreshToken')
-        
-        console.log('Auth success - URL params:', {
-          hasToken: !!token,
-          hasRefreshToken: !!refreshToken,
-          pathname: window.location.pathname
-        })
 
-        if (token && refreshToken) {
-          // New authentication
-          localStorage.setItem('accessToken', token)
-          localStorage.setItem('refreshToken', refreshToken)
-          console.log('Auth success - Tokens stored')
-          
+        // Try to refresh token using cookie
+        try {
+          console.log('Auth success - Attempting token refresh using cookie')
+          const refreshResponse = await apiClient.refreshToken()
+          console.log('Auth success - Token refresh successful')
+
           const currentUser = await apiClient.getCurrentUser()
           updateUser(currentUser)
-          console.log('Auth success - User loaded, redirecting')
-          
-          navigate('/', { replace: true })
-        } else {
-          // Check existing session
-          const existingToken = localStorage.getItem('accessToken')
-          const existingRefreshToken = localStorage.getItem('refreshToken')
-          
-          if (existingToken && existingRefreshToken) {
-            console.log('Auth success - Validating existing session')
-            const currentUser = await apiClient.getCurrentUser()
-            updateUser(currentUser)
-            console.log('Auth success - Session valid, redirecting')
+          console.log('Auth success - User loaded, redirecting in 3 seconds')
+
+          // 3秒后跳转到主页
+          setTimeout(() => {
             navigate('/', { replace: true })
-          } else {
-            throw new Error('No authentication tokens found')
-          }
+          }, 3000)
+        } catch (refreshErr) {
+          throw new Error('Failed to refresh token using cookie')
         }
       } catch (err) {
         console.error('Auth success failed:', err)
         setError(err instanceof Error ? err.message : 'Authentication failed')
         localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
         navigate('/login', { replace: true })
       } finally {
         setIsProcessing(false)

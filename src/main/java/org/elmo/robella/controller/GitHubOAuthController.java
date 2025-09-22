@@ -3,9 +3,13 @@ package org.elmo.robella.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+
 import org.elmo.robella.service.GitHubOAuthService;
+
+import jakarta.servlet.http.Cookie;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/api/oauth/github")
@@ -24,11 +28,9 @@ public class GitHubOAuthController {
     @GetMapping("/callback")
     public RedirectView callback(
             @RequestParam(required = false) String code,
-            @RequestParam(required = false) String state) {
+            @RequestParam(required = false) String state,
+            HttpServletResponse response) {
 
-        log.info("GitHub OAuth callback received - code: {}, state: {}",
-                code != null ? "present" : "missing",
-                state != null ? "present" : "missing");
 
         if (code == null || state == null) {
             log.warn("GitHub OAuth callback called without required parameters");
@@ -36,15 +38,20 @@ public class GitHubOAuthController {
         }
 
         try {
-            var loginResponse = gitHubOAuthService.handleOAuthCallback(code, state);
+            String refreshToken = gitHubOAuthService.handleOAuthCallback(code, state);
             log.info("GitHub OAuth service returned login response - accessToken: {}, refreshToken: {}",
-                    loginResponse.getAccessToken() != null ? "present" : "missing",
-                    loginResponse.getRefreshToken() != null ? "present" : "missing");
+                    refreshToken != null ? "present" : "missing");
 
-            // 生成JWT token并添加到重定向URL的参数中，确保URL编码
-            String encodedToken = java.net.URLEncoder.encode(loginResponse.getAccessToken(), "UTF-8");
-            String encodedRefreshToken = java.net.URLEncoder.encode(loginResponse.getRefreshToken(), "UTF-8");
-            String redirectUrl = "http://localhost:5173/auth/success?token=" + encodedToken + "&refreshToken=" + encodedRefreshToken;
+            // Set refreshToken in HttpOnly cookie
+            Cookie cookie = new Cookie("refreshToken", refreshToken);
+            cookie.setHttpOnly(true);
+            cookie.setSecure(false); // Set to true in production with HTTPS
+            cookie.setPath("/");
+            cookie.setMaxAge(30 * 24 * 60 * 60); // 30 days
+            response.addCookie(cookie);
+
+            // 重定向到前端成功页面，token由前端通过refreshToken刷新获取
+            String redirectUrl = "http://localhost:5173/auth/success";
 
             log.info("Redirecting to frontend success page: {}", redirectUrl);
             return new RedirectView(redirectUrl);

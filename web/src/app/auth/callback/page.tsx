@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/AuthContext"
 import { apiClient } from "@/lib/api"
+import { storage } from "@/lib/storage"
 import type { LoginResponse } from "@/types/user"
 
 export default function AuthCallbackPage() {
@@ -19,15 +20,14 @@ export default function AuthCallbackPage() {
         const token = urlParams.get('token')
         const refreshToken = urlParams.get('refreshToken')
 
-        if (token && refreshToken) {
-          // Direct token from backend redirect
+        if (token) {
+          // Direct token from backend redirect (refreshToken is in HttpOnly cookie)
           localStorage.setItem('accessToken', token)
-          localStorage.setItem('refreshToken', refreshToken)
-          
+
           // Get the current user data
           const currentUser = await apiClient.getCurrentUser()
           updateUser(currentUser)
-          
+
           // Redirect to dashboard
           navigate('/')
         } else {
@@ -41,15 +41,14 @@ export default function AuthCallbackPage() {
 
           // Exchange code for access token
           const response: LoginResponse = await apiClient.githubCallback(code, state)
-          
-          // Store the tokens
+
+          // Store the accessToken in localStorage, refreshToken is already in HttpOnly cookie
           localStorage.setItem('accessToken', response.accessToken)
-          localStorage.setItem('refreshToken', response.refreshToken)
-          
+
           // Get the current user data
           const currentUser = await apiClient.getCurrentUser()
           updateUser(currentUser)
-          
+
           // Redirect to dashboard
           navigate('/')
         }

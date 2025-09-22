@@ -265,7 +265,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
         String newAccessToken = jwtUtil.generateAccessToken(user);
         String newRefreshToken = jwtUtil.generateRefreshToken(user);
-        return new LoginResponse(newAccessToken, newRefreshToken);
+        return new LoginResponse(newAccessToken);
     }
 
     private AuthTokens createAuthTokens(String accessToken, String refreshToken) {

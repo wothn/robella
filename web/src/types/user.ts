@@ -41,9 +41,6 @@ export interface CreateUserRequest {
   role?: string
 }
 
-export interface RefreshTokenRequest {
-  refreshToken: string
-}
 
 export interface UserProfileUpdateRequest {
   displayName?: string

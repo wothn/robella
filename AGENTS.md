@@ -2,141 +2,146 @@
 
 This file provides guidance to AI Agent when working with code in this repository.
 
-## 项目概述
+## Project Overview
 
-Robella是一个AI API网关，它提供对多个AI服务提供商（OpenAI、Anthropic/Claude、Qwen等）的统一访问。让用户能通过任意端点访问任意模型。
+Robella is an AI API gateway that provides unified access to multiple AI service providers (OpenAI, Anthropic/Claude, Qwen, etc.). It allows users to access any model through any endpoint with flexible routing and load balancing.
 
-## 架构
+## Architecture
 
-### 应用
-从应用层面来说，项目核心的ai被分为Provider、Model、VendorModel三层：
-- **Provider**: 代表AI服务提供商（如OpenAI、Anthropic等），包含认证信息和API端点。
-- **Model**: 代表AI模型（如gpt-4、claude-2等），包含能力（如推理能力，工具调用等）作为项目暴露给用户调用的模型，一个Model可以绑定多个VendorModel。
-- **VendorModel**: 连接Provider和Model，定义某个模型在某个提供商下的具体实现和定价。
+### Application Layer
+The AI system is structured in three layers:
+- **Provider**: AI service providers (OpenAI, Anthropic, etc.) with authentication and API endpoints
+- **Model**: AI models (gpt-4, claude-2, etc.) with capabilities exposed to users, can bind multiple VendorModels
+- **VendorModel**: Connects Provider and Model, defining specific implementation and pricing for a model under a provider
 
-模型请求进入系统后，经过路由服务（RoutingService）将用户请求的模型名称映射到具体的提供商模型名称，然后通过统一服务（UnifiedService）将请求转发给相应的提供商API。
+Request flow: User request → RoutingService (maps model name to provider model) → UnifiedService → Provider API
 
-其余部分包括：
-用户管理
-api密钥管理
+Additional components include user management and API key management.
 
-### 后端 (Java Spring WebFlux)
-首先：**不**使用Spring Security，仅导入spring-security-crypto进行密码编码
-- **框架**: Spring Boot 3.2.5 配合 虚拟线程 解决流式阻塞问题
-- **数据库**: PostgreSQL 配合 mybatis-plus 进行数据库访问
-- **认证**: 基于JWT的认证，支持GitHub OAuth
-- **API兼容性**: OpenAI API兼容端点 (`/v1/chat/completions`, `/v1/models`) 和 Anthropic原生API (`/anthropic/v1/messages`)
-- **关键组件**:
-  - `OpenAIController.java:39` - 主要的OpenAI兼容API端点
-  - `AnthropicController.java:52` - Anthropic API兼容层
-  - `RoutingService.java:32` - 动态模型到提供商的路由
-  - `UnifiedService.java:42` - 统一请求处理服务
-  - `EndpointTransform.java` - 请求/响应转换的通用接口
+### Backend (Java Spring Boot)
+- **Framework**: Spring Boot 3.3.10 with Java 21 and virtual threads
+- **Database**: PostgreSQL with MyBatis-Plus
+- **Authentication**: JWT with GitHub OAuth (Note: Only spring-security-crypto is used, not full Spring Security)
+- **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`) and Anthropic native API (`/anthropic/v1/messages`)
+- **Key Components**:
+  - `OpenAIController.java:42` - Main OpenAI compatible API endpoint
+  - `AnthropicController.java:51` - Anthropic API compatibility layer
+  - `RoutingService.java:32` - Dynamic model to provider routing
+  - `UnifiedService.java:42` - Unified request processing
+  - `EndpointTransform.java` - Generic interface for request/response transformation
 
-### 前端 (React + TypeScript)
-- **框架**: React 18.3.1 配合 TypeScript
-- **构建工具**: Vite
-- **UI库**: Shadcn UI组件配合Radix UI基础组件
-- **样式**: Tailwind CSS
-- **主要功能**:
-  - 用户认证 (JWT + GitHub OAuth)
-  - 提供商管理界面
-  - 模型配置和路由
-  - 包含使用情况分析的仪表板
+### Frontend (React + TypeScript)
+- **Framework**: React 18.3.1 with TypeScript
+- **Build Tool**: Vite
+- **UI**: Shadcn UI with Radix UI primitives
+- **Styling**: Tailwind CSS
+- **Key Features**:
+  - User authentication (JWT + GitHub OAuth)
+  - Provider management interface
+  - Model configuration and routing
+  - Dashboard with usage analytics
 
-### 数据库模式
-- **Users**: 认证和角色管理
-- **Providers**: AI服务提供商配置
-- **Models**: 可用的AI模型及其能力和定价
-- **VendorModels**: 模型与提供商之间的映射
+### Database Schema
+- **Users**: Authentication and role management
+- **Providers**: AI service provider configurations
+- **Models**: Available AI models with capabilities and pricing
+- **VendorModels**: Model to provider mappings
+- **ApiKeys**: API key management with rate limiting
+- **RequestLog**: Request logging and analytics
 
-## 开发命令
+## Development Commands
 
-### 后端
+### Backend
 ```bash
-# 构建项目
+# Build project
 mvn clean package
 
-# 运行应用程序
-java -jar target/robella-1.0.0.jar
+# Run application
+java -jar target/robella-0.1.0.jar
 
-# 开发模式
+# Development mode
 mvn spring-boot:run
 
-# 仅编译
+# Compile only
 mvn compile
 
-# 测试 (当测试实现后)
+# Test (when implemented)
 mvn test
 ```
 
-### 前端
+### Frontend
 ```bash
-# 进入web目录
+# Enter web directory
 cd web
 
-# 安装依赖
+# Install dependencies
 npm install
 
-# 开发服务器
+# Development server
 npm run dev
 
-# 构建生产环境
+# Build production
 npm run build
 
-# 代码检测
+# Lint code
 npm run lint
 
-# 类型检查
+# Type check
 tsc --noEmit
 
-# 预览生产构建
+# Preview production build
 npm run preview
 ```
 
-## 配置
+## Configuration
 
-### 关键配置文件
-- `src/main/resources/application.yml` - 主应用程序配置
-- `src/main/resources/schema.sql` - 数据库模式定义
-- `web/vite.config.ts` - 前端构建配置，包含到后端的代理
+### Key Configuration Files
+- `src/main/resources/application.yml` - Main application configuration
+- `src/main/resources/schema.sql` - Database schema definition
+- `web/vite.config.ts` - Frontend build configuration with proxy to backend
 
+### Environment Variables
+- `POSTGRES_USERNAME` - Database username
+- `POSTGRES_PASSWORD` - Database password
+- `JWT_SECRET` - JWT signing secret
+- `GITHUB_CLIENT_ID` - GitHub OAuth client ID
+- `GITHUB_CLIENT_SECRET` - GitHub OAuth client secret
 
-## 关键模式
+## Key Patterns
 
-### 请求流程
-1. 请求到达OpenAI兼容或Anthropic端点
-2. `RoutingService` 将客户端模型名称映射到供应商模型名称和负载均衡
-3. `EndpointTransform` 将请求转换为统一格式
-4. `UnifiedService` 根据供应商模型选择适当的提供商
-5. 通过 `ApiClient` 实现将请求转发给提供商
-6. 响应转换回请求的格式
+### Request Flow
+1. Request arrives at OpenAI compatible or Anthropic endpoint
+2. `RoutingService` maps client model name to vendor model name and load balancing
+3. `EndpointTransform` converts request to unified format
+4. `UnifiedService` selects appropriate provider based on vendor model
+5. Forwards request to provider via `ApiClient`
+6. Response converted back to requested format
 
-### 认证
-- 带刷新令牌轮换的JWT令牌
-- GitHub OAuth集成
-- 基于角色的访问控制 (管理员/用户)
+### Authentication
+- JWT tokens with refresh token rotation
+- GitHub OAuth integration
+- Role-based access control (admin/user)
 
-### 数据库访问
-- mybatis-plus 用于数据库访问
-- Flyway 已配置但已禁用迁移
+### Database Access
+- MyBatis-Plus for database access
+- Flyway configured but migrations disabled
+- Uses traditional blocking database access (not reactive)
 
-### 转换架构
-- 请求/响应转换的通用 `EndpointTransform<T, R>` 接口
-- `OpenAIEndpointTransform` 和 `AnthropicEndpointTransform` 实现
-- 支持流式转换的实时响应
+### Transformation Architecture
+- Generic `EndpointTransform<T, R>` interface for request/response transformation
+- `OpenAIEndpointTransform` and `AnthropicEndpointTransform` implementations
+- Support for real-time streaming transformation using virtual threads
 
-## 重要提示
+## Important Notes
 
-- 应用程序默认运行在端口10032
-- 整个项目使用WebFlux进行响应式编程
-- 所有数据库操作都返回响应式类型 (Mono/Flux)
-- 前端是 `/web` 目录下的独立React应用程序
-- 提供商配置存储在数据库中，可通过UI进行管理
-- 模型路由是动态的，可以在运行时配置
-- 支持流式和非流式响应
-- 系统同时支持OpenAI兼容和Anthropic原生API格式
-
+- Application runs on port 10032 by default
+- Uses Spring MVC with virtual threads (not WebFlux)
+- Frontend is a separate React app in `/web` directory
+- Provider configurations stored in database, manageable via UI
+- Model routing is dynamic and configurable at runtime
+- Supports both streaming and non-streaming responses
+- Compatible with both OpenAI and Anthropic native API formats
+- Database schema includes comprehensive request logging for analytics
 ## AI 开发哲学
 
 **KISS原则 (Keep It Simple, Stupid)**

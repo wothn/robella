@@ -1,90 +1,92 @@
-# Robella - OpenAI API兼容转发平台
+# Robella - AI API Gateway
 
-Robella是一AI API的转发平台，可以统一接入多家AI服务商（OpenAI、Claude、Gemini、通义千问等），提供标准化的API接口和灵活的路由策略。
+Robella is an AI API gateway that provides unified access to multiple AI service providers (OpenAI, Anthropic/Claude, Qwen, etc.). It allows users to access any model through any endpoint with flexible routing and load balancing.
 
-## 功能特性
+## Features
 
-- OpenAI API端点
-- Anthropic API端点
-- 多AI服务商转发支持
-- 流式传输处理
-- 动态路由配置
+- OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`)
+- Anthropic native API support (`/anthropic/v1/messages`)
+- Multi-AI provider support with unified interface
+- Real-time streaming response handling
+- Dynamic model routing and load balancing
+- JWT authentication with GitHub OAuth
+- Comprehensive request logging and analytics
+- Web-based management interface
 
-## 技术栈
+## Architecture
 
-- Java 17+
-- Spring Boot 3.x
-- Spring WebFlux (响应式编程)
+The system is structured in three layers:
+- **Provider**: AI service providers (OpenAI, Anthropic, etc.) with authentication and API endpoints
+- **Model**: AI models (gpt-4, claude-2, etc.) with capabilities exposed to users
+- **VendorModel**: Connects Provider and Model, defining specific implementation and pricing
+
+## Technology Stack
+
+### Backend
+- **Java**: 21 with virtual threads
+- **Framework**: Spring Boot 3.3.10 (MVC, not WebFlux)
+- **Database**: PostgreSQL with MyBatis-Plus
+- **Authentication**: JWT with GitHub OAuth
+- **Build**: Maven 3.8+
+
+### Frontend
+- **Framework**: React 18.3.1 with TypeScript
+- **Build Tool**: Vite
+- **UI**: Shadcn UI with Radix UI primitives
+- **Styling**: Tailwind CSS
+
+## Quick Start
+
+### Prerequisites
+
+- Java 21+
 - Maven 3.8+
+- PostgreSQL database
 
-## 快速开始
+### Environment Variables
 
-### 环境要求
+Set the following environment variables before running the application:
 
-- Java 17+
-- Maven 3.8+
+```bash
+export POSTGRES_USERNAME="your-db-username"
+export POSTGRES_PASSWORD="your-db-password"
+export JWT_SECRET="your-jwt-secret"
+export GITHUB_CLIENT_ID="your-github-client-id"
+export GITHUB_CLIENT_SECRET="your-github-client-secret"
+```
 
-### 构建项目
+### Build Project
 
 ```bash
 mvn clean package
 ```
 
-### 运行应用
+### Run Application
 
 ```bash
-java -jar target/robella-1.0.0.jar
+java -jar target/robella-0.1.0.jar
 ```
 
-### 配置环境变量
-
-在运行应用前，请设置以下环境变量：
+### Development Mode
 
 ```bash
-export OPENAI_API_KEY="your-openai-api-key"
-export CLAUDE_API_KEY="your-claude-api-key"
-export GEMINI_API_KEY="your-gemini-api-key"
-export QWEN_API_KEY="your-qwen-api-key"
+mvn spring-boot:run
 ```
 
-## API接口
+The application runs on port 10032 by default.
 
-### 聊天完成
 
-```http
-POST /v1/chat/completions
-Content-Type: application/json
+## Frontend Development
 
-{
-  "model": "gpt-3.5-turbo",
-  "messages": [
-    {
-      "role": "user",
-      "content": "Hello!"
-    }
-  ],
-  "stream": false
-}
-```
+### Technology Stack
 
-### 模型列表
-
-```http
-GET /v1/models
-```
-
-## 前端开发
-
-### 技术栈
-
-- React 19.1.1
-- TypeScript
-- Vite
+- React 18.3.1 with TypeScript
+- Vite build tool
 - Tailwind CSS
-- Shadcn UI 组件库
-- Radix UI 基础组件
+- Shadcn UI components
+- Radix UI primitives
 
-### 开发环境
+### Development Setup
 
 ```bash
 cd web
@@ -92,49 +94,62 @@ npm install
 npm run dev
 ```
 
-### 构建生产版本
+### Build Production
 
 ```bash
 cd web
 npm run build
 ```
 
-### 代码检查
+### Code Quality
 
 ```bash
 cd web
-npm run lint
+npm run lint        # Run linting
+tsc --noEmit        # Type checking
 ```
 
-### 项目结构
+### Project Structure
 
 ```
 web/
 ├── src/
-│   ├── components/     # React 组件
-│   ├── lib/           # 工具函数和配置
-│   ├── assets/        # 静态资源
-│   ├── App.tsx        # 主应用组件
-│   └── main.tsx       # 应用入口
-├── dist/              # 构建输出目录
-├── public/            # 公共资源
-└── package.json       # 依赖配置
+│   ├── components/     # React components
+│   ├── lib/           # Utilities and configuration
+│   ├── assets/        # Static assets
+│   ├── App.tsx        # Main application component
+│   └── main.tsx       # Application entry point
+├── dist/              # Build output
+├── public/            # Public assets
+└── package.json       # Dependencies
 ```
 
-### 开发脚本
+### Development Scripts
 
-- `npm run dev` - 启动开发服务器
-- `npm run build` - 构建生产版本
-- `npm run lint` - 运行代码检查
-- `npm run preview` - 预览生产构建
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run lint` - Run linting
+- `npm run preview` - Preview production build
 
-## 配置说明
+## Configuration
 
-配置文件位于 `src/main/resources` 目录下：
+### Key Configuration Files
 
-- `application.yml`: 主配置文件
-- `providers.yml`: AI服务商配置文件
+- `src/main/resources/application.yml` - Main application configuration
+- `src/main/resources/schema.sql` - Database schema
+- `web/vite.config.ts` - Frontend build configuration
 
-## 许可证
+### Database Schema
+
+The application uses PostgreSQL with the following main entities:
+- **Users** - Authentication and role management
+- **Providers** - AI service provider configurations
+- **Models** - Available AI models with capabilities
+- **VendorModels** - Model to provider mappings
+- **ApiKeys** - API key management with rate limiting
+- **RequestLog** - Request logging and analytics
+
+
+## License
 
 [MIT License](LICENSE)

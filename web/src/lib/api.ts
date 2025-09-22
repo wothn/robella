@@ -183,19 +183,9 @@ class ApiClient {
 
   // 刷新令牌
   async refreshToken(): Promise<LoginResponse> {
-    const refreshToken = storage.getRefreshToken()
-    if (!refreshToken) {
-      storage.clearAuth()
-      window.location.href = '/login'
-      throw new Error('No refresh token available')
-    }
-
     const response = await fetch(`${this.baseURL}/users/refresh`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
+      credentials: 'include', // Important: include cookies
     })
 
     if (!response.ok) {
@@ -205,7 +195,8 @@ class ApiClient {
     }
 
     const data: LoginResponse = await response.json()
-    storage.setAuthTokens(data.accessToken, data.refreshToken)
+    // Only store accessToken in localStorage, refreshToken is already in HttpOnly cookie
+    storage.setItem('accessToken', data.accessToken)
     return data
   }
 
@@ -297,6 +288,11 @@ class ApiClient {
   // GitHub OAuth回调
   async githubCallback(code: string, state: string): Promise<LoginResponse> {
     return this.get(`/oauth/github/callback?code=${code}&state=${state}`)
+  }
+
+  // 用户登出
+  async logout(): Promise<void> {
+    return this.post('/users/logout', {})
   }
 
   // ================= Provider Management =================

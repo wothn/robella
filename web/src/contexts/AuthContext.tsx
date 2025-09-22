@@ -69,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response: LoginResponse = await apiClient.login(username, password)
 
-      // Store the tokens
-      storage.setAuthTokens(response.accessToken, response.refreshToken)
+      // Store the accessToken in localStorage, refreshToken is already in HttpOnly cookie
+      storage.setItem('accessToken', response.accessToken)
 
       // Get the current user data
       const currentUser = await apiClient.getCurrentUser()
@@ -91,11 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = githubLoginUrl
   }
 
-  const logout = () => {
-    // Clear stored data
-    storage.clearAuth()
-    setUser(null)
-    navigate('/login')
+  const logout = async () => {
+    try {
+      // Call backend logout to clear refresh token cookie
+      await apiClient.logout()
+    } catch (error) {
+      console.error('Logout API call failed:', error)
+    } finally {
+      // Clear stored data
+      storage.clearAuth()
+      setUser(null)
+      navigate('/login')
+    }
   }
 
   const updateUser = (userData: User) => {
