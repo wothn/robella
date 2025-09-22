@@ -1,5 +1,6 @@
 package org.elmo.robella.controller;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
 import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
 import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
+import org.elmo.robella.model.anthropic.stream.*;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
@@ -23,7 +25,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.stream.Stream;
@@ -41,7 +43,7 @@ public class AnthropicController {
     private final UnifiedService unifiedService;
     private final EndpointTransform<AnthropicChatRequest, AnthropicMessage> anthropicEndpointTransform;
     private final UnifiedToEndpointStreamTransformer<AnthropicStreamEvent> unifiedToAnthropicStreamTransformer;
-
+    private final JsonUtils jsonUtils;
     /**
      * Anthropic Messages API 端点
      *
@@ -51,7 +53,7 @@ public class AnthropicController {
     @PostMapping(value = "/messages",
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE},
             consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createMessage(@RequestBody @Valid AnthropicChatRequest request) {
+    public Object createMessage(@RequestBody @Valid AnthropicChatRequest request, HttpServletResponse response) {
 
         RequestContext ctx = RequestContextHolder.getContext();
         String requestId = ctx.getRequestId();
@@ -61,35 +63,82 @@ public class AnthropicController {
         unifiedRequest.setEndpointType("anthropic");
 
         if (Boolean.TRUE.equals(request.getStream())) {
-            Stream<UnifiedStreamChunk> unifiedStream = unifiedService.sendStreamRequest(unifiedRequest);
-
-            Stream<String> sseStream = unifiedToAnthropicStreamTransformer.transform(unifiedStream, requestId)
-                    .map(event -> {
-                        String eventType = extractEventType(event);
-                        String eventData = JsonUtils.toJson(event);
-                        return "event: " + eventType + "\ndata: " + eventData + "\n\n";
-                    });
-
-            StreamingResponseBody body = os -> {
-                sseStream.forEach(s -> {
-                    try {
-                        os.write(s.getBytes());
-                        os.flush();
-                    } catch (IOException e) {
-                        log.error("Error writing to output stream", e);
-                    }
-                });
-            };
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .header(HttpHeaders.CACHE_CONTROL, "no-cache")
-                    .body(body);
-
+            return handleStreamingResponse(unifiedRequest, requestId, response);
         } else {
-            UnifiedChatResponse response = unifiedService.sendChatRequest(unifiedRequest);
-            AnthropicMessage anthropicResponse = anthropicEndpointTransform.unifiedToEndpointResponse(response);
-            return ResponseEntity.ok().body(anthropicResponse);
+            return handleNormalResponse(unifiedRequest);
+        }
+    }
+
+    private ResponseEntity<AnthropicMessage> handleNormalResponse(UnifiedChatRequest unifiedRequest) {
+        UnifiedChatResponse response = unifiedService.sendChatRequest(unifiedRequest);
+        AnthropicMessage anthropicResponse = anthropicEndpointTransform.unifiedToEndpointResponse(response);
+        return ResponseEntity.ok().body(anthropicResponse);
+    }
+
+    private SseEmitter handleStreamingResponse(UnifiedChatRequest unifiedRequest, String requestId, HttpServletResponse response) {
+        SseEmitter emitter = new SseEmitter(30000L);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
+        response.setHeader(HttpHeaders.CONNECTION, "keep-alive");
+        response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
+
+        // 捕获当前线程的上下文
+        RequestContext currentContext = RequestContextHolder.getContext();
+
+        // 使用虚拟线程异步处理SSE发送
+        Thread.ofVirtual().name("sse-sender-" + requestId).start(() -> {
+            try {
+                // 在虚拟线程中设置上下文
+                if (currentContext != null) {
+                    RequestContextHolder.setContext(currentContext);
+                }
+
+                // 获取流式响应数据
+                Stream<AnthropicStreamEvent> anthropicStream = unifiedToAnthropicStreamTransformer.transform(unifiedService.sendStreamRequest(unifiedRequest), requestId);
+                
+                // 异步发送SSE数据
+                sendAnthropicSseDataAsync(emitter, anthropicStream);
+
+            } catch (Exception e) {
+                log.error("Error in streaming response", e);
+                try {
+                    emitter.send(SseEmitter.event().data("[ERROR]"));
+                    emitter.completeWithError(e);
+                } catch (IOException ioException) {
+                    log.error("Error sending error event", ioException);
+                }
+            } finally {
+                // 清理虚拟线程中的上下文
+                RequestContextHolder.clear();
+            }
+        });
+
+        return emitter;
+    }
+
+    /**
+     * 异步发送Anthropic SSE数据
+     */
+    private void sendAnthropicSseDataAsync(SseEmitter emitter, Stream<AnthropicStreamEvent> anthropicStream) {
+        try {
+            anthropicStream.forEach(event -> {
+                try {
+                    // 使用SseEmitter的专用API发送带事件类型的消息
+                    String eventType = extractEventType(event);
+                    String eventData = jsonUtils.toJson(event);
+                    emitter.send(SseEmitter.event().name(eventType).data(eventData));
+                } catch (IOException e) {
+                    log.error("Error sending SSE event", e);
+                    emitter.completeWithError(e);
+                    return;
+                }
+            });
+
+            // 发送完成标记
+            emitter.complete();
+
+        } catch (Exception e) {
+            log.error("Error in async SSE sending", e);
+            emitter.completeWithError(e);
         }
     }
 

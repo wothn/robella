@@ -12,6 +12,10 @@ import org.elmo.robella.model.openai.core.Usage;
 import org.elmo.robella.model.openai.tool.Tool;
 import org.elmo.robella.model.openai.tool.ToolCall;
 import org.elmo.robella.model.openai.tool.ToolChoice;
+import org.springframework.stereotype.Component;
+
+import lombok.RequiredArgsConstructor;
+
 import org.elmo.robella.model.openai.tool.Function;
 
 import java.util.ArrayList;
@@ -23,12 +27,16 @@ import java.util.stream.Collectors;
 /**
  * 转换Anthropic的工具类
  */
+@Component
+@RequiredArgsConstructor
 public class AnthropicTransformUtils {
+
+    private final JsonUtils jsonUtils;
 
     /**
      * 将OpenAI格式的消息转换为Anthropic格式的消息
      */
-    public static AnthropicMessage openAiToAnthropicMessage(OpenAIMessage openAiMessage) {
+    public AnthropicMessage openAiToAnthropicMessage(OpenAIMessage openAiMessage) {
         if (openAiMessage == null) {
             return null;
         }
@@ -68,7 +76,7 @@ public class AnthropicTransformUtils {
         return anthropicMessage;
     }
 
-    private static AnthropicMessage buildToolResultMessageFromOpenAI(OpenAIMessage openAiMessage) {
+    private AnthropicMessage buildToolResultMessageFromOpenAI(OpenAIMessage openAiMessage) {
         AnthropicMessage anthropicMessage = new AnthropicMessage();
         anthropicMessage.setRole("user"); // 工具结果在Anthropic侧通常视为user消息
 
@@ -90,7 +98,7 @@ public class AnthropicTransformUtils {
         return anthropicMessage;
     }
 
-    private static List<AnthropicContent> convertOpenAIContentsToAnthropic(List<OpenAIContent> openAiContents) {
+    private List<AnthropicContent> convertOpenAIContentsToAnthropic(List<OpenAIContent> openAiContents) {
         List<AnthropicContent> anthropicContents = new ArrayList<>();
         for (OpenAIContent openAiContent : openAiContents) {
             if (openAiContent instanceof OpenAITextContent text) {
@@ -103,14 +111,14 @@ public class AnthropicTransformUtils {
         return anthropicContents;
     }
 
-    private static AnthropicTextContent createAnthropicTextContent(String text) {
+    private AnthropicTextContent createAnthropicTextContent(String text) {
         AnthropicTextContent textContent = new AnthropicTextContent();
         textContent.setType("text");
         textContent.setText(text);
         return textContent;
     }
 
-    private static AnthropicImageContent buildAnthropicImageContent(OpenAIImageContent openAiImageContent) {
+    private AnthropicImageContent buildAnthropicImageContent(OpenAIImageContent openAiImageContent) {
         AnthropicImageContent imageContent = new AnthropicImageContent();
         imageContent.setType("image");
         AnthropicImageSource imageSource = buildAnthropicImageSourceFromImageUrl(openAiImageContent.getImageUrl());
@@ -118,7 +126,7 @@ public class AnthropicTransformUtils {
         return imageContent;
     }
 
-    private static AnthropicImageSource buildAnthropicImageSourceFromImageUrl(ImageUrl imageUrl) {
+    private AnthropicImageSource buildAnthropicImageSourceFromImageUrl(ImageUrl imageUrl) {
         AnthropicImageSource imageSource = new AnthropicImageSource();
         if (imageUrl != null) {
             if (imageUrl.getUrl() != null && imageUrl.getUrl().startsWith("data:")) {
@@ -141,7 +149,7 @@ public class AnthropicTransformUtils {
         return imageSource;
     }
 
-    private static AnthropicToolUseContent convertToolCallToAnthropic(ToolCall toolCall) {
+    private AnthropicToolUseContent convertToolCallToAnthropic(ToolCall toolCall) {
         if (!"function".equals(toolCall.getType()) || toolCall.getFunction() == null) {
             return null;
         }
@@ -151,7 +159,7 @@ public class AnthropicTransformUtils {
         toolUseContent.setName(toolCall.getFunction().getName());
         try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> input = JsonUtils.fromJson(toolCall.getFunction().getArguments(), Map.class);
+            Map<String, Object> input = jsonUtils.fromJson(toolCall.getFunction().getArguments(), Map.class);
             toolUseContent.setInput(input);
         } catch (Exception e) {
             Map<String, Object> input = new HashMap<>();
@@ -164,7 +172,7 @@ public class AnthropicTransformUtils {
     /**
      * 将Anthropic格式的消息转换为OpenAI格式的消息
      */
-    public static OpenAIMessage anthropicToOpenAiMessage(AnthropicMessage anthropicMessage) {
+    public OpenAIMessage anthropicToOpenAiMessage(AnthropicMessage anthropicMessage) {
         if (anthropicMessage == null) {
             return null;
         }
@@ -201,7 +209,7 @@ public class AnthropicTransformUtils {
         return openAiMessage;
     }
 
-    private static List<OpenAIContent> fillOpenAIMessageFromAnthropicContents(List<AnthropicContent> anthropicContents,
+    private List<OpenAIContent> fillOpenAIMessageFromAnthropicContents(List<AnthropicContent> anthropicContents,
                                                                               OpenAIMessage target) {
         List<OpenAIContent> openAiContents = new ArrayList<>();
         for (AnthropicContent anthropicContent : anthropicContents) {
@@ -229,21 +237,21 @@ public class AnthropicTransformUtils {
         return openAiContents;
     }
 
-    private static OpenAITextContent toOpenAITextContent(AnthropicTextContent text) {
+    private OpenAITextContent toOpenAITextContent(AnthropicTextContent text) {
         OpenAITextContent content = new OpenAITextContent();
         content.setType("text");
         content.setText(text.getText());
         return content;
     }
 
-    private static OpenAIImageContent toOpenAIImageContent(AnthropicImageContent anthropicImageContent) {
+    private OpenAIImageContent toOpenAIImageContent(AnthropicImageContent anthropicImageContent) {
         OpenAIImageContent imageContent = new OpenAIImageContent();
         imageContent.setType("image_url");
         imageContent.setImageUrl(buildImageUrlFromAnthropicSource(anthropicImageContent.getSource()));
         return imageContent;
     }
 
-    private static ImageUrl buildImageUrlFromAnthropicSource(AnthropicImageSource imageSource) {
+    private ImageUrl buildImageUrlFromAnthropicSource(AnthropicImageSource imageSource) {
         ImageUrl imageUrl = new ImageUrl();
         if (imageSource != null) {
             if ("base64".equals(imageSource.getType())) {
@@ -255,21 +263,21 @@ public class AnthropicTransformUtils {
         return imageUrl;
     }
 
-    private static ToolCall toOpenAIToolCall(AnthropicToolUseContent toolUseContent) {
+    private ToolCall toOpenAIToolCall(AnthropicToolUseContent toolUseContent) {
         ToolCall toolCall = new ToolCall();
         toolCall.setId(toolUseContent.getId());
         toolCall.setType("function");
 
         ToolCall.Function function = new ToolCall.Function();
         function.setName(toolUseContent.getName());
-        String arguments = JsonUtils.toJson(toolUseContent.getInput());
+        String arguments = jsonUtils.toJson(toolUseContent.getInput());
         function.setArguments(arguments);
 
         toolCall.setFunction(function);
         return toolCall;
     }
 
-    private static List<OpenAIContent> collectToolResultContentsToOpenAI(AnthropicToolResultContent toolResultContent) {
+    private List<OpenAIContent> collectToolResultContentsToOpenAI(AnthropicToolResultContent toolResultContent) {
         List<OpenAIContent> resultContents = new ArrayList<>();
         if (toolResultContent.getContent() != null && !toolResultContent.getContent().isEmpty()) {
             for (AnthropicContent resultContent : toolResultContent.getContent()) {
@@ -289,7 +297,7 @@ public class AnthropicTransformUtils {
     /**
      * 将Anthropic使用量统计转换为OpenAI使用量统计
      */
-    public static Usage anthropicToOpenAiUsage(AnthropicUsage anthropicUsage) {
+    public Usage anthropicToOpenAiUsage(AnthropicUsage anthropicUsage) {
         if (anthropicUsage == null) {
             return null;
         }
@@ -307,7 +315,7 @@ public class AnthropicTransformUtils {
     /**
      * 将OpenAI工具转换为Anthropic工具
      */
-    public static List<AnthropicTool> openAiToAnthropicTools(List<Tool> openAiTools) {
+    public List<AnthropicTool> openAiToAnthropicTools(List<Tool> openAiTools) {
         if (openAiTools == null || openAiTools.isEmpty()) {
             return null;
         }
@@ -327,7 +335,7 @@ public class AnthropicTransformUtils {
     /**
      * 将OpenAI工具选择策略转换为Anthropic工具选择策略
      */
-    public static AnthropicToolChoice openAiToAnthropicToolChoice(ToolChoice toolChoice) {
+    public AnthropicToolChoice openAiToAnthropicToolChoice(ToolChoice toolChoice) {
         if (toolChoice == null) {
             return null;
         }
@@ -350,7 +358,7 @@ public class AnthropicTransformUtils {
     /**
      * 将Anthropic工具转换为OpenAI工具
      */
-    public static List<Tool> anthropicToOpenAiTools(List<AnthropicTool> anthropicTools) {
+    public List<Tool> anthropicToOpenAiTools(List<AnthropicTool> anthropicTools) {
         if (anthropicTools == null || anthropicTools.isEmpty()) {
             return null;
         }
@@ -376,7 +384,7 @@ public class AnthropicTransformUtils {
     /**
      * 将Anthropic工具选择策略转换为OpenAI工具选择策略
      */
-    public static ToolChoice anthropicToOpenAiToolChoice(AnthropicToolChoice anthropicToolChoice) {
+    public ToolChoice anthropicToOpenAiToolChoice(AnthropicToolChoice anthropicToolChoice) {
         if (anthropicToolChoice == null) {
             return null;
         }

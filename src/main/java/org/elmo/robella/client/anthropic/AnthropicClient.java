@@ -44,6 +44,7 @@ public class AnthropicClient implements ApiClient {
     private final Map<ProviderType, VendorTransform<AnthropicChatRequest, AnthropicMessage>> anthropicProviderTransformMap;
     private final OkHttpUtils okHttpUtils;
     private final ClientRequestLogger clientRequestLogger;
+    private final JsonUtils jsonUtils;
 
     @Override
     public UnifiedChatResponse chat(UnifiedChatRequest request, Provider provider) {
@@ -69,7 +70,7 @@ public class AnthropicClient implements ApiClient {
                 log.debug("[AnthropicClient] chat start provider={} model={} stream=false",
                     provider.getName(), anthropicRequest.getModel());
                 try {
-                    String requestJson = JsonUtils.toJson(anthropicRequest);
+                    String requestJson = jsonUtils.toJson(anthropicRequest);
                     log.debug("[AnthropicClient] chat request: {}", requestJson);
                 } catch (Exception e) {
                     log.debug("[AnthropicClient] Failed to serialize request: {}", e.getMessage());
@@ -87,7 +88,7 @@ public class AnthropicClient implements ApiClient {
             String responseBody = okHttpUtils.postJson(url, anthropicRequest, headers);
 
             // Parse response
-            AnthropicMessage response = JsonUtils.fromJson(responseBody, AnthropicMessage.class);
+            AnthropicMessage response = jsonUtils.fromJson(responseBody, AnthropicMessage.class);
 
             // Transform response back to unified format
             UnifiedChatResponse unifiedResponse = anthropicEndpointTransform.endpointToUnifiedResponse(response);
@@ -198,7 +199,7 @@ public class AnthropicClient implements ApiClient {
         }
 
         try {
-            AnthropicStreamEvent event = JsonUtils.fromJson(raw, AnthropicStreamEvent.class);
+            AnthropicStreamEvent event = jsonUtils.fromJson(raw, AnthropicStreamEvent.class);
             if (event != null) {
                 return event;
             }

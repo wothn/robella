@@ -4,16 +4,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.elmo.robella.config.OkHttpConfig;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 /**
@@ -248,31 +250,59 @@ public class OkHttpUtils {
                 .readTimeout(config.getTimeout().getRead().multipliedBy(5).toMillis(), TimeUnit.MILLISECONDS)
                 .build();
 
-        Response response = streamClient.newCall(request).execute();
+        Response response = null;
+        BufferedReader reader = null;
+        
+        try {
+            response = streamClient.newCall(request).execute();
 
-        if (!response.isSuccessful()) {
-            String errorBody = response.body() != null ? response.body().string() : "No error body";
-            response.close();
-            throw new IOException("HTTP " + response.code() + ": " + errorBody);
+            if (!response.isSuccessful()) {
+                String errorBody = response.body() != null ? response.body().string() : "No error body";
+                throw new IOException("HTTP " + response.code() + ": " + errorBody);
+            }
+
+            if (response.body() == null) {
+                throw new IOException("Response body is null");
+            }
+
+            // 明确指定UTF-8编码
+            reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8));
+            
+            // 为了确保资源正确关闭，需要保存引用
+            final Response finalResponse = response;
+            final BufferedReader finalReader = reader;
+
+            AtomicBoolean first = new AtomicBoolean(true);
+            return reader.lines()
+                    .peek(line -> {
+                        if (first.compareAndSet(true, false)) {
+                            log.info("First line actually arrived at {}", System.currentTimeMillis());
+                        }
+                    })
+                    .onClose(() -> {
+                        try {
+                            finalReader.close();
+                        } catch (IOException e) {
+                            log.warn("Error closing reader: {}", e.getMessage());
+                        }
+                        try {
+                            finalResponse.close();
+                        } catch (Exception e) {
+                            log.warn("Error closing response: {}", e.getMessage());
+                        }
+                    })
+                    // 处理SSE格式，过滤空行和注释行
+                    .filter(line -> line != null && !line.trim().isEmpty() && !line.trim().startsWith(":"));
+        } catch (IOException e) {
+            if (response != null) {
+                try {
+                    response.close();
+                } catch (Exception ex) {
+                    log.warn("Error closing response in exception handler: {}", ex.getMessage());
+                }
+            }
+            throw e;
         }
-
-        if (response.body() == null) {
-            response.close();
-            throw new IOException("Response body is null");
-        }
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
-
-        return reader.lines()
-                .onClose(() -> {
-                    try {
-                        response.close();
-                        reader.close();
-                    } catch (IOException e) {
-                        log.warn("Error closing stream resources: {}", e.getMessage());
-                    }
-                })
-                .filter(line -> line != null && !line.trim().isEmpty());
     }
 
     /**

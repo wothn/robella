@@ -2,12 +2,12 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
-    <!-- 控制台输出配置，明确设置UTF-8编码 -->
+    <!-- 控制台输出配置 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <charset>UTF-8</charset>
             <pattern>${CONSOLE_LOG_PATTERN:-%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n}</pattern>
         </encoder>
+        <charset>UTF-8</charset>
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -19,7 +19,6 @@
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <charset>UTF-8</charset>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
@@ -31,13 +30,5 @@
 
     <!-- 应用日志保持DEBUG级别 -->
     <logger name="org.elmo.robella" level="DEBUG"/>
-    
-    <!-- 关闭Reactor Netty的详细HTTP日志 -->
-    <logger name="reactor.netty.http.client.HttpClientOperations" level="WARN"/>
-    <logger name="reactor.netty.http.client" level="WARN"/>
-    <logger name="reactor.netty" level="WARN"/>
-    
-    <!-- 关闭其他可能产生大量日志的组件 -->
-    <logger name="org.springframework.web.reactive.function.client" level="WARN"/>
-    <logger name="io.netty" level="WARN"/>
+
 </configuration>

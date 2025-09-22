@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-
 /**
  * Anthropic Messages API 转换实现，不处理流式转换。
  */
@@ -27,6 +26,8 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class AnthropicEndpointTransform implements EndpointTransform<AnthropicChatRequest, AnthropicMessage> {
+
+    private final AnthropicTransformUtils anthropicTransformUtils;
 
 
     @Override
@@ -60,14 +61,14 @@ public class AnthropicEndpointTransform implements EndpointTransform<AnthropicCh
         if (req.getMessages() != null) {
             List<OpenAIMessage> openAiMessages = new ArrayList<>();
             for (AnthropicMessage anthropicMessage : req.getMessages()) {
-                openAiMessages.add(AnthropicTransformUtils.anthropicToOpenAiMessage(anthropicMessage));
+                openAiMessages.add(anthropicTransformUtils.anthropicToOpenAiMessage(anthropicMessage));
             }
             unifiedRequest.setMessages(openAiMessages);
         }
 
         // 转换工具
-        unifiedRequest.setTools(AnthropicTransformUtils.anthropicToOpenAiTools(req.getTools()));
-        unifiedRequest.setToolChoice(AnthropicTransformUtils.anthropicToOpenAiToolChoice(req.getToolChoice()));
+        unifiedRequest.setTools(anthropicTransformUtils.anthropicToOpenAiTools(req.getTools()));
+        unifiedRequest.setToolChoice(anthropicTransformUtils.anthropicToOpenAiToolChoice(req.getToolChoice()));
 
         // 设置系统提示
         if (req.getSystem() != null) {
@@ -112,17 +113,17 @@ public class AnthropicEndpointTransform implements EndpointTransform<AnthropicCh
                         }
                     }
                 } else {
-                    anthropicMessages.add(AnthropicTransformUtils.openAiToAnthropicMessage(openAiMessage));
+                    anthropicMessages.add(anthropicTransformUtils.openAiToAnthropicMessage(openAiMessage));
                 }
             }
             anthropicRequest.setMessages(anthropicMessages);
         }
 
         // 转换工具
-        anthropicRequest.setTools(AnthropicTransformUtils.openAiToAnthropicTools(unifiedRequest.getTools()));
+        anthropicRequest.setTools(anthropicTransformUtils.openAiToAnthropicTools(unifiedRequest.getTools()));
 
         // 转换工具选择策略
-        anthropicRequest.setToolChoice(AnthropicTransformUtils.openAiToAnthropicToolChoice(unifiedRequest.getToolChoice()));
+        anthropicRequest.setToolChoice(anthropicTransformUtils.openAiToAnthropicToolChoice(unifiedRequest.getToolChoice()));
 
         return anthropicRequest;
     }
@@ -142,12 +143,12 @@ public class AnthropicEndpointTransform implements EndpointTransform<AnthropicCh
         unifiedResponse.setCreated(System.currentTimeMillis() / 1000);
 
         // 转换使用量统计
-        unifiedResponse.setUsage(AnthropicTransformUtils.anthropicToOpenAiUsage(message.getUsage()));
+        unifiedResponse.setUsage(anthropicTransformUtils.anthropicToOpenAiUsage(message.getUsage()));
 
         // 转换消息内容
         Choice choice = new Choice();
         choice.setIndex(0);
-        choice.setMessage(AnthropicTransformUtils.anthropicToOpenAiMessage(message));
+        choice.setMessage(anthropicTransformUtils.anthropicToOpenAiMessage(message));
 
         // 设置结束原因
         if (message.getStopReason() != null) {
@@ -188,7 +189,7 @@ public class AnthropicEndpointTransform implements EndpointTransform<AnthropicCh
         Choice choice = unifiedResponse.getChoices().get(0);
         if (choice.getMessage() != null) {
             // 转换消息内容
-            AnthropicMessage convertedMessage = AnthropicTransformUtils.openAiToAnthropicMessage(choice.getMessage());
+            AnthropicMessage convertedMessage = anthropicTransformUtils.openAiToAnthropicMessage(choice.getMessage());
             if (convertedMessage != null) {
                 anthropicMessage.setRole(convertedMessage.getRole());
                 anthropicMessage.setContent(convertedMessage.getContent());

@@ -33,6 +33,7 @@ public class GitHubOAuthService {
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
     private final OkHttpUtils okHttpUtils;
+    private final JsonUtils jsonUtils;
 
     @Value("${github.oauth.client-id}")
     private String clientId;
@@ -166,7 +167,7 @@ public class GitHubOAuthService {
 
         String responseBody = okHttpUtils.postForm(tokenUrl, formData, headers);
         try {
-            GithubAccessTokenResponse response = JsonUtils.fromJson(responseBody, GithubAccessTokenResponse.class);
+            GithubAccessTokenResponse response = jsonUtils.fromJson(responseBody, GithubAccessTokenResponse.class);
             return response.getAccessToken();
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse access token response", e);
@@ -181,7 +182,7 @@ public class GitHubOAuthService {
 
         String responseBody = okHttpUtils.get(userUrl, headers);
         try {
-            return JsonUtils.fromJson(responseBody, GitHubUserInfo.class);
+            return jsonUtils.fromJson(responseBody, GitHubUserInfo.class);
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse user info", e);
         }

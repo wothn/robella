@@ -1,5 +1,6 @@
 package org.elmo.robella.controller;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +26,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
 @RestController
@@ -36,45 +37,94 @@ public class OpenAIController {
     private final UnifiedService unifiedService;
     private final EndpointTransform<ChatCompletionRequest, ChatCompletionResponse> openAIEndpointTransform;
     private final UnifiedToEndpointStreamTransformer<ChatCompletionChunk> unifiedToOpenAIStreamTransformer;
+    private final JsonUtils jsonUtils;
 
-    @PostMapping(value = "/chat/completions", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE })
-    public Void chatCompletions(@RequestBody @Valid ChatCompletionRequest request) {
+    @PostMapping(value = "/chat/completions", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public Object chatCompletions(@RequestBody @Valid ChatCompletionRequest request, HttpServletResponse response) {
         RequestContext ctx = RequestContextHolder.getContext();
-        String requestId = ctx.getRequestId();
         ctx.setEndpointType("openai");
 
         UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
         unifiedRequest.setEndpointType("openai");
 
+        // 检查是否为流式请求
         if (Boolean.TRUE.equals(request.getStream())) {
-            Stream<UnifiedStreamChunk> unifiedStream = unifiedService.sendStreamRequest(unifiedRequest);
-
-            Stream<String> sseStream = unifiedToOpenAIStreamTransformer.transform(unifiedStream, requestId)
-                    .map(chunk -> "data: " + JsonUtils.toJson(chunk) + "\n\n");
-            
-            // 添加完成标识
-            Stream<String> completeStream = Stream.concat(sseStream, Stream.of("data: [DONE]\n\n"));
-
-            StreamingResponseBody body = os -> {
-                completeStream.forEach(s -> {
-                    try {
-                        os.write(s.getBytes());
-                        os.flush();
-                    } catch (IOException e) {
-                        log.error("Error writing to output stream", e);
-                    }
-                });
-            };
-            
-            return ResponseEntity.ok()
-                    .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .header(HttpHeaders.CACHE_CONTROL, "no-cache")
-                    .body(body);
-
+            return handleStreamingResponse(unifiedRequest, ctx.getRequestId(), response);
         } else {
-            UnifiedChatResponse response = unifiedService.sendChatRequest(unifiedRequest);
-            ChatCompletionResponse chatResponse = openAIEndpointTransform.unifiedToEndpointResponse(response);
-            return ResponseEntity.ok().body(chatResponse);
+            return handleNormalResponse(unifiedRequest);
+        }
+    }
+
+    private ResponseEntity<ChatCompletionResponse> handleNormalResponse(UnifiedChatRequest unifiedRequest) {
+        UnifiedChatResponse responseObj = unifiedService.sendChatRequest(unifiedRequest);
+        ChatCompletionResponse chatResponse = openAIEndpointTransform.unifiedToEndpointResponse(responseObj);
+        return ResponseEntity.ok().body(chatResponse);
+    }
+
+    private SseEmitter handleStreamingResponse(UnifiedChatRequest unifiedRequest, String requestId, HttpServletResponse response) {
+        SseEmitter emitter = new SseEmitter(30000L);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
+        response.setHeader(HttpHeaders.CONNECTION, "keep-alive");
+        response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
+
+        // 捕获当前线程的上下文
+        RequestContext currentContext = RequestContextHolder.getContext();
+
+        // 使用虚拟线程异步处理SSE发送
+        Thread.ofVirtual().name("sse-sender-" + requestId).start(() -> {
+            try {
+                // 在虚拟线程中设置上下文
+                if (currentContext != null) {
+                    RequestContextHolder.setContext(currentContext);
+                }
+                
+                // 获取流式响应数据
+                Stream<UnifiedStreamChunk> unifiedStream = unifiedService.sendStreamRequest(unifiedRequest);
+                Stream<String> sseStream = unifiedToOpenAIStreamTransformer.transform(unifiedStream, requestId)
+                        .map(jsonUtils::toJson);
+
+                // 异步发送SSE数据
+                sendSseDataAsync(emitter, sseStream);
+
+            } catch (Exception e) {
+                log.error("Error in streaming response", e);
+                try {
+                    emitter.send(SseEmitter.event().data("[ERROR]"));
+                    emitter.completeWithError(e);
+                } catch (IOException ioException) {
+                    log.error("Error sending error event", ioException);
+                }
+            } finally {
+                // 清理虚拟线程中的上下文
+                RequestContextHolder.clear();
+            }
+        });
+
+        return emitter;
+    }
+
+    /**
+     * 异步发送SSE数据
+     */
+    private void sendSseDataAsync(SseEmitter emitter, Stream<String> sseStream) {
+        try {
+            sseStream.forEach(chunk -> {
+                try {
+                    emitter.send(SseEmitter.event().data(chunk));
+                } catch (IOException e) {
+                    log.error("Error sending SSE chunk", e);
+                    emitter.completeWithError(e);
+                    return;
+                }
+            });
+
+            // 发送完成标记
+            emitter.send(SseEmitter.event().data("[DONE]"));
+            emitter.complete();
+
+        } catch (Exception e) {
+            log.error("Error in async SSE sending", e);
+            emitter.completeWithError(e);
         }
     }
 

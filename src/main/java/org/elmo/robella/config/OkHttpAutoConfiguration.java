@@ -40,7 +40,7 @@ public class OkHttpAutoConfiguration {
         // 配置日志拦截器
         if (okHttpConfig.getBuffer().isEnableLogging()) {
             HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
-            loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+            loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BASIC);
             builder.addInterceptor(loggingInterceptor);
         }
 

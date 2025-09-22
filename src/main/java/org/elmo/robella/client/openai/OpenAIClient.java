@@ -43,6 +43,7 @@ public class OpenAIClient implements ApiClient {
     private final Map<ProviderType, VendorTransform<ChatCompletionRequest, ChatCompletionResponse>> openaiProviderTransformMap;
     private final OkHttpUtils okHttpUtils;
     private final ClientRequestLogger clientRequestLogger;
+    private final JsonUtils jsonUtils;
 
     @Override
     public UnifiedChatResponse chat(UnifiedChatRequest request, Provider provider) {
@@ -54,8 +55,8 @@ public class OpenAIClient implements ApiClient {
 
             // Apply vendor-specific transformations if needed
             if (request.getProviderType() != null) {
-                VendorTransform<ChatCompletionRequest, ChatCompletionResponse> providerTransform =
-                    openaiProviderTransformMap.get(request.getProviderType());
+                VendorTransform<ChatCompletionRequest, ChatCompletionResponse> providerTransform = openaiProviderTransformMap
+                        .get(request.getProviderType());
                 if (providerTransform != null) {
                     openaiRequest = providerTransform.processRequest(openaiRequest);
                 }
@@ -74,7 +75,7 @@ public class OpenAIClient implements ApiClient {
             String responseBody = okHttpUtils.postJson(url, openaiRequest, headers);
 
             // Parse response
-            ChatCompletionResponse response = JsonUtils.fromJson(responseBody, ChatCompletionResponse.class);
+            ChatCompletionResponse response = jsonUtils.fromJson(responseBody, ChatCompletionResponse.class);
 
             // Transform response back to unified format
             UnifiedChatResponse unifiedResponse = openAIEndpointTransform.endpointToUnifiedResponse(response);
@@ -93,7 +94,6 @@ public class OpenAIClient implements ApiClient {
         }
     }
 
-    
     @Override
     public Stream<UnifiedStreamChunk> chatStream(UnifiedChatRequest request, Provider provider) {
         RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
@@ -104,8 +104,8 @@ public class OpenAIClient implements ApiClient {
 
             // Apply vendor-specific transformations if needed
             if (request.getProviderType() != null) {
-                VendorTransform<ChatCompletionRequest, ChatCompletionResponse> providerTransform =
-                    openaiProviderTransformMap.get(request.getProviderType());
+                VendorTransform<ChatCompletionRequest, ChatCompletionResponse> providerTransform = openaiProviderTransformMap
+                        .get(request.getProviderType());
                 if (providerTransform != null) {
                     openaiRequest = providerTransform.processRequest(openaiRequest);
                 }
@@ -129,16 +129,16 @@ public class OpenAIClient implements ApiClient {
 
             // Parse stream chunks first, then transform the entire stream
             Stream<ChatCompletionChunk> parsedStream = rawStream
-                .map(this::parseStreamRaw)
-                .filter(Objects::nonNull)
-                .peek(chunk -> clientRequestLogger.logStreamChunk(requestId, chunk));
+                    .map(this::parseStreamRaw)
+                    .filter(Objects::nonNull)
+                    .peek(chunk -> clientRequestLogger.logStreamChunk(requestId, chunk));
 
             // Transform the entire stream at once
             return streamTransformer.transform(parsedStream, requestId)
-                .onClose(() -> {
-                    // Stream completed - complete logging
-                    clientRequestLogger.completeStreamRequest(requestId, finalOpenaiRequest);
-                });
+                    .onClose(() -> {
+                        // Stream completed - complete logging
+                        clientRequestLogger.completeStreamRequest(requestId, finalOpenaiRequest);
+                    });
 
         } catch (Exception e) {
             // Log failure
@@ -148,7 +148,6 @@ public class OpenAIClient implements ApiClient {
             throw exception;
         }
     }
-
 
     private ProviderException mapToProviderException(Throwable ex, String operationType) {
         if (ex instanceof ProviderException providerEx) {
@@ -167,18 +166,18 @@ public class OpenAIClient implements ApiClient {
         if (raw == null || raw.isEmpty()) {
             return null;
         }
-
         String trimmed = raw.trim();
+        if (trimmed.startsWith("data: ")) {
+            trimmed = trimmed.substring(5).trim();
+        }
+        
         if (SSE_DONE_MARKER.equals(trimmed)) {
             log.debug("[OpenAIClient] streamChatCompletion done ");
             return null;
         }
-        if (trimmed.startsWith("data: ")) {
-            trimmed = trimmed.substring(5).trim();
-        }
 
         try {
-            ChatCompletionChunk chunk = JsonUtils.fromJson(trimmed, ChatCompletionChunk.class);
+            ChatCompletionChunk chunk = jsonUtils.fromJson(trimmed, ChatCompletionChunk.class);
             if (chunk != null) {
                 return chunk;
             }
