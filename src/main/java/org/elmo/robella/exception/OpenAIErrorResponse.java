@@ -73,48 +73,30 @@ public class OpenAIErrorResponse {
      * 将业务异常映射为OpenAI错误类型
      */
     private static String mapToOpenAIErrorType(BaseBusinessException ex) {
-        switch (ex.getCategory()) {
-            case VALIDATION:
-                return "invalid_request_error";
-            case AUTHENTICATION:
-                return "authentication_error";
-            case AUTHORIZATION:
-                return "permission_error";
-            case BUSINESS_LOGIC:
-                return "invalid_request_error";
-            case EXTERNAL_SERVICE:
-                return "api_error";
-            case SYSTEM:
-                return "server_error";
-            default:
-                return "server_error";
-        }
+        return switch (ex.getCategory()) {
+            case VALIDATION -> "invalid_request_error";
+            case AUTHENTICATION -> "authentication_error";
+            case AUTHORIZATION -> "permission_error";
+            case BUSINESS_LOGIC -> "invalid_request_error";
+            case EXTERNAL_SERVICE -> "api_error";
+            case SYSTEM -> "server_error";
+            default -> "server_error";
+        };
     }
     
     /**
      * 将错误码映射为OpenAI错误码
      */
     private static String mapToOpenAIErrorCode(ErrorCode errorCode) {
-        switch (errorCode) {
-            case INVALID_PARAMETER:
-            case MISSING_REQUIRED_PARAMETER:
-                return "invalid_parameter";
-            case INVALID_CREDENTIALS:
-                return "invalid_authentication";
-            case TOKEN_EXPIRED:
-            case TOKEN_INVALID:
-                return "invalid_authentication";
-            case INSUFFICIENT_PERMISSION:
-            case ACCESS_DENIED:
-                return "insufficient_quota";
-            case RATE_LIMIT_EXCEEDED:
-                return "rate_limit_exceeded";
-            case QUOTA_EXCEEDED:
-                return "quota_exceeded";
-            case PROVIDER_ERROR:
-                return "api_error";
-            default:
-                return "server_error";
-        }
+        return switch (errorCode) {
+            case INVALID_PARAMETER, MISSING_REQUIRED_PARAMETER -> "invalid_parameter";
+            case INVALID_CREDENTIALS -> "invalid_authentication";
+            case TOKEN_EXPIRED, TOKEN_INVALID -> "invalid_authentication";
+            case INSUFFICIENT_PERMISSION, ACCESS_DENIED -> "insufficient_quota";
+            case RATE_LIMIT_EXCEEDED -> "rate_limit_exceeded";
+            case QUOTA_EXCEEDED -> "quota_exceeded";
+            case PROVIDER_ERROR -> "api_error";
+            default -> "server_error";
+        };
     }
 }

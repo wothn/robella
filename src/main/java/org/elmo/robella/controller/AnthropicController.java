@@ -12,10 +12,8 @@ import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.model.AnthropicModelInfo;
 import org.elmo.robella.model.anthropic.model.AnthropicModelListResponse;
 import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
-import org.elmo.robella.model.anthropic.stream.*;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
-import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.service.UnifiedService;
 import org.elmo.robella.service.stream.UnifiedToEndpointStreamTransformer;
@@ -129,7 +127,6 @@ public class AnthropicController {
                 } catch (IOException e) {
                     log.error("Error sending SSE event", e);
                     emitter.completeWithError(e);
-                    return;
                 }
             });
 

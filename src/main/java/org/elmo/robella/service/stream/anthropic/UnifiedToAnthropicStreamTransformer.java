@@ -396,18 +396,13 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
             return "end_turn";
         }
 
-        switch (openaiFinishReason) {
-            case "stop":
-                return "end_turn";
-            case "length":
-                return "max_tokens";
-            case "tool_calls":
-                return "tool_use";
-            case "content_filter":
-                return "end_turn";
-            default:
-                return "end_turn";
-        }
+        return switch (openaiFinishReason) {
+            case "stop" -> "end_turn";
+            case "length" -> "max_tokens";
+            case "tool_calls" -> "tool_use";
+            case "content_filter" -> "end_turn";
+            default -> "end_turn";
+        };
     }
 
     private AnthropicUsage mapUsage(Usage usage) {

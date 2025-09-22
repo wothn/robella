@@ -219,8 +219,7 @@ public class ClientRequestLogger {
         switch (event.getType()) {
             case "content_block_delta":
                 // 精确计算响应token数和记录第一个token延迟
-                if (event instanceof AnthropicContentBlockDeltaEvent) {
-                    AnthropicContentBlockDeltaEvent deltaEvent = (AnthropicContentBlockDeltaEvent) event;
+                if (event instanceof AnthropicContentBlockDeltaEvent deltaEvent) {
                     if (deltaEvent.getDelta() != null && deltaEvent.getDelta().getDeltaContent() != null) {
                         String modelKey = state.getVendorModelKey();
                         int tokens = tokenCountingService.countAnthropicStreamEventToken(event, modelKey);
@@ -238,8 +237,7 @@ public class ClientRequestLogger {
 
             case "message_delta":
                 // 累积token统计
-                if (event instanceof AnthropicMessageDeltaEvent) {
-                    AnthropicMessageDeltaEvent deltaEvent = (AnthropicMessageDeltaEvent) event;
+                if (event instanceof AnthropicMessageDeltaEvent deltaEvent) {
                     if (deltaEvent.getUsage() != null) {
                         state.setPromptTokens(deltaEvent.getUsage().getInputTokens());
                         state.setCompletionTokens(deltaEvent.getUsage().getOutputTokens());

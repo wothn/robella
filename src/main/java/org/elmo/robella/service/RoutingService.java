@@ -1,5 +1,6 @@
 package org.elmo.robella.service;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,7 +45,7 @@ public class RoutingService {
      * 该方法通过供应商模型调用标识查找启用的 VendorModel，
      * 然后根据其 providerId 获取 Provider，并通过 ClientFactory 获取对应的 ApiClient 实例。
      *
-     * @param vendorModelKey 供应商模型调用标识
+     * @param modelKey 供应商模型调用标识
      * @return ClientWithInfo 对应的 API 客户端、Provider 和 VendorModel，如果未找到则为空
      */
     public ClientWithInfo routeAndClient(String modelKey) {
@@ -65,6 +66,7 @@ public class RoutingService {
     /**
      * 客户端、Provider 和 VendorModel 的封装类
      */
+    @Getter
     public static class ClientWithInfo {
         private final ApiClient client;
         private final Provider provider;
@@ -76,17 +78,6 @@ public class RoutingService {
             this.vendorModel = vendorModel;
         }
 
-        public ApiClient getClient() {
-            return client;
-        }
-
-        public Provider getProvider() {
-            return provider;
-        }
-
-        public VendorModel getVendorModel() {
-            return vendorModel;
-        }
     }
 
 }

@@ -635,39 +635,33 @@ public class StatisticsService {
     }
 
     private DateTimeFormatter getIntervalFormatter(String interval) {
-        switch (interval.toLowerCase()) {
-            case "minute":
-                return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            case "hour":
-                return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
-            case "day":
-                return DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            case "week":
-                return DateTimeFormatter.ofPattern("yyyy-ww");
-            case "month":
-                return DateTimeFormatter.ofPattern("yyyy-MM");
-            default:
-                return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
-        }
+        return switch (interval.toLowerCase()) {
+            case "minute" -> DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            case "hour" -> DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
+            case "day" -> DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            case "week" -> DateTimeFormatter.ofPattern("yyyy-ww");
+            case "month" -> DateTimeFormatter.ofPattern("yyyy-MM");
+            default -> DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
+        };
     }
 
     private OffsetDateTime parseTimeKey(String timeKey, String interval) {
         try {
-            switch (interval.toLowerCase()) {
-                case "minute":
-                    return OffsetDateTime.parse(timeKey + ":00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
-                case "hour":
-                    return OffsetDateTime.parse(timeKey + ":00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
-                case "day":
-                    return OffsetDateTime.parse(timeKey + " 00:00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
-                case "week":
+            return switch (interval.toLowerCase()) {
+                case "minute" ->
+                        OffsetDateTime.parse(timeKey + ":00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
+                case "hour" ->
+                        OffsetDateTime.parse(timeKey + ":00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
+                case "day" ->
+                        OffsetDateTime.parse(timeKey + " 00:00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
+                case "week" ->
                     // Week parsing is more complex, simplified for now
-                    return OffsetDateTime.parse(timeKey + "-1 00:00:00", DateTimeFormatter.ofPattern("yyyy-ww-ww HH:mm:ssXXX"));
-                case "month":
-                    return OffsetDateTime.parse(timeKey + "-01 00:00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
-                default:
-                    return OffsetDateTime.parse(timeKey + ":00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
-            }
+                        OffsetDateTime.parse(timeKey + "-1 00:00:00", DateTimeFormatter.ofPattern("yyyy-ww-ww HH:mm:ssXXX"));
+                case "month" ->
+                        OffsetDateTime.parse(timeKey + "-01 00:00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
+                default ->
+                        OffsetDateTime.parse(timeKey + ":00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
+            };
         } catch (Exception e) {
             return OffsetDateTime.now();
         }

@@ -82,7 +82,6 @@ public class ApiKeyController {
         // =========================私有工具方法=========================//
         /**
          * 获取当前登录用户的ID
-         * @param httpRequest HTTP请求对象
          * @return 当前用户ID
          */
         private Long getCurrentUserId() {

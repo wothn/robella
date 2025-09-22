@@ -67,26 +67,21 @@ public class AnthropicErrorResponse {
      * 将业务异常映射为Anthropic错误类型
      */
     private static String mapToAnthropicErrorType(BaseBusinessException ex) {
-        switch (ex.getCategory()) {
-            case VALIDATION:
-                return "invalid_request_error";
-            case AUTHENTICATION:
-                return "authentication_error";
-            case AUTHORIZATION:
-                return "permission_error";
-            case BUSINESS_LOGIC:
+        return switch (ex.getCategory()) {
+            case VALIDATION -> "invalid_request_error";
+            case AUTHENTICATION -> "authentication_error";
+            case AUTHORIZATION -> "permission_error";
+            case BUSINESS_LOGIC -> {
                 if (ex.getErrorCode() == ErrorCode.RATE_LIMIT_EXCEEDED) {
-                    return "rate_limit_error";
+                    yield "rate_limit_error";
                 } else if (ex.getErrorCode() == ErrorCode.QUOTA_EXCEEDED) {
-                    return "overloaded_error";
+                    yield "overloaded_error";
                 }
-                return "invalid_request_error";
-            case EXTERNAL_SERVICE:
-                return "api_error";
-            case SYSTEM:
-                return "api_error";
-            default:
-                return "api_error";
-        }
+                yield "invalid_request_error";
+            }
+            case EXTERNAL_SERVICE -> "api_error";
+            case SYSTEM -> "api_error";
+            default -> "api_error";
+        };
     }
 }
