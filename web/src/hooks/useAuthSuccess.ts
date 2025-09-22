@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api'
 import { storage } from '@/lib/storage'
 
 export const useAuthSuccess = () => {
   const navigate = useNavigate()
-  const { updateUser } = useAuth()
+  const { updateUser } = useAuthStore()
   const hasProcessed = useRef(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)

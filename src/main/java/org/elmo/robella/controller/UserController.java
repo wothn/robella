@@ -5,7 +5,6 @@ import org.elmo.robella.exception.ErrorCode;
 import org.elmo.robella.exception.RefreshTokenException;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
-import org.elmo.robella.model.request.RefreshTokenRequest;
 import org.elmo.robella.model.request.UserCreateRequest;
 import org.elmo.robella.model.request.UserUpdateRequest;
 import org.elmo.robella.model.response.LoginResponse;

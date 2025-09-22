@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { AppProvider } from './contexts/AppContext'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { useAuthStore } from './stores/auth-store'
 import { DashboardLayout } from '@/components/layout'
 import LoginPage from './app/login/page'
 import DashboardPage from './app/dashboard/page'
@@ -14,7 +13,8 @@ import AuthErrorPage from './app/auth/error/page'
 import { Navigate } from 'react-router-dom'
 
 function AppContent() {
-  const { isAuthenticated, loading } = useAuth()
+  const { user, loading } = useAuthStore()
+  const isAuthenticated = !!user
 
   if (loading) {
     return (
@@ -88,11 +88,7 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppProvider>
-          <AppContent />
-        </AppProvider>
-      </AuthProvider>
+      <AppContent />
     </Router>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuthStore } from "@/stores/auth-store"
 import { apiClient } from "@/lib/api"
 import { storage } from "@/lib/storage"
 import type { LoginResponse } from "@/types/user"
@@ -10,7 +10,7 @@ export default function AuthCallbackPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
-  const { updateUser } = useAuth()
+  const { updateUser } = useAuthStore()
 
   useEffect(() => {
     const handleCallback = async () => {

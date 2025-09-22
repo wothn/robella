@@ -31,7 +31,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuthStore } from "@/stores/auth-store"
 import type { User } from "@/types/user"
 
 const data = {
@@ -212,7 +212,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth()
+  const { user } = useAuthStore()
 
   const formatNavUser = (user: User | null) => {
     if (!user) {
