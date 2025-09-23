@@ -64,9 +64,9 @@ export function VendorModelsList({
                   {model.description && (
                     <p className="text-sm text-gray-600 mb-2">{model.description}</p>
                   )}
-                  {(model.inputPerMillionTokens || model.outputPerMillionTokens) && (
+                  {(model.inputPerMillionTokens || model.outputPerMillionTokens || model.weight) && (
                     <div className="text-xs text-gray-500">
-                      <strong>定价:</strong> 
+                      <strong>定价:</strong>
                       {model.inputPerMillionTokens && (
                         <span>输入: {parseFloat(model.inputPerMillionTokens).toFixed(4)} {model.currency || 'USD'}/M tokens</span>
                       )}
@@ -78,6 +78,9 @@ export function VendorModelsList({
                       )}
                       {model.cachedOutputPrice && (
                         <span> 缓存输出: {parseFloat(model.cachedOutputPrice).toFixed(4)} {model.currency || 'USD'}</span>
+                      )}
+                      {model.weight && (
+                        <span> 权重: {model.weight}</span>
                       )}
                     </div>
                   )}

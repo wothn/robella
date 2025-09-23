@@ -11,6 +11,7 @@ export interface VendorModel {
   currency?: string
   cachedInputPrice?: string
   cachedOutputPrice?: string
+  weight?: number
   enabled: boolean
   createdAt?: string
   updatedAt?: string
@@ -30,6 +31,7 @@ export interface CreateVendorModelRequest {
   currency?: string
   cachedInputPrice?: string
   cachedOutputPrice?: string
+  weight?: number
   enabled: boolean
 }
 
@@ -45,5 +47,6 @@ export interface UpdateVendorModelRequest {
   currency?: string
   cachedInputPrice?: string
   cachedOutputPrice?: string
+  weight?: number
   enabled?: boolean
 }

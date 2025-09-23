@@ -66,6 +66,11 @@ public class VendorModel {
     @JsonSerialize(using = ToStringSerializer.class)
     private BigDecimal cachedOutputPrice;
 
+    @NotNull(message = "Weight cannot be null")
+    @DecimalMin(value = "0.1", message = "Weight must be positive")
+    @JsonSerialize(using = ToStringSerializer.class)
+    private BigDecimal weight = BigDecimal.valueOf(5.0);
+
     @NotNull(message = "Enabled status cannot be null")
     private Boolean enabled;
 

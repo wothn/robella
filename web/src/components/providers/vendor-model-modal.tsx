@@ -38,6 +38,7 @@ export function VendorModelModal({
     currency: '',
     cachedInputPrice: '',
     cachedOutputPrice: '',
+    weight: '',
     providerType: 'OPENAI' as ProviderType,
     enabled: true
   })
@@ -57,6 +58,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
+        weight: '',
         providerType: 'OPENAI' as ProviderType,
         enabled: true
       })
@@ -78,6 +80,7 @@ export function VendorModelModal({
         currency: vendorModel.currency || '',
         cachedInputPrice: vendorModel.cachedInputPrice || '',
         cachedOutputPrice: vendorModel.cachedOutputPrice || '',
+        weight: vendorModel.weight?.toString() || '',
         providerType: (vendorModel.providerType as ProviderType) || 'OPENAI',
         enabled: vendorModel.enabled ?? true
       })
@@ -92,6 +95,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
+        weight: '',
         providerType: 'OPENAI' as ProviderType,
         enabled: true
       })
@@ -113,6 +117,7 @@ export function VendorModelModal({
           currency: formData.currency || undefined,
           cachedInputPrice: formData.cachedInputPrice || undefined,
           cachedOutputPrice: formData.cachedOutputPrice || undefined,
+          weight: formData.weight ? parseFloat(formData.weight) : undefined,
           enabled: formData.enabled
         } as UpdateVendorModelRequest
       : {
@@ -126,6 +131,7 @@ export function VendorModelModal({
           currency: formData.currency || undefined,
           cachedInputPrice: formData.cachedInputPrice || undefined,
           cachedOutputPrice: formData.cachedOutputPrice || undefined,
+          weight: formData.weight ? parseFloat(formData.weight) : undefined,
           enabled: formData.enabled
         } as CreateVendorModelRequest
 
@@ -142,6 +148,7 @@ export function VendorModelModal({
         currency: '',
         cachedInputPrice: '',
         cachedOutputPrice: '',
+        weight: '',
         providerType: 'NONE' as ProviderType,
         enabled: true
       })
@@ -273,6 +280,19 @@ export function VendorModelModal({
               value={formData.cachedOutputPrice}
               onChange={(e) => setFormData({ ...formData, cachedOutputPrice: e.target.value })}
               placeholder="例如: 0.015"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="weight">权重</Label>
+            <Input
+              id="weight"
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.weight}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+              placeholder="例如: 1.0"
             />
           </div>
 
