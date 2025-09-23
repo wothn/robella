@@ -19,6 +19,7 @@ import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.model.openai.stream.Delta;
 import org.elmo.robella.model.openai.tool.Tool;
 import org.elmo.robella.model.openai.tool.ToolCall;
+import org.elmo.robella.model.anthropic.content.AnthropicTextContent;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
@@ -281,7 +282,9 @@ public class TokenCountingService {
 
         // 计算系统提示词的令牌数
         if (request.getSystem() != null && !request.getSystem().isEmpty()) {
-            totalTokens += calculateTokens(request.getSystem(), modelName);
+            for (AnthropicTextContent systemContent : request.getSystem()) {
+                totalTokens += calculateTokens(systemContent.getText(), modelName);
+            }
         }
 
         // 计算消息的令牌数

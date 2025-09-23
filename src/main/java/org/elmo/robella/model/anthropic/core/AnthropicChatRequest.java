@@ -1,7 +1,11 @@
 package org.elmo.robella.model.anthropic.core;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
+
+import org.elmo.robella.model.anthropic.content.AnthropicTextContent;
+import org.elmo.robella.model.anthropic.serializer.*;
 import org.elmo.robella.model.anthropic.tool.AnthropicTool;
 import org.elmo.robella.model.anthropic.tool.AnthropicToolChoice;
 
@@ -32,7 +36,8 @@ public class AnthropicChatRequest {
     /**
      * 系统 prompt
      */
-    private String system;
+    @JsonDeserialize(using = SystemContentDeserializer.class)
+    private List<AnthropicTextContent> system;
     
     /**
      * 控制生成随机性，0.0 - 1.0

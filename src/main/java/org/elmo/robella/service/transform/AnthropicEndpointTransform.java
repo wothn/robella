@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.model.internal.*;
 import org.elmo.robella.common.EndpointType;
 import org.elmo.robella.model.anthropic.core.*;
+import org.elmo.robella.model.anthropic.content.AnthropicTextContent;
 import org.elmo.robella.util.AnthropicTransformUtils;
 import org.springframework.stereotype.Component;
 import org.elmo.robella.model.openai.core.Choice;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Anthropic Messages API 转换实现，不处理流式转换。
@@ -76,7 +78,11 @@ public class AnthropicEndpointTransform implements EndpointTransform<AnthropicCh
             systemMessage.setRole("system");
             OpenAITextContent textContent = new OpenAITextContent();
             textContent.setType("text");
-            textContent.setText(req.getSystem());
+            // 合并所有系统文本内容
+            String systemText = req.getSystem().stream()
+                .map(AnthropicTextContent::getText)
+                .collect(Collectors.joining("\n"));
+            textContent.setText(systemText);
             systemMessage.setContent(Collections.singletonList(textContent));
 
             // 将系统消息添加到消息列表的开头
@@ -109,7 +115,9 @@ public class AnthropicEndpointTransform implements EndpointTransform<AnthropicCh
                     if (openAiMessage.getContent() != null && !openAiMessage.getContent().isEmpty()) {
                         OpenAIContent firstContent = openAiMessage.getContent().get(0);
                         if (firstContent instanceof OpenAITextContent) {
-                            anthropicRequest.setSystem(((OpenAITextContent) firstContent).getText());
+                            AnthropicTextContent systemContent = new AnthropicTextContent();
+                            systemContent.setText(((OpenAITextContent) firstContent).getText());
+                            anthropicRequest.setSystem(Collections.singletonList(systemContent));
                         }
                     }
                 } else {
