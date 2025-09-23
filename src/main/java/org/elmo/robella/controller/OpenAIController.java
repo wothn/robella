@@ -62,7 +62,7 @@ public class OpenAIController {
     }
 
     private SseEmitter handleStreamingResponse(UnifiedChatRequest unifiedRequest, String requestId, HttpServletResponse response) {
-        SseEmitter emitter = new SseEmitter(30000L);
+        SseEmitter emitter = new SseEmitter(30000000000L);
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
         response.setHeader(HttpHeaders.CONNECTION, "keep-alive");
         response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
@@ -88,12 +88,7 @@ public class OpenAIController {
 
             } catch (Exception e) {
                 log.error("Error in streaming response", e);
-                try {
-                    emitter.send(SseEmitter.event().data("[ERROR]"));
-                    emitter.completeWithError(e);
-                } catch (IOException ioException) {
-                    log.error("Error sending error event", ioException);
-                }
+                emitter.completeWithError(e);
             } finally {
                 // 清理虚拟线程中的上下文
                 RequestContextHolder.clear();
@@ -113,13 +108,14 @@ public class OpenAIController {
                     emitter.send(SseEmitter.event().data(chunk));
                 } catch (IOException e) {
                     log.error("Error sending SSE chunk", e);
-                    emitter.completeWithError(e);
+                    
                     return;
                 }
             });
 
             // 发送完成标记
             emitter.send(SseEmitter.event().data("[DONE]"));
+            sseStream.close();
             emitter.complete();
 
         } catch (Exception e) {

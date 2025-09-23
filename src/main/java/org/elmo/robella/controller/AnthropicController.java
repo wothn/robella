@@ -74,7 +74,7 @@ public class AnthropicController {
     }
 
     private SseEmitter handleStreamingResponse(UnifiedChatRequest unifiedRequest, String requestId, HttpServletResponse response) {
-        SseEmitter emitter = new SseEmitter(30000L);
+        SseEmitter emitter = new SseEmitter(30000000000L);
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
         response.setHeader(HttpHeaders.CONNECTION, "keep-alive");
         response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);

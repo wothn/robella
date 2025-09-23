@@ -84,6 +84,11 @@ public class UnifiedService {
         request.setModel(clientWithInfo.getVendorModel().getVendorModelKey());
         ApiClient apiClient = clientWithInfo.getClient();
 
+        RequestContext ctx = RequestContextHolder.getContext();
+        ctx.setModelKey(modelKey);
+        ctx.setProviderId(clientWithInfo.getProvider().getId());
+        ctx.setVendorModel(clientWithInfo.getVendorModel());
+
         return apiClient.chatStream(request, clientWithInfo.getProvider());
     }
 
