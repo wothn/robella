@@ -90,11 +90,6 @@ public class GlobalExceptionHandler {
         return buildResponse(invalidParamEx, request.getDescription(false).replace("uri=", ""));
     }
 
-    @ExceptionHandler(IOException.class)
-    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
-    public void handleIOException(IOException e) {
-        // 对于SSE连接中断，记录debug日志即可，不需要返回错误响应
-    }
 
     /**
      * 处理运行时异常

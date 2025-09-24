@@ -7,7 +7,6 @@
         <encoder>
             <pattern>${CONSOLE_LOG_PATTERN:-%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n}</pattern>
         </encoder>
-        <charset>UTF-8</charset>
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -28,7 +27,5 @@
         <appender-ref ref="FILE"/>
     </root>
 
-    <!-- 应用日志保持DEBUG级别 -->
-    <logger name="org.elmo.robella" level="DEBUG"/>
 
 </configuration>
