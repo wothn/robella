@@ -4,10 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.client.logging.ClientRequestLogger;
+import org.elmo.robella.common.ErrorCodeConstants;
 import org.elmo.robella.common.ProviderType;
 import org.elmo.robella.context.RequestContextHolder;
 import org.elmo.robella.model.entity.Provider;
-import org.elmo.robella.exception.ProviderException;
+import org.elmo.robella.exception.ApiException;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.anthropic.stream.AnthropicStreamEvent;
@@ -48,7 +49,6 @@ public class AnthropicClient implements ApiClient {
 
     @Override
     public UnifiedChatResponse chat(UnifiedChatRequest request, Provider provider) {
-        RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
         try {
             // Transform unified request to Anthropic format
             AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
@@ -105,8 +105,7 @@ public class AnthropicClient implements ApiClient {
         } catch (Exception e) {
             // Log failure
             clientRequestLogger.completeLog(false);
-            ProviderException exception = mapToProviderException(e, "Anthropic chat request");
-            throw exception;
+            throw new ApiException(ErrorCodeConstants.PROVIDER_ERROR, "请求出错", e);
         }
     }
 
@@ -168,8 +167,7 @@ public class AnthropicClient implements ApiClient {
         } catch (Exception e) {
             // Log failure
             clientRequestLogger.completeLog(false);
-            ProviderException exception = mapToProviderException(e, "Anthropic chat stream request");
-            throw exception;
+            throw new ApiException(ErrorCodeConstants.PROVIDER_ERROR, "请求出错", e);
         }
     }
 
@@ -204,11 +202,5 @@ public class AnthropicClient implements ApiClient {
         }
 
         return null;
-    }
-
-    private ProviderException mapToProviderException(Throwable ex, String operation) {
-        if (ex instanceof ProviderException pe)
-            return pe;
-        return new ProviderException(operation + " failed: " + ex.getMessage(), ex);
     }
 }

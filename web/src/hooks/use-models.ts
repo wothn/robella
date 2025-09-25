@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiClient } from '@/lib/api'
-import type { Model, ModelStats, CreateModelRequest, UpdateModelRequest } from '@/types/model'
+import type { Model, CreateModelRequest, UpdateModelRequest } from '@/types/model'
 
 export function useModels() {
   const [models, setModels] = useState<Model[]>([])
   const [publishedModels, setPublishedModels] = useState<Model[]>([])
-  const [stats, setStats] = useState<ModelStats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,15 +32,7 @@ export function useModels() {
     }
   }, [])
 
-  // 获取统计信息
-  const fetchStats = useCallback(async () => {
-    try {
-      const data = await apiClient.getModelStats()
-      setStats(data)
-    } catch (err) {
-      console.error('获取模型统计信息失败:', err)
-    }
-  }, [])
+
 
   // 搜索模型
   const searchModels = useCallback(async (keyword: string) => {
@@ -57,19 +48,7 @@ export function useModels() {
     }
   }, [])
 
-  // 按组织筛选
-  const getModelsByOrganization = useCallback(async (organization: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await apiClient.getModelsByOrganization(organization)
-      setModels(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '按组织筛选模型失败')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+
 
   // 按能力筛选
   const getModelsByCapability = useCallback(async (capability: string) => {
@@ -90,12 +69,11 @@ export function useModels() {
     try {
       const newModel = await apiClient.createModel(modelData)
       setModels(prev => [newModel, ...prev])
-      await fetchStats() // 更新统计信息
       return newModel
     } catch (err) {
       throw err
     }
-  }, [fetchStats])
+  }, [])
 
   // 更新模型
   const updateModel = useCallback(async (id: number, modelData: UpdateModelRequest) => {
@@ -104,23 +82,21 @@ export function useModels() {
       setModels(prev => prev.map(model => 
         model.id === id ? updatedModel : model
       ))
-      await fetchStats() // 更新统计信息
       return updatedModel
     } catch (err) {
       throw err
     }
-  }, [fetchStats])
+  }, [])
 
   // 删除模型
   const deleteModel = useCallback(async (id: number) => {
     try {
       await apiClient.deleteModel(id)
       setModels(prev => prev.filter(model => model.id !== id))
-      await fetchStats() // 更新统计信息
     } catch (err) {
       throw err
     }
-  }, [fetchStats])
+  }, [])
 
   // 发布模型
   const publishModel = useCallback(async (id: number) => {
@@ -130,12 +106,11 @@ export function useModels() {
         model.id === id ? updatedModel : model
       ))
       await fetchPublishedModels()
-      await fetchStats()
       return updatedModel
     } catch (err) {
       throw err
     }
-  }, [fetchPublishedModels, fetchStats])
+  }, [fetchPublishedModels])
 
   // 取消发布模型
   const unpublishModel = useCallback(async (id: number) => {
@@ -145,21 +120,19 @@ export function useModels() {
         model.id === id ? updatedModel : model
       ))
       await fetchPublishedModels()
-      await fetchStats()
       return updatedModel
     } catch (err) {
       throw err
     }
-  }, [fetchPublishedModels, fetchStats])
+  }, [fetchPublishedModels])
 
   // 重新获取数据
   const refetch = useCallback(async () => {
     await Promise.all([
       fetchModels(),
-      fetchPublishedModels(),
-      fetchStats()
+      fetchPublishedModels()
     ])
-  }, [fetchModels, fetchPublishedModels, fetchStats])
+  }, [fetchModels, fetchPublishedModels])
 
   // 初始化数据
   useEffect(() => {
@@ -169,11 +142,9 @@ export function useModels() {
   return {
     models,
     publishedModels,
-    stats,
     loading,
     error,
     searchModels,
-    getModelsByOrganization,
     getModelsByCapability,
     createModel,
     updateModel,

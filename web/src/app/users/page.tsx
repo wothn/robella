@@ -24,7 +24,7 @@ import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import type { User, CreateUserRequest } from "@/types/user"
 import { getRoleDisplayText } from "@/types/user"
-import { format } from "date-fns"
+import dayjs from "dayjs"
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -245,11 +245,11 @@ export default function UsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {format(new Date(user.createdAt), "MMM dd, yyyy")}
+                        {dayjs(user.createdAt).format("MMM DD, YYYY")}
                       </TableCell>
                       <TableCell>
                         {user.lastLoginAt
-                          ? format(new Date(user.lastLoginAt), "MMM dd, yyyy")
+                          ? dayjs(user.lastLoginAt).format("MMM DD, YYYY")
                           : "Never"}
                       </TableCell>
                       <TableCell>

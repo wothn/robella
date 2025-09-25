@@ -4,13 +4,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.client.ApiClient;
 import org.elmo.robella.client.logging.ClientRequestLogger;
+import org.elmo.robella.common.ErrorCodeConstants;
 import org.elmo.robella.common.ProviderType;
 import org.elmo.robella.context.RequestContextHolder;
+import org.elmo.robella.exception.ApiException;
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.elmo.robella.model.internal.UnifiedChatResponse;
 import org.elmo.robella.model.internal.UnifiedStreamChunk;
-import org.elmo.robella.exception.ProviderException;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
@@ -86,8 +87,7 @@ public class OpenAIClient implements ApiClient {
         } catch (Exception e) {
             // Log failure
             clientRequestLogger.completeLog(false);
-            ProviderException exception = mapToProviderException(e, "OpenAI chat request");
-            throw exception;
+            throw new ApiException(ErrorCodeConstants.PROVIDER_ERROR, "请求出错", e);
         }
     }
 
@@ -135,19 +135,9 @@ public class OpenAIClient implements ApiClient {
         } catch (Exception e) {
             // Log failure
             clientRequestLogger.completeLog(false);
-            ProviderException exception = mapToProviderException(e, "OpenAI chat stream request");
-            throw exception;
+            throw new ApiException(ErrorCodeConstants.PROVIDER_ERROR, "请求出错", e);
         }
     }
-
-    private ProviderException mapToProviderException(Throwable ex, String operationType) {
-        if (ex instanceof ProviderException providerEx) {
-            return providerEx;
-        }
-
-        return new ProviderException(operationType + " failed: " + ex.getMessage(), ex);
-    }
-
     private String buildChatCompletionsUrl(Provider provider) {
         String baseUrl = provider.getBaseUrl();
         return baseUrl + "/chat/completions";

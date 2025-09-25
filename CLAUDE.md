@@ -33,6 +33,7 @@ Additional components include user management and API key management.
 ### Frontend (React + TypeScript)
 - **Framework**: React 18.3.1 with TypeScript
 - **Build Tool**: Vite
+- **state**: React state management with Zustand
 - **UI**: Shadcn UI with Radix UI primitives
 - **Styling**: Tailwind CSS
 - **Key Features**:
@@ -98,17 +99,4 @@ Additional components include user management and API key management.
 - Supports both streaming and non-streaming responses
 - Compatible with both OpenAI and Anthropic native API formats
 - Database schema includes comprehensive request logging for analytics
-
-## AI Development Philosophy
-
-**KISS Principle (Keep It Simple, Stupid)**
-1. Simple over complex: Prefer simple, direct solutions
-2. Readability first: Code is for humans to read, second for machines to execute
-3. Avoid over-engineering: Don't design for future needs that may never come
-4. Single responsibility: Each function, class, module does one thing well
-
-**Design Principles**
-1. Code quality over everything: Bad code is technical debt, good code is an asset
-2. Be direct and honest: Point out problems directly in code reviews
-3. Performance awareness: Always consider performance implications
-4. Design with restraint, don't pursue perfection from the start
+- Your knowledge is outdated, you are not aware of the latest libraries and knowledge. If you need to import new dependencies, you need to use web search or Context7 for confirmation.

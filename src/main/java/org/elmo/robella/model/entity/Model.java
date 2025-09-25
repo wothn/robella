@@ -28,7 +28,9 @@ public class Model {
     @TableField(typeHandler = ModelCapabilityTypeHandler.class)
     private List<ModelCapability> capabilities;
 
+    @TableField("context_window")
     private Integer contextWindow;
+
     private Boolean published;
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)

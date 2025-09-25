@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { useApiKeys } from "@/hooks/use-apikeys"
 import type { ApiKey, ApiKeyCreateRequest } from "@/types/apikey"
-import { format } from "date-fns"
+import dayjs from "dayjs"
 import { useState } from "react"
 import { Copy, Plus, Trash2} from "lucide-react"
 
@@ -212,7 +212,7 @@ export default function ApiKeysPage() {
                   <TableCell>{key.dailyLimit || "Unlimited"}</TableCell>
                   <TableCell>{key.monthlyLimit || "Unlimited"}</TableCell>
                   <TableCell>
-                    {format(new Date(key.createdAt), "MMM d, yyyy")}
+                    {dayjs(key.createdAt).format("MMM D, YYYY")}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">

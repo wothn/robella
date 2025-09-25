@@ -36,8 +36,12 @@ import { ModelConfigDialog } from './model-config-dialog'
 import { useModels } from '@/hooks/use-models'
 import { useModelBindings } from '@/hooks/use-model-bindings'
 import type { Model, ModelCapability } from '@/types/model'
-import { formatDistanceToNow } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
+
+dayjs.extend(relativeTime)
+dayjs.locale('zh-cn')
 import { toast } from 'sonner'
 
 interface ModelListProps {
@@ -132,10 +136,7 @@ export function ModelList({ models, loading, error, onRefresh, onViewDetails }: 
   const formatTime = (dateString?: string) => {
     if (!dateString) return ''
     try {
-      return formatDistanceToNow(new Date(dateString), {
-        addSuffix: true,
-        locale: zhCN
-      })
+      return dayjs(dateString).fromNow()
     } catch {
       return dateString
     }

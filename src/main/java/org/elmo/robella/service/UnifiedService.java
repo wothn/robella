@@ -10,9 +10,10 @@ import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.model.openai.model.ModelListResponse;
 import org.elmo.robella.model.openai.model.ModelInfo;
 import org.elmo.robella.client.ApiClient;
+import org.elmo.robella.common.ErrorCodeConstants;
 import org.elmo.robella.context.RequestContextHolder;
 import org.elmo.robella.context.RequestContextHolder.RequestContext;
-import org.elmo.robella.exception.ResourceNotFoundException;
+import org.elmo.robella.exception.BusinessException;
 import org.elmo.robella.mapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -61,7 +62,7 @@ public class UnifiedService {
         String modelKey = request.getModel();
         RoutingService.ClientWithInfo clientWithInfo = routingService.routeAndClient(modelKey);
         if (clientWithInfo == null) {
-            throw new ResourceNotFoundException("No available provider for model: " + modelKey);
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "No available provider for model: " + modelKey);
         }
         request.setModel(clientWithInfo.getVendorModel().getVendorModelKey());
         ApiClient apiClient = clientWithInfo.getClient();
@@ -77,7 +78,7 @@ public class UnifiedService {
         String modelKey = request.getModel();
         RoutingService.ClientWithInfo clientWithInfo = routingService.routeAndClient(modelKey);
         if (clientWithInfo == null) {
-            throw new ResourceNotFoundException("No available provider for model: " + modelKey);
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "No available provider for model: " + modelKey);
         }
         request.setModel(clientWithInfo.getVendorModel().getVendorModelKey());
         ApiClient apiClient = clientWithInfo.getClient();

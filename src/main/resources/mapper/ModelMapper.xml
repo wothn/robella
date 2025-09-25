@@ -5,9 +5,22 @@
     <select id="findByPublishedTrue" resultType="org.elmo.robella.model.entity.Model">
         SELECT * FROM model WHERE published = true ORDER BY id
     </select>
-
-    <select id="findByModelKey" resultType="org.elmo.robella.model.entity.Model">
-        SELECT * FROM model WHERE model_key = #{modelKey}
+    
+    <select id="searchModels" resultType="org.elmo.robella.model.entity.Model">
+        SELECT * FROM model 
+        WHERE name LIKE CONCAT('%', #{keyword}, '%')
+        OR model_key LIKE CONCAT('%', #{keyword}, '%')
+        OR description LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY id
+    </select>
+    
+    
+    <select id="findByCapability" resultType="org.elmo.robella.model.entity.Model">
+        SELECT * FROM model WHERE capabilities LIKE CONCAT('%', #{capability}, '%') ORDER BY id
+    </select>
+    
+    <select id="findByModelId" resultType="org.elmo.robella.model.entity.Model">
+        SELECT * FROM model WHERE id = #{modelId}
     </select>
 
 </mapper>

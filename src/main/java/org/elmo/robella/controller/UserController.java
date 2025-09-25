@@ -1,8 +1,8 @@
 package org.elmo.robella.controller;
 
 import org.elmo.robella.annotation.RequiredRole;
-import org.elmo.robella.exception.ErrorCode;
-import org.elmo.robella.exception.RefreshTokenException;
+import org.elmo.robella.common.ErrorCodeConstants;
+import org.elmo.robella.exception.BusinessException;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.request.UserCreateRequest;
@@ -94,7 +94,7 @@ public class UserController {
             HttpServletResponse response) {
 
         if (refreshToken == null) {
-            throw new RefreshTokenException(ErrorCode.REFRESH_TOKEN_INVALID);
+            throw new BusinessException(ErrorCodeConstants.UNAUTHORIZED, "Refresh token is required");
         }
 
         LoginResponse loginResponse = userService.refreshToken(refreshToken);

@@ -46,8 +46,3 @@ export interface ModelFilters {
   capability?: string
   published?: boolean
 }
-
-export interface ModelStats {
-  totalModels: number
-  publishedModels: number
-}

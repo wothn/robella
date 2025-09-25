@@ -9,14 +9,14 @@ import java.util.List;
 
 @Mapper
 public interface ModelMapper extends BaseMapper<Model> {
-
+    
     List<Model> findByPublishedTrue();
-
-    Model findByName(@Param("name") String name);
-
-    Model findByModelKey(@Param("modelKey") String modelKey);
-
+    
+    List<Model> searchModels(@Param("keyword") String keyword);
+    
     List<Model> findByOrganization(@Param("organization") String organization);
-
-    List<Model> findByOrganizationAndPublishedTrue(@Param("organization") String organization);
+    
+    List<Model> findByCapability(@Param("capability") String capability);
+    
+    List<Model> findByModelId(@Param("modelId") Long modelId);
 }

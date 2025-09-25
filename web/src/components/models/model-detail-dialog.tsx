@@ -23,8 +23,12 @@ import { api } from '@/lib/api'
 import type { Model, ModelCapability } from '@/types/model'
 import type { VendorModel } from '@/types/vendor-model'
 import type { Provider } from '@/types/provider'
-import { formatDistanceToNow } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
+
+dayjs.extend(relativeTime)
+dayjs.locale('zh-cn')
 
 interface ModelDetailDialogProps {
   open: boolean
@@ -98,10 +102,7 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
   const formatTime = (dateString?: string) => {
     if (!dateString) return ''
     try {
-      return formatDistanceToNow(new Date(dateString), {
-        addSuffix: true,
-        locale: zhCN
-      })
+      return dayjs(dateString).fromNow()
     } catch {
       return dateString
     }

@@ -2,7 +2,8 @@ package org.elmo.robella.service;
 
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.entity.VendorModel;
-import org.elmo.robella.exception.ResourceNotFoundException;
+import org.elmo.robella.common.ErrorCodeConstants;
+import org.elmo.robella.exception.BusinessException;
 import org.elmo.robella.mapper.ProviderMapper;
 import org.elmo.robella.mapper.VendorModelMapper;
 import org.springframework.stereotype.Service;
@@ -46,7 +47,7 @@ public class ProviderService extends ServiceImpl<ProviderMapper, Provider> {
     public boolean updateProvider(Long id, Provider provider) {
         Provider existingProvider = getById(id);
         if (existingProvider == null) {
-            throw new RuntimeException("Provider not found with id: " + id);
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "Provider not found with id: " + id);
         }
 
         provider.setId(id);
@@ -75,7 +76,7 @@ public class ProviderService extends ServiceImpl<ProviderMapper, Provider> {
     public boolean updateVendorModel(Long id, VendorModel vendorModel) {
         VendorModel existingVendorModel = vendorModelMapper.selectById(id);
         if (existingVendorModel == null) {
-            throw new ResourceNotFoundException("VendorModel not found with id: " + id);
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "VendorModel not found with id: " + id);
         }
 
         vendorModel.setId(id);

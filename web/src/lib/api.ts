@@ -372,19 +372,9 @@ class ApiClient {
     return this.get(`/models/search?keyword=${encodeURIComponent(keyword)}`)
   }
 
-  // 按组织筛选模型
-  async getModelsByOrganization(organization: string): Promise<Model[]> {
-    return this.get(`/models/organization/${encodeURIComponent(organization)}`)
-  }
-
   // 按能力筛选模型
   async getModelsByCapability(capability: string): Promise<Model[]> {
     return this.get(`/models/capability/${encodeURIComponent(capability)}`)
-  }
-
-  // 获取模型统计信息
-  async getModelStats(): Promise<ModelStats> {
-    return this.get('/models/stats')
   }
 
   // ================= API Key Management =================
@@ -406,16 +396,6 @@ class ApiClient {
   // 切换 API Key 状态
   async toggleApiKeyStatus(id: number): Promise<ApiKey> {
     return this.patch(`/api-keys/${id}/toggle`, {})
-  }
-
-  // 获取组织模型数量
-  async getModelCountByOrganization(organization: string): Promise<number> {
-    return this.get(`/models/stats/organization/${encodeURIComponent(organization)}`)
-  }
-
-  // 检查模型名称是否存在
-  async checkModelExists(name: string): Promise<boolean> {
-    return this.get(`/models/exists/${encodeURIComponent(name)}`)
   }
 
   // 获取模型关联的VendorModel
@@ -612,7 +592,7 @@ import type {
   Model,
   CreateModelRequest,
   UpdateModelRequest,
-  ModelStats,
+
   ApiKey,
   ApiKeyCreateRequest
 } from '@/types'

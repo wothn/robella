@@ -91,6 +91,7 @@ src/main/resources/application.yml
 .qoder
 CODEBUDDY.md
 .lingma/
+.trae
 
 # Development tools
 .sonar/

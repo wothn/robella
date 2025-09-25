@@ -1,28 +1,16 @@
 package org.elmo.robella.exception;
 
-import org.springframework.http.HttpStatus;
-
 /**
- * 验证异常基类
- * 用于处理输入参数验证失败的情况
+ * 验证异常类
+ * 用于处理参数验证相关的异常
  */
-public abstract class ValidationException extends BaseBusinessException {
+public class ValidationException extends BaseException {
     
-    protected ValidationException(ErrorCode errorCode, Object... messageArgs) {
-        super(errorCode, messageArgs);
+    public ValidationException(String errorCode, String message) {
+        super(errorCode, message, 400);
     }
     
-    protected ValidationException(ErrorCode errorCode, Throwable cause, Object... messageArgs) {
-        super(errorCode, cause, messageArgs);
-    }
-    
-    @Override
-    public HttpStatus getHttpStatus() {
-        return HttpStatus.BAD_REQUEST;
-    }
-    
-    @Override
-    public ErrorCategory getCategory() {
-        return ErrorCategory.VALIDATION;
+    public ValidationException(String errorCode, String message, Throwable cause) {
+        super(errorCode, message, cause, 400);
     }
 }

@@ -11,7 +11,7 @@ import { ModelList } from '@/components/models/model-list'
 import { ModelFormDialog } from '@/components/models/model-form-dialog'
 import { ModelDetailDialog } from '@/components/models/model-detail-dialog'
 import { ModelFilters } from '@/components/models/model-filters'
-import { ModelStats } from '@/components/models/model-stats'
+
 import { useModels } from '@/hooks/use-models'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import type { ModelFilters as ModelFiltersType } from '@/types/model'
@@ -31,7 +31,6 @@ export default function ModelsPage() {
   const {
     models,
     publishedModels,
-    stats,
     loading,
     error,
     searchModels,
@@ -112,9 +111,6 @@ export default function ModelsPage() {
           </div>
         </div>
 
-        {/* 统计信息 */}
-        <ModelStats stats={stats} loading={loading} />
-
         {/* 搜索和筛选 */}
         <div className="space-y-4">
           <div className="relative">
@@ -142,19 +138,12 @@ export default function ModelsPage() {
             <TabsTrigger value="all" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               全部模型
-              {stats && <Badge variant="secondary">{stats.totalModels}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="published" className="flex items-center gap-2">
               已发布
-              {stats && <Badge variant="secondary">{stats.publishedModels}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="draft" className="flex items-center gap-2">
               草稿
-              {stats && (
-                <Badge variant="secondary">
-                  {stats.totalModels - stats.publishedModels}
-                </Badge>
-              )}
             </TabsTrigger>
           </TabsList>
 

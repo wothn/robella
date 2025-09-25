@@ -3,8 +3,10 @@ package org.elmo.robella.controller;
 import org.elmo.robella.model.request.UserProfileUpdateRequest;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
-import org.elmo.robella.exception.InvalidCredentialsException;
+import org.elmo.robella.common.ErrorCodeConstants;
 import org.elmo.robella.context.RequestContextHolder;
+import org.elmo.robella.exception.BusinessException;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
@@ -23,45 +25,47 @@ public class ProfileController {
 
     @GetMapping
     public UserResponse getCurrentUser() {
-        String username = RequestContextHolder.getContext() != null ?
-            RequestContextHolder.getContext().getUsername() : null;
+        Long userId = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUserId() : null;
 
-        if (username == null) {
-            throw new InvalidCredentialsException();
+        if (userId == null) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
         }
-        log.info("获取当前用户信息: {}", username);
+        log.info("获取当前用户信息: {}", userId);
 
-        return userService.getUserByUsername(username);
+        return userService.getUserById(userId);
     }
 
     @PutMapping
     public UserResponse updateCurrentUser(
             @Valid @RequestBody UserProfileUpdateRequest updateRequest) {
-        String username = RequestContextHolder.getContext() != null ?
-            RequestContextHolder.getContext().getUsername() : null;
+        Long userId = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUserId() : null;
 
-        if (username == null) {
-            throw new InvalidCredentialsException();
+        if (userId == null) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
         }
 
-        log.info("更新用户资料: {}", username);
+        log.info("更新用户资料: {}", userId);
 
-        return userService.updateUserProfile(username, updateRequest);
+        return userService.updateUserProfile(userId, updateRequest);
     }
 
     @DeleteMapping
     public void deleteCurrentUser() {
-        String username = RequestContextHolder.getContext() != null ?
-            RequestContextHolder.getContext().getUsername() : null;
+        Long userId = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUserId() : null;
 
-        if (username == null) {
-            throw new InvalidCredentialsException();
+        if (userId == null) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
         }
 
-        log.info("删除当前用户: {}", username);
+        log.info("删除当前用户: {}", userId);
 
-        userService.deleteUserByUsername(username);
+        userService.removeById(userId);
     }
+
+    
 
     @PutMapping("/password")
     public void changePassword(
@@ -71,7 +75,7 @@ public class ProfileController {
             RequestContextHolder.getContext().getUsername() : null;
 
         if (username == null) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
         }
 
         log.info("修改用户密码: {}", username);
