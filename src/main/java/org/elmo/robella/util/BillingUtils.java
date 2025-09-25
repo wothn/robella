@@ -1,4 +1,4 @@
-package org.elmo.robella.service;
+package org.elmo.robella.util;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +13,7 @@ import java.math.RoundingMode;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class BillingService {
+public class BillingUtils {
 
     /**
      * 计算请求成本

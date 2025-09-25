@@ -23,11 +23,11 @@ public class Usage {
     @JsonProperty("prompt_tokens")
     private Integer promptTokens;
 
-    /** 提示词中命中缓存的 token 数 */
+    /** 提示词中命中缓存的 token 数(Deepseek) */
     @JsonProperty("prompt_cache_hit_tokens")
     private Integer promptCacheHitTokens;
 
-    /** 提示词中未命中缓存的 token 数 */
+    /** 提示词中未命中缓存的 token 数(Deepseek) */
     @JsonProperty("prompt_cache_miss_tokens")
     private Integer promptCacheMissTokens;
 

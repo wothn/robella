@@ -13,6 +13,7 @@ import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.exception.ProviderException;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
+import org.elmo.robella.model.openai.core.PromptTokensDetails;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
 import org.elmo.robella.service.transform.EndpointTransform;
@@ -47,8 +48,6 @@ public class OpenAIClient implements ApiClient {
 
     @Override
     public UnifiedChatResponse chat(UnifiedChatRequest request, Provider provider) {
-        RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
-        String requestId = ctx.getRequestId();
         try {
             // Transform unified request to OpenAI format
             ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
@@ -63,7 +62,7 @@ public class OpenAIClient implements ApiClient {
             }
 
             // Start logging
-            clientRequestLogger.startRequest(false, openaiRequest, requestId);
+            clientRequestLogger.startRequest(openaiRequest, false);
 
             // Build HTTP headers
             Map<String, String> headers = new ConcurrentHashMap<>();
@@ -77,18 +76,17 @@ public class OpenAIClient implements ApiClient {
             // Parse response
             ChatCompletionResponse response = jsonUtils.fromJson(responseBody, ChatCompletionResponse.class);
 
-            // Transform response back to unified format
+            // Transform response bak to unified format
             UnifiedChatResponse unifiedResponse = openAIEndpointTransform.endpointToUnifiedResponse(response);
 
             // Log success
-            clientRequestLogger.logSuccess(requestId, openaiRequest, response);
+            clientRequestLogger.completeLog(response, true);
 
             return unifiedResponse;
 
         } catch (Exception e) {
             // Log failure
-            ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
-            clientRequestLogger.logFailure(requestId, openaiRequest, e);
+            clientRequestLogger.completeLog(false);
             ProviderException exception = mapToProviderException(e, "OpenAI chat request");
             throw exception;
         }
@@ -96,8 +94,6 @@ public class OpenAIClient implements ApiClient {
 
     @Override
     public Stream<UnifiedStreamChunk> chatStream(UnifiedChatRequest request, Provider provider) {
-        RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
-        String requestId = ctx.getRequestId();
         try {
             // Transform unified request to OpenAI format
             ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
@@ -111,11 +107,8 @@ public class OpenAIClient implements ApiClient {
                 }
             }
 
-            // Capture the final reference for lambda
-            final ChatCompletionRequest finalOpenaiRequest = openaiRequest;
-
             // Start logging
-            clientRequestLogger.startRequest(true, openaiRequest, requestId);
+            clientRequestLogger.startRequest(openaiRequest, true);
 
             // Build HTTP headers for streaming
             Map<String, String> headers = new ConcurrentHashMap<>();
@@ -131,19 +124,18 @@ public class OpenAIClient implements ApiClient {
             Stream<ChatCompletionChunk> parsedStream = rawStream
                     .map(this::parseStreamRaw)
                     .filter(Objects::nonNull)
-                    .peek(chunk -> clientRequestLogger.logStreamChunk(requestId, chunk));
+                    .peek(chunk -> clientRequestLogger.logStreamChunk(chunk));
 
             // Transform the entire stream at once
-            return streamTransformer.transform(parsedStream, requestId)
+            return streamTransformer.transform(parsedStream, RequestContextHolder.getContext().getRequestId())
                     .onClose(() -> {
                         // Stream completed - complete logging
-                        clientRequestLogger.completeStreamRequest(requestId, finalOpenaiRequest);
+                        clientRequestLogger.completeLog(true);
                     });
 
         } catch (Exception e) {
             // Log failure
-            ChatCompletionRequest openaiRequest = openAIEndpointTransform.unifiedToEndpointRequest(request);
-            clientRequestLogger.failStreamRequest(requestId, openaiRequest, ctx.getEndpointType(), e);
+            clientRequestLogger.completeLog(false);
             ProviderException exception = mapToProviderException(e, "OpenAI chat stream request");
             throw exception;
         }

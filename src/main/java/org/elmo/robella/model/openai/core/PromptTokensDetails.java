@@ -8,7 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * OpenAI 提示 token 详细信息 (兼容多厂商扩展字段)
+ * OpenAI 提示 token 详细信息
  */
 @Data
 @NoArgsConstructor
@@ -21,7 +21,7 @@ public class PromptTokensDetails {
     @JsonProperty("audio_tokens")
     private Integer audioTokens;
 
-    /** 命中缓存的 token 数 */
+    /** 命中缓存的 token 数(OpenAI、Zhipu) */
     @JsonProperty("cached_tokens")
     private Integer cachedTokens;
 }

@@ -68,7 +68,6 @@ public class UnifiedService {
         ApiClient apiClient = clientWithInfo.getClient();
 
         RequestContext ctx = RequestContextHolder.getContext();
-        ctx.setModelKey(modelKey);
         ctx.setProviderId(clientWithInfo.getProvider().getId());
         ctx.setVendorModel(clientWithInfo.getVendorModel());
 
@@ -85,7 +84,6 @@ public class UnifiedService {
         ApiClient apiClient = clientWithInfo.getClient();
 
         RequestContext ctx = RequestContextHolder.getContext();
-        ctx.setModelKey(modelKey);
         ctx.setProviderId(clientWithInfo.getProvider().getId());
         ctx.setVendorModel(clientWithInfo.getVendorModel());
 

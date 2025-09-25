@@ -64,7 +64,7 @@ public class AnthropicClient implements ApiClient {
             }
 
             // Start logging
-            clientRequestLogger.startRequest(false, anthropicRequest, requestId);
+            clientRequestLogger.startRequest(anthropicRequest, false);
 
             if (log.isDebugEnabled()) {
                 log.debug("[AnthropicClient] chat start provider={} model={} stream=false",
@@ -94,7 +94,7 @@ public class AnthropicClient implements ApiClient {
             UnifiedChatResponse unifiedResponse = anthropicEndpointTransform.endpointToUnifiedResponse(response);
 
             // Log success
-            clientRequestLogger.anthropicLogSuccess(requestId, anthropicRequest, response);
+            clientRequestLogger.completeLog(response, true);
 
             if (log.isDebugEnabled()) {
                 log.debug("[AnthropicClient] chat success provider={} model={}",
@@ -106,7 +106,7 @@ public class AnthropicClient implements ApiClient {
         } catch (Exception e) {
             // Log failure
             AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
-            clientRequestLogger.anthropicLogFailure(requestId, anthropicRequest, e);
+            clientRequestLogger.completeLog(false);
             ProviderException exception = mapToProviderException(e, "Anthropic chat request");
             throw exception;
         }
@@ -133,7 +133,7 @@ public class AnthropicClient implements ApiClient {
             final AnthropicChatRequest finalAnthropicRequest = anthropicRequest;
 
             // Start logging
-            clientRequestLogger.startRequest(true, anthropicRequest, requestId);
+            clientRequestLogger.startRequest(anthropicRequest, true);
 
             if (log.isDebugEnabled()) {
                 log.debug("[AnthropicClient] chatStream start provider={} model={} stream=true",
@@ -156,7 +156,7 @@ public class AnthropicClient implements ApiClient {
                 .map(this::parseStreamRaw)
                 .filter(Objects::nonNull)
                 .peek(event -> {
-                    clientRequestLogger.logStreamChunk(requestId, event);
+                    clientRequestLogger.logStreamChunk(event);
                     if (log.isTraceEnabled()) {
                         log.trace("[AnthropicClient] stream event: type={}, content={}",
                             event.getType(), "present");
@@ -167,13 +167,13 @@ public class AnthropicClient implements ApiClient {
             return streamTransformer.transform(parsedStream, requestId)
                 .onClose(() -> {
                     // Stream completed - complete logging
-                    clientRequestLogger.completeStreamRequest(requestId, finalAnthropicRequest);
+                    clientRequestLogger.completeLog(true);
                 });
 
         } catch (Exception e) {
             // Log failure
             AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
-            clientRequestLogger.failStreamRequest(requestId, anthropicRequest, "anthropic", e);
+            clientRequestLogger.completeLog(false);
             ProviderException exception = mapToProviderException(e, "Anthropic chat stream request");
             throw exception;
         }

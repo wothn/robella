@@ -45,6 +45,9 @@ public class RequestLog {
     @TableField("prompt_tokens")
     private Integer promptTokens;
 
+    @TableField("cached_tokens")
+    private Integer cachedTokens;
+
     @TableField("completion_tokens")
     private Integer completionTokens;
 

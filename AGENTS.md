@@ -49,50 +49,6 @@ Additional components include user management and API key management.
 - **ApiKeys**: API key management with rate limiting
 - **RequestLog**: Request logging and analytics
 
-## Development Commands
-
-### Backend
-```bash
-# Build project
-mvn clean package
-
-# Run application
-java -jar target/robella-0.1.0.jar
-
-# Development mode
-mvn spring-boot:run
-
-# Compile only
-mvn compile
-
-# Test (when implemented)
-mvn test
-```
-
-### Frontend
-```bash
-# Enter web directory
-cd web
-
-# Install dependencies
-npm install
-
-# Development server
-npm run dev
-
-# Build production
-npm run build
-
-# Lint code
-npm run lint
-
-# Type check
-tsc --noEmit
-
-# Preview production build
-npm run preview
-```
-
 ## Configuration
 
 ### Key Configuration Files
@@ -157,4 +113,4 @@ npm run preview
 4. 设计时保持克制，不要在一开始就追求完美和极致
 
 **工具使用**
-1. 使用`readFile`或类似获取文件内容的工具时，始终指定范围一次阅读 2000 行代码，以确保您有足够的上下文。
+1. 使用`readFile`工具时，始终使用1 - 2000 来读取代码，以确保您有足够的上下文。
