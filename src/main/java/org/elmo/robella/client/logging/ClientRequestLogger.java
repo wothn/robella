@@ -269,6 +269,7 @@ public class ClientRequestLogger {
             
             builder.tokenSource(state.getTokenSource()).isStream(state.stream);
             RequestLog logEntry = builder.build();
+            log.info("[ClientRequestLogger]RequestLog: {}", logEntry);
             requestLogService.save(logEntry);
         } finally {
             requestStateMap.remove(requestId);
@@ -285,6 +286,7 @@ public class ClientRequestLogger {
             log.warn("No logging state found for requestId: {}", ctx.getRequestId());
             return builder;
         }
+        log.debug("EndpointType: {}", ctx.getEndpointType());
         builder.firstTokenLatencyMs(state.getFirstTokenLatencyMs())
                 .userId(ctx.getUserId())
                 .apiKeyId(ctx.getApiKeyId())

@@ -53,7 +53,7 @@ public class AnthropicChatRequest {
     /**
      * 是否使用服务器发送事件 (SSE) 来增量返回响应内容
      */
-    private Boolean stream;
+    private Boolean stream = false;
     
     /**
      * 定义模型可能使用的工具

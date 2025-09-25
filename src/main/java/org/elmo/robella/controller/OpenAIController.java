@@ -45,7 +45,6 @@ public class OpenAIController {
         ctx.setEndpointType("openai");
 
         UnifiedChatRequest unifiedRequest = openAIEndpointTransform.endpointToUnifiedRequest(request);
-        unifiedRequest.setEndpointType("openai");
 
         // 检查是否为流式请求
         if (Boolean.TRUE.equals(request.getStream())) {

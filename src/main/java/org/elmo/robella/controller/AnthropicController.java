@@ -58,7 +58,6 @@ public class AnthropicController {
         ctx.setEndpointType("anthropic");
 
         UnifiedChatRequest unifiedRequest = anthropicEndpointTransform.endpointToUnifiedRequest(request);
-        unifiedRequest.setEndpointType("anthropic");
 
         if (Boolean.TRUE.equals(request.getStream())) {
             return handleStreamingResponse(unifiedRequest, requestId, response);
@@ -126,10 +125,9 @@ public class AnthropicController {
                     emitter.send(SseEmitter.event().name(eventType).data(eventData));
                 } catch (IOException e) {
                     log.error("Error sending SSE event", e);
-                    emitter.completeWithError(e);
                 }
             });
-
+            anthropicStream.close();
             // 发送完成标记
             emitter.complete();
 

@@ -13,7 +13,6 @@ import org.elmo.robella.model.internal.UnifiedStreamChunk;
 import org.elmo.robella.exception.ProviderException;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
 import org.elmo.robella.model.openai.core.ChatCompletionResponse;
-import org.elmo.robella.model.openai.core.PromptTokensDetails;
 import org.elmo.robella.model.openai.stream.ChatCompletionChunk;
 import org.elmo.robella.service.stream.EndpointToUnifiedStreamTransformer;
 import org.elmo.robella.service.transform.EndpointTransform;

@@ -2,7 +2,6 @@ package org.elmo.robella.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.Request;
 
 import org.elmo.robella.model.entity.Model;
 import org.elmo.robella.model.internal.UnifiedChatRequest;

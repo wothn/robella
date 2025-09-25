@@ -49,7 +49,6 @@ public class AnthropicClient implements ApiClient {
     @Override
     public UnifiedChatResponse chat(UnifiedChatRequest request, Provider provider) {
         RequestContextHolder.RequestContext ctx = RequestContextHolder.getContext();
-        String requestId = ctx.getRequestId();
         try {
             // Transform unified request to Anthropic format
             AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
@@ -105,7 +104,6 @@ public class AnthropicClient implements ApiClient {
 
         } catch (Exception e) {
             // Log failure
-            AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
             clientRequestLogger.completeLog(false);
             ProviderException exception = mapToProviderException(e, "Anthropic chat request");
             throw exception;
@@ -128,9 +126,6 @@ public class AnthropicClient implements ApiClient {
                     anthropicRequest = providerTransform.processRequest(anthropicRequest);
                 }
             }
-
-            // Capture the final reference for lambda
-            final AnthropicChatRequest finalAnthropicRequest = anthropicRequest;
 
             // Start logging
             clientRequestLogger.startRequest(anthropicRequest, true);
@@ -172,7 +167,6 @@ public class AnthropicClient implements ApiClient {
 
         } catch (Exception e) {
             // Log failure
-            AnthropicChatRequest anthropicRequest = anthropicEndpointTransform.unifiedToEndpointRequest(request);
             clientRequestLogger.completeLog(false);
             ProviderException exception = mapToProviderException(e, "Anthropic chat stream request");
             throw exception;

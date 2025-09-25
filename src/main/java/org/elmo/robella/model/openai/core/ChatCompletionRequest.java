@@ -68,7 +68,7 @@ public class ChatCompletionRequest {
     /**
      * 是否流式输出
      */
-    private Boolean stream;
+    private Boolean stream = false;
     
     /**
      * 流式输出选项

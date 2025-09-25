@@ -44,16 +44,6 @@ public class UnifiedToAnthropicStreamTransformer implements UnifiedToEndpointStr
     }
 
     private List<AnthropicStreamEvent> processChunk(UnifiedStreamChunk chunk, SessionState state) {
-        log.debug("[AnthropicTransformer] 处理chunk，model: {}", chunk.getModel());
-        
-        // 添加详细日志来调试usage chunk
-        if (chunk.getUsage() != null) {
-            log.debug("[AnthropicTransformer] processChunk - 收到包含usage的chunk: id={}, choicesSize={}, choicesNull={}, usage={}", 
-                chunk.getId(), 
-                chunk.getChoices() != null ? chunk.getChoices().size() : "null",
-                chunk.getChoices() == null,
-                chunk.getUsage());
-        }
 
         List<AnthropicStreamEvent> events = new ArrayList<>();
 
