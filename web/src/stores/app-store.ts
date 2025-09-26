@@ -1,19 +1,18 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { useLoadingStore } from '@/stores/loading-store'
 import type { Provider, Model } from '@/types'
 
 interface AppState {
   providers: Provider[]
   models: Record<number, Model[]>
   currentProviderId: number | null
-  loading: boolean
   error: string | null
 
   // Actions
   setProviders: (providers: Provider[]) => void
   setModels: (providerId: number, models: Model[]) => void
   setCurrentProvider: (providerId: number | null) => void
-  setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   addProvider: (provider: Provider) => void
   updateProvider: (provider: Provider) => void
@@ -26,15 +25,15 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       providers: [],
       models: {},
       currentProviderId: null,
-      loading: false,
       error: null,
 
       setProviders: (providers: Provider[]) => {
-        set({ providers, loading: false, error: null })
+        set({ providers, error: null })
+        useLoadingStore.getState().setComponentLoading('app-providers', false)
       },
 
       setModels: (providerId: number, models: Model[]) => {
@@ -44,18 +43,16 @@ export const useAppStore = create<AppState>()(
             [providerId]: models
           }
         }))
+        useLoadingStore.getState().setComponentLoading('app-models', false)
       },
 
       setCurrentProvider: (providerId: number | null) => {
         set({ currentProviderId: providerId })
       },
 
-      setLoading: (loading: boolean) => {
-        set({ loading })
-      },
-
       setError: (error: string | null) => {
-        set({ error, loading: false })
+        set({ error })
+        useLoadingStore.getState().setComponentLoading('app-error', false)
       },
 
       clearError: () => {

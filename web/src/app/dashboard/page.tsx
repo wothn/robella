@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react"
-import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { usePageLoading, withPageLoading } from "@/stores/loading-store"
+import { PageLoading } from "@/components/common/loading"
 import {
   TrendingUp,
-  Users,
   Zap,
   DollarSign,
   Activity,
@@ -29,7 +29,7 @@ import type {
 
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState("24h")
-  const [loading, setLoading] = useState(true)
+  const { loading } = usePageLoading('dashboard')
   const [overview, setOverview] = useState<SystemOverviewResponse | null>(null)
   const [tokenUsage, setTokenUsage] = useState<TokenUsageResponse | null>(null)
   const [costUsage, setCostUsage] = useState<CostUsageResponse | null>(null)
@@ -68,40 +68,39 @@ const Dashboard = () => {
   }
 
   const loadStatistics = async () => {
-    try {
-      setLoading(true)
-      const { startTime, endTime } = getTimeRange(timeRange)
+    return withPageLoading('dashboard', async () => {
+      try {
+        const { startTime, endTime } = getTimeRange(timeRange)
 
-      const [
-        overviewData,
-        tokenData,
-        costData,
-        requestData,
-        latencyData,
-        modelsData,
-        errorData
-      ] = await Promise.all([
-        api.getSystemOverview(startTime, endTime),
-        api.getTokenUsage(startTime, endTime),
-        api.getCostUsage(startTime, endTime),
-        api.getRequestUsage(startTime, endTime),
-        api.getLatencyStats(startTime, endTime),
-        api.getModelPopularity(startTime, endTime, 5),
-        api.getErrorRate(startTime, endTime)
-      ])
+        const [
+          overviewData,
+          tokenData,
+          costData,
+          requestData,
+          latencyData,
+          modelsData,
+          errorData
+        ] = await Promise.all([
+          api.getSystemOverview(startTime, endTime),
+          api.getTokenUsage(startTime, endTime),
+          api.getCostUsage(startTime, endTime),
+          api.getRequestUsage(startTime, endTime),
+          api.getLatencyStats(startTime, endTime),
+          api.getModelPopularity(startTime, endTime, 5),
+          api.getErrorRate(startTime, endTime)
+        ])
 
-      setOverview(overviewData)
-      setTokenUsage(tokenData)
-      setCostUsage(costData)
-      setRequestUsage(requestData)
-      setLatency(latencyData)
-      setPopularModels(modelsData)
-      setErrorRate(errorData)
-    } catch (error) {
-      console.error("Failed to load statistics:", error)
-    } finally {
-      setLoading(false)
-    }
+        setOverview(overviewData)
+        setTokenUsage(tokenData)
+        setCostUsage(costData)
+        setRequestUsage(requestData)
+        setLatency(latencyData)
+        setPopularModels(modelsData)
+        setErrorRate(errorData)
+      } catch (error) {
+        console.error("Failed to load statistics:", error)
+      }
+    })
   }
 
   useEffect(() => {
@@ -140,7 +139,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <PageLoading page="dashboard">
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -357,6 +357,7 @@ const Dashboard = () => {
         </CardContent>
       </Card>
     </div>
+    </PageLoading>
   )
 }
 

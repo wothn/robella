@@ -29,8 +29,8 @@ export function getRoleDisplayText(role: string): string {
 }
 
 export interface LoginResponse {
-  accessToken: string
-  refreshToken: string
+  success: boolean
+  message: string
 }
 
 export interface CreateUserRequest {

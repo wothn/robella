@@ -9,15 +9,12 @@ class ApiClient {
     this.baseURL = baseURL
   }
 
-  // 获取存储的访问令牌
-  private getAccessToken(): string | null {
-    return storage.getAccessToken()
-  }
 
   // 通用请求方法
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    skipAuthRedirect: boolean = false
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
 
@@ -26,11 +23,6 @@ class ApiClient {
       ...(options.headers as Record<string, string>),
     }
 
-    // 为需要认证的请求添加访问令牌
-    const token = this.getAccessToken()
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
 
     const config: RequestInit = {
       mode: 'cors',
@@ -46,14 +38,17 @@ class ApiClient {
 
       console.log('API response:', { status: response.status, ok: response.ok })
 
+      // 处理 401 未授权错误，重定向到登录页面
+      if (response.status === 401 && !skipAuthRedirect) {
+        console.log('Unauthorized, redirecting to login...')
+        window.location.href = '/login'
+        throw new Error('Unauthorized - redirecting to login')
+      }
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error('API error response:', errorText)
 
-        // 如果是401错误，尝试刷新令牌
-        if (response.status === 401) {
-          return this.handleTokenRefresh(endpoint, headers, config, url)
-        }
 
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
       }
@@ -66,6 +61,10 @@ class ApiClient {
         return await response.text() as unknown as T
       }
     } catch (error) {
+      // 如果是 401 重定向错误，直接抛出
+      if (error instanceof Error && error.message === 'Unauthorized - redirecting to login') {
+        throw error
+      }
       console.error('API request failed:', error)
       throw error
     }
@@ -181,102 +180,9 @@ class ApiClient {
     return this.getAllUsers(true)
   }
 
-  // 刷新令牌
-  async refreshToken(): Promise<LoginResponse> {
-    const response = await fetch(`${this.baseURL}/users/refresh`, {
-      method: 'POST',
-      credentials: 'include', // Important: include cookies
-    })
 
-    if (!response.ok) {
-      storage.clearAuth()
-      window.location.href = '/login'
-      throw new Error('Failed to refresh token')
-    }
 
-    const data: LoginResponse = await response.json()
-    // Only store accessToken in localStorage, refreshToken is already in HttpOnly cookie
-    storage.setItem('accessToken', data.accessToken)
-    return data
-  }
 
-  // 处理令牌刷新
-  private async handleTokenRefresh<T>(
-    endpoint: string,
-    headers: Record<string, string>,
-    config: RequestInit,
-    url: string
-  ): Promise<T> {
-    // 检查是否正在刷新中，避免并发刷新
-    if (storage.isRefreshing()) {
-      // 等待刷新完成
-      await this.waitForRefreshComplete()
-      // 使用新token重试原请求
-      return this.retryRequest<T>(endpoint, config)
-    }
-
-    try {
-      storage.setRefreshing(true)
-
-      // 尝试刷新令牌
-      await this.refreshToken()
-
-      // 使用新token重试原请求
-      return this.retryRequest<T>(endpoint, config)
-    } catch (error) {
-      console.error('Token refresh failed:', error)
-      storage.clearAuth()
-      window.location.href = '/login'
-      throw error
-    } finally {
-      storage.setRefreshing(false)
-    }
-  }
-
-  // 等待刷新完成
-  private async waitForRefreshComplete(): Promise<void> {
-    const maxWaitTime = 10000 // 最多等待10秒
-    const checkInterval = 100 // 每100ms检查一次
-    let elapsedTime = 0
-
-    return new Promise((resolve, reject) => {
-      const checkIntervalId = setInterval(() => {
-        if (!storage.isRefreshing()) {
-          clearInterval(checkIntervalId)
-          resolve()
-        } else if (elapsedTime >= maxWaitTime) {
-          clearInterval(checkIntervalId)
-          reject(new Error('Token refresh timeout'))
-        }
-        elapsedTime += checkInterval
-      }, checkInterval)
-    })
-  }
-
-  // 重试请求
-  private async retryRequest<T>(endpoint: string, originalConfig: RequestInit): Promise<T> {
-    const config = {
-      ...originalConfig,
-      headers: {
-        ...originalConfig.headers,
-        'Authorization': `Bearer ${storage.getAccessToken()}`,
-      },
-    }
-
-    const response = await fetch(`${this.baseURL}${endpoint}`, config)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
-    }
-
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json()
-    } else {
-      return await response.text() as unknown as T
-    }
-  }
 
   
 
@@ -286,8 +192,8 @@ class ApiClient {
   }
 
   // GitHub OAuth回调
-  async githubCallback(code: string, state: string): Promise<LoginResponse> {
-    return this.get(`/oauth/github/callback?code=${code}&state=${state}`)
+  async githubCallback(code: string, state: string): Promise<void> {
+    await this.get<void>(`/oauth/github/callback?code=${code}&state=${state}`)
   }
 
   // 用户登出
@@ -610,7 +516,6 @@ import type {
   ErrorRateResponse,
   ErrorByModelResponse
 } from '@/types/statistics'
-import { storage } from './storage'
 
 // 创建API客户端实例
 export const apiClient = new ApiClient()

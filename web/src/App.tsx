@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useAuthStore } from './stores/auth-store'
+import { useGlobalLoading } from './stores/loading-store'
+import { Loading } from './components/common/loading'
 import { DashboardLayout } from '@/components/layout'
 import LoginPage from './app/login/page'
 import DashboardPage from './app/dashboard/page'
@@ -13,13 +15,15 @@ import AuthErrorPage from './app/auth/error/page'
 import { Navigate } from 'react-router-dom'
 
 function AppContent() {
-  const { user, loading } = useAuthStore()
+  const { user } = useAuthStore()
+  const { loading } = useGlobalLoading()
   const isAuthenticated = !!user
 
+  // 全局loading状态
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Loading text="加载中..." size="lg" />
       </div>
     )
   }

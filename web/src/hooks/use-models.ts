@@ -1,25 +1,25 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiClient } from '@/lib/api'
+import { usePageLoading, withPageLoading } from '@/stores/loading-store'
 import type { Model, CreateModelRequest, UpdateModelRequest } from '@/types/model'
 
 export function useModels() {
   const [models, setModels] = useState<Model[]>([])
   const [publishedModels, setPublishedModels] = useState<Model[]>([])
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { loading } = usePageLoading('models')
 
   // 获取所有模型
   const fetchModels = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await apiClient.getModels()
-      setModels(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '获取模型列表失败')
-    } finally {
-      setLoading(false)
-    }
+    return withPageLoading('models', async () => {
+      try {
+        setError(null)
+        const data = await apiClient.getModels()
+        setModels(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取模型列表失败')
+      }
+    })
   }, [])
 
   // 获取已发布模型
@@ -36,32 +36,28 @@ export function useModels() {
 
   // 搜索模型
   const searchModels = useCallback(async (keyword: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await apiClient.searchModels(keyword)
-      setModels(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '搜索模型失败')
-    } finally {
-      setLoading(false)
-    }
+    return withPageLoading('models', async () => {
+      try {
+        setError(null)
+        const data = await apiClient.searchModels(keyword)
+        setModels(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '搜索模型失败')
+      }
+    })
   }, [])
-
-
 
   // 按能力筛选
   const getModelsByCapability = useCallback(async (capability: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await apiClient.getModelsByCapability(capability)
-      setModels(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '按能力筛选模型失败')
-    } finally {
-      setLoading(false)
-    }
+    return withPageLoading('models', async () => {
+      try {
+        setError(null)
+        const data = await apiClient.getModelsByCapability(capability)
+        setModels(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '按能力筛选模型失败')
+      }
+    })
   }, [])
 
   // 创建模型

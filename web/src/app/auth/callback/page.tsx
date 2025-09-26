@@ -2,61 +2,40 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/stores/auth-store"
+import { useGlobalLoading } from "@/stores/loading-store"
+import { Loading } from "@/components/common/loading"
 import { apiClient } from "@/lib/api"
-import { storage } from "@/lib/storage"
-import type { LoginResponse } from "@/types/user"
 
 export default function AuthCallbackPage() {
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { updateUser } = useAuthStore()
+  const { loading } = useGlobalLoading()
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
         // Get URL parameters
         const urlParams = new URLSearchParams(window.location.search)
-        const token = urlParams.get('token')
-        const refreshToken = urlParams.get('refreshToken')
+        const code = urlParams.get('code')
+        const state = urlParams.get('state')
 
-        if (token) {
-          // Direct token from backend redirect (refreshToken is in HttpOnly cookie)
-          localStorage.setItem('accessToken', token)
-
-          // Get the current user data
-          const currentUser = await apiClient.getCurrentUser()
-          updateUser(currentUser)
-
-          // Redirect to dashboard
-          navigate('/')
-        } else {
-          // Fallback to code exchange flow
-          const code = urlParams.get('code')
-          const state = urlParams.get('state')
-
-          if (!code || !state) {
-            throw new Error('Missing required OAuth parameters')
-          }
-
-          // Exchange code for access token
-          const response: LoginResponse = await apiClient.githubCallback(code, state)
-
-          // Store the accessToken in localStorage, refreshToken is already in HttpOnly cookie
-          localStorage.setItem('accessToken', response.accessToken)
-
-          // Get the current user data
-          const currentUser = await apiClient.getCurrentUser()
-          updateUser(currentUser)
-
-          // Redirect to dashboard
-          navigate('/')
+        if (!code || !state) {
+          throw new Error('Missing required OAuth parameters')
         }
+
+        // Exchange code for access token
+        await apiClient.githubCallback(code, state)
+
+        // Get the current user data
+        const currentUser = await apiClient.getCurrentUser()
+        updateUser(currentUser)
+
+        // Redirect to dashboard
+        navigate('/')
       } catch (err) {
         console.error('OAuth callback error:', err)
         setError(err instanceof Error ? err.message : 'Authentication failed')
-      } finally {
-        setLoading(false)
       }
     }
 
@@ -74,7 +53,7 @@ export default function AuthCallbackPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <Loading text="处理中..." size="md" />
           </CardContent>
         </Card>
       </div>

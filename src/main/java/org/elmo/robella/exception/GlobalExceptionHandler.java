@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import cn.dev33.satoken.exception.NotLoginException;
+
 /**
  * 全局异常处理器
  * 统一处理所有异常并返回标准化的错误响应
@@ -14,6 +16,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 处理Sa-Token未登录异常
+     */
+    @ExceptionHandler(NotLoginException.class)
+    public ResponseEntity<ErrorResponse> handleNotLoginException(NotLoginException ex) {
+        log.warn("Not login exception occurred: {}", ex.getMessage());
+        ErrorResponse error = new ErrorResponse("UNAUTHORIZED", "User not authenticated");
+        return ResponseEntity.status(401).body(error);
+    }
 
     /**
      * 处理自定义业务异常

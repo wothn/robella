@@ -5,7 +5,8 @@
       "Read(/E:\\robella\\src\\main\\java\\org\\elmo\\robella\\model/**)",
       "Read(/E:\\robella\\web\\src\\components/**)",
       "Bash(mvn compile:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

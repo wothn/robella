@@ -2,58 +2,50 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { apiClient } from '@/lib/api'
 import { storage } from '@/lib/storage'
-import type { User, LoginResponse } from '@/types/user'
+import { useLoadingStore, withGlobalLoading } from '@/stores/loading-store'
+import type { User} from '@/types/user'
 
 interface AuthState {
   user: User | null
-  loading: boolean
   login: (username: string, password: string) => Promise<void>
   logout: () => void
   githubLogin: () => void
   updateUser: (user: User) => void
   validateSession: () => Promise<boolean>
-  setLoading: (loading: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set) => ({
         user: null,
-        loading: true,
 
         validateSession: async (): Promise<boolean> => {
-          try {
-            const token = storage.getAccessToken()
-            if (token) {
+          return withGlobalLoading(async () => {
+            try {
               const currentUser = await apiClient.getCurrentUser()
               set({ user: currentUser })
               return true
-            } else {
-              console.log('No access token found in localStorage')
+            } catch (error) {
+              console.error('Session validation failed:', error)
               set({ user: null })
               return false
             }
-          } catch (error) {
-            console.error('Session validation failed:', error)
-            set({ user: null })
-            return false
-          }
+          })
         },
 
         login: async (username: string, password: string) => {
-          set({ loading: true })
-          try {
-            const response: LoginResponse = await apiClient.login(username, password)
-            storage.setItem('accessToken', response.accessToken)
-            const currentUser = await apiClient.getCurrentUser()
-            set({ user: currentUser, loading: false })
-            window.location.href = '/'
-          } catch (error) {
-            console.error('Login failed:', error)
-            set({ loading: false })
-            throw error
-          }
+          return withGlobalLoading(async () => {
+            try {
+              await apiClient.login(username, password)
+              const currentUser = await apiClient.getCurrentUser()
+              set({ user: currentUser })
+              window.location.href = '/'
+            } catch (error) {
+              console.error('Login failed:', error)
+              throw error
+            }
+          })
         },
 
         githubLogin: () => {
@@ -68,17 +60,14 @@ export const useAuthStore = create<AuthState>()(
             console.error('Logout API call failed:', error)
           } finally {
             storage.clearAuth()
-            set({ user: null, loading: false })
+            set({ user: null })
+            useLoadingStore.getState().setGlobalLoading(false)
             window.location.href = '/login'
           }
         },
 
         updateUser: (userData: User) => {
           set({ user: userData })
-        },
-
-        setLoading: (loading: boolean) => {
-          set({ loading })
         }
       }),
       {

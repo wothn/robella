@@ -5,7 +5,6 @@ import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.request.UserCreateRequest;
 import org.elmo.robella.model.request.UserUpdateRequest;
-import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
 import lombok.RequiredArgsConstructor;

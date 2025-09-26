@@ -56,33 +56,17 @@ export const storage = {
    * 清除所有认证相关的存储项
    */
   clearAuth(): void {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
     localStorage.removeItem('isRefreshing')
-    cookies.removeItem('refreshToken')
   },
 
   /**
    * 获取访问令牌
    */
   getAccessToken(): string | null {
-    return this.getItem('accessToken')
+    return null
   },
 
-  /**
-   * 获取刷新令牌 (从 Cookie 中获取)
-   */
-  getRefreshToken(): string | null {
-    return cookies.getItem('refreshToken')
-  },
 
-  /**
-   * 设置认证令牌 (accessToken 在 localStorage，refreshToken 在 Cookie)
-   */
-  setAuthTokens(accessToken: string, refreshToken: string): void {
-    this.setItem('accessToken', accessToken)
-    cookies.setItem('refreshToken', refreshToken)
-  },
 
   /**
    * 检查是否正在刷新令牌

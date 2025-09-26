@@ -22,20 +22,24 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
+import { usePageLoading, withPageLoading, withActionLoading, useActionLoading } from "@/stores/loading-store"
+import { PageLoading, LoadingButton } from "@/components/common/loading"
 import type { User, CreateUserRequest } from "@/types/user"
 import { getRoleDisplayText } from "@/types/user"
 import dayjs from "dayjs"
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { loading } = usePageLoading('users')
+  const createLoading = useActionLoading('create-user')
+  const updateLoading = useActionLoading('update-user')
+  const deleteLoading = useActionLoading('delete-user')
   
   // Form states
   const [formData, setFormData] = useState({
@@ -53,15 +57,14 @@ export default function UsersPage() {
   }, [])
 
   const fetchUsers = async () => {
-    try {
-      setLoading(true)
-      const response = await apiClient.getAllUsers()
-      setUsers(response)
-    } catch (error) {
-      console.error("Failed to fetch users:", error)
-    } finally {
-      setLoading(false)
-    }
+    return withPageLoading('users', async () => {
+      try {
+        const response = await apiClient.getAllUsers()
+        setUsers(response)
+      } catch (error) {
+        console.error("Failed to fetch users:", error)
+      }
+    })
   }
 
   const handleToggleUserStatus = async (userId: number, isActive: boolean) => {
@@ -78,64 +81,61 @@ export default function UsersPage() {
   }
 
   const handleCreateUser = async () => {
-    setIsSubmitting(true)
-    try {
-      const createData: CreateUserRequest = {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        displayName: formData.displayName || undefined,
-        role: formData.role
+    return withActionLoading('create-user', async () => {
+      try {
+        const createData: CreateUserRequest = {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          displayName: formData.displayName || undefined,
+          role: formData.role
+        }
+
+        await apiClient.createUser(createData)
+        await fetchUsers()
+        setIsCreateDialogOpen(false)
+        resetForm()
+      } catch (error) {
+        console.error("Failed to create user:", error)
       }
-      
-      await apiClient.createUser(createData)
-      await fetchUsers()
-      setIsCreateDialogOpen(false)
-      resetForm()
-    } catch (error) {
-      console.error("Failed to create user:", error)
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   const handleUpdateUser = async () => {
     if (!selectedUser) return
-    
-    setIsSubmitting(true)
-    try {
-      const updateData: Partial<User> = {
-        displayName: formData.displayName,
-        role: formData.role,
-        phone: formData.phone || null,
-        active: formData.active
+
+    return withActionLoading('update-user', async () => {
+      try {
+        const updateData: Partial<User> = {
+          displayName: formData.displayName,
+          role: formData.role,
+          phone: formData.phone || null,
+          active: formData.active
+        }
+
+        await apiClient.updateUser(selectedUser.id, updateData)
+        await fetchUsers()
+        setIsEditDialogOpen(false)
+        resetForm()
+      } catch (error) {
+        console.error("Failed to update user:", error)
       }
-      
-      await apiClient.updateUser(selectedUser.id, updateData)
-      await fetchUsers()
-      setIsEditDialogOpen(false)
-      resetForm()
-    } catch (error) {
-      console.error("Failed to update user:", error)
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return
-    
-    setIsSubmitting(true)
-    try {
-      await apiClient.deleteUser(selectedUser.id)
-      await fetchUsers()
-      setIsDeleteDialogOpen(false)
-      setSelectedUser(null)
-    } catch (error) {
-      console.error("Failed to delete user:", error)
-    } finally {
-      setIsSubmitting(false)
-    }
+
+    return withActionLoading('delete-user', async () => {
+      try {
+        await apiClient.deleteUser(selectedUser.id)
+        await fetchUsers()
+        setIsDeleteDialogOpen(false)
+        setSelectedUser(null)
+      } catch (error) {
+        console.error("Failed to delete user:", error)
+      }
+    })
   }
 
   const openEditDialog = (user: User) => {
@@ -177,9 +177,9 @@ export default function UsersPage() {
   )
 
   return (
-    <>
+    <PageLoading page="users">
       <PageHeader title="用户管理" />
-      
+
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">User Management</h1>
@@ -438,9 +438,12 @@ export default function UsersPage() {
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateUser} disabled={isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create User"}
-                </Button>
+                <LoadingButton
+                  loading={createLoading.loading}
+                  onClick={handleCreateUser}
+                >
+                  Create User
+                </LoadingButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -524,9 +527,12 @@ export default function UsersPage() {
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpdateUser} disabled={isSubmitting}>
-                  {isSubmitting ? "Updating..." : "Update User"}
-                </Button>
+                <LoadingButton
+                  loading={updateLoading.loading}
+                  onClick={handleUpdateUser}
+                >
+                  Update User
+                </LoadingButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -551,13 +557,17 @@ export default function UsersPage() {
                 <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={handleDeleteUser} disabled={isSubmitting}>
-                  {isSubmitting ? "Deleting..." : "Delete User"}
-                </Button>
+                <LoadingButton
+                  loading={deleteLoading.loading}
+                  variant="destructive"
+                  onClick={handleDeleteUser}
+                >
+                  Delete User
+                </LoadingButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
-    </>
+    </PageLoading>
   )
 }
