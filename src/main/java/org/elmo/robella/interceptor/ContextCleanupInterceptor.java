@@ -8,14 +8,16 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.elmo.robella.context.RequestContextHolder;
 import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 
 @Component
 @Slf4j
 public class ContextCleanupInterceptor implements HandlerInterceptor {
 
+
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-                              @NonNull Object handler, Exception ex) throws Exception {
+                              @NonNull Object handler, @Nullable Exception ex) throws Exception {
         RequestContextHolder.clear();
         log.debug("ThreadLocal context cleared for request: {}", request.getRequestURI());
     }

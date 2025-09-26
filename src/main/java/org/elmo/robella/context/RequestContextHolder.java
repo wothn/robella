@@ -14,7 +14,12 @@ public class RequestContextHolder {
     }
 
     public static RequestContext getContext() {
-        return contextHolder.get();
+        RequestContext context = contextHolder.get();
+        if (context == null) {
+            context = RequestContext.builder().build();
+            contextHolder.set(context);
+        }
+        return context;
     }
 
     public static void clear() {

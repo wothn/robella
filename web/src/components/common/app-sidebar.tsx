@@ -18,10 +18,9 @@ import {
   Home,
 } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
+import { NavMain } from "@/components/common/nav-main"
+import { NavSecondary } from "@/components/common/nav-secondary"
+import { NavUser } from "@/components/common/nav-user"
 import {
   Sidebar,
   SidebarContent,

@@ -2,17 +2,15 @@ package org.elmo.robella.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.elmo.robella.model.dto.AuthTokens;
 import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.request.UserProfileUpdateRequest;
 import org.elmo.robella.model.request.UserCreateRequest;
 import org.elmo.robella.model.request.UserUpdateRequest;
-import org.elmo.robella.model.response.LoginResponse;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.mapper.UserMapper;
-import org.elmo.robella.util.JwtUtil;
+import cn.dev33.satoken.stp.StpUtil;
 import org.elmo.robella.common.ErrorCodeConstants;
 import org.elmo.robella.exception.*;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +27,6 @@ import java.util.List;
 @Slf4j
 public class UserService extends ServiceImpl<UserMapper, User> {
 
-    private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -54,7 +51,20 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         user.setCreatedAt(OffsetDateTime.now());
         user.setUpdatedAt(OffsetDateTime.now());
 
-        save(user);
+        try {
+            save(user);
+        } catch (Exception e) {
+            // 处理并发插入导致的唯一约束冲突
+            if (existsByUsername(user.getUsername())) {
+                throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Username already exists!");
+            }
+            if (existsByEmail(user.getEmail())) {
+                throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Email already exists!");
+            }
+            // 如果不是唯一约束冲突，重新抛出异常
+            throw e;
+        }
+        
         UserResponse response = convertToResponse(user);
         log.info("用户创建成功: {}", response.getUsername());
         return response;
@@ -72,10 +82,11 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     public UserResponse getUserById(Long id) {
         User user = getById(id);
         if (user == null) {
-            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + id);
+            throw new ResourceNotFoundException(ErrorCodeConstants.USER_NOT_FOUND, "User not found");
         }
         return convertToResponse(user);
     }
+
 
     public UserResponse getUserByUsername(String username) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
@@ -94,23 +105,6 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + id);
         }
 
-        // 检查用户名和邮箱冲突
-        if (request.getUsername() != null && existsByUsername(request.getUsername())) {
-            LambdaQueryWrapper<User> checkWrapper = new LambdaQueryWrapper<>();
-            checkWrapper.eq(User::getUsername, request.getUsername()).ne(User::getId, id);
-            if (count(checkWrapper) > 0) {
-                throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Username already exists: " + request.getUsername());
-            }
-        }
-
-        if (request.getEmail() != null && existsByEmail(request.getEmail())) {
-            LambdaQueryWrapper<User> checkWrapper = new LambdaQueryWrapper<>();
-            checkWrapper.eq(User::getEmail, request.getEmail()).ne(User::getId, id);
-            if (count(checkWrapper) > 0) {
-                throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Email already exists: " + request.getEmail());
-            }
-        }
-
         // 构建更新条件
         LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
         updateWrapper.eq(User::getId, id);
@@ -118,13 +112,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         // 构建更新内容
         User updateUser = new User();
         updateUser.setId(id); // 设置ID用于条件更新
-
-        if (request.getUsername() != null) {
-            updateUser.setUsername(request.getUsername());
-        }
-        if (request.getEmail() != null) {
-            updateUser.setEmail(request.getEmail());
-        }
+        
         if (request.getDisplayName() != null) {
             updateUser.setDisplayName(request.getDisplayName());
         }
@@ -138,6 +126,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         updateUser.setUpdatedAt(OffsetDateTime.now());
 
         update(updateUser, updateWrapper);
+        
         User updatedUser = getById(id);
         UserResponse response = convertToResponse(updatedUser);
         log.info("用户更新成功: {}", response.getUsername());
@@ -217,7 +206,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     }
 
     @Transactional
-    public AuthTokens login(LoginRequest loginRequest) {
+    public void login(LoginRequest loginRequest) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, loginRequest.getUsername());
         User user = getOne(queryWrapper);
@@ -242,37 +231,9 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
         update(updateUser, updateWrapper);
 
-        String accessToken = jwtUtil.generateAccessToken(user);
-        String refreshToken = jwtUtil.generateRefreshToken(user);
-        return createAuthTokens(accessToken, refreshToken);
-    }
+        // 使用 Sa-Token 进行登录
+        StpUtil.login(user.getId());
 
-    public LoginResponse refreshToken(String refreshToken) {
-        if (!jwtUtil.validateToken(refreshToken)) {
-            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "Refresh token is invalid");
-        }
-
-        String username = jwtUtil.extractUsername(refreshToken);
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getUsername, username);
-        User user = getOne(queryWrapper);
-        if (user == null) {
-            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found");
-        }
-
-        if (!user.getActive()) {
-            throw new BusinessException(ErrorCodeConstants.ACCOUNT_DISABLED, "User account is disabled: " + user.getUsername());
-        }
-
-        String newAccessToken = jwtUtil.generateAccessToken(user);
-        return new LoginResponse(newAccessToken);
-    }
-
-    private AuthTokens createAuthTokens(String accessToken, String refreshToken) {
-        AuthTokens tokens = new AuthTokens();
-        tokens.setAccessToken(accessToken);
-        tokens.setRefreshToken(refreshToken);
-        return tokens;
     }
 
     public UserResponse convertToResponse(User user) {
@@ -319,37 +280,14 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new BusinessException(ErrorCodeConstants.ACCOUNT_DISABLED, "User account is disabled: " + existingUser.getUsername());
         }
 
-        // 检查用户名和邮箱冲突（排除当前用户）
-        if (updateRequest.getUsername() != null && !updateRequest.getUsername().equals(existingUser.getUsername())) {
-            LambdaQueryWrapper<User> checkWrapper = new LambdaQueryWrapper<>();
-            checkWrapper.eq(User::getUsername, updateRequest.getUsername()).ne(User::getId, existingUser.getId());
-            if (count(checkWrapper) > 0) {
-                throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Username already exists!");
-            }
-        }
-
-        if (updateRequest.getEmail() != null && !updateRequest.getEmail().equals(existingUser.getEmail())) {
-            LambdaQueryWrapper<User> checkWrapper = new LambdaQueryWrapper<>();
-            checkWrapper.eq(User::getEmail, updateRequest.getEmail()).ne(User::getId, existingUser.getId());
-            if (count(checkWrapper) > 0) {
-                throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Email already exists!");
-            }
-        }
-
         // 构建更新条件
         LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
-        updateWrapper.eq(User::getUsername, existingUser.getUsername());
+        updateWrapper.eq(User::getId, userId);
 
         // 构建更新内容
         User updateUser = new User();
         updateUser.setId(existingUser.getId());
-
-        if (updateRequest.getUsername() != null) {
-            updateUser.setUsername(updateRequest.getUsername());
-        }
-        if (updateRequest.getEmail() != null) {
-            updateUser.setEmail(updateRequest.getEmail());
-        }
+        
         if (updateRequest.getDisplayName() != null) {
             updateUser.setDisplayName(updateRequest.getDisplayName());
         }
@@ -358,8 +296,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         }
 
         // 只要有任何更新就设置更新时间
-        if (updateRequest.getUsername() != null || updateRequest.getEmail() != null ||
-            updateRequest.getDisplayName() != null || updateRequest.getAvatar() != null) {
+        if (updateRequest.getDisplayName() != null || updateRequest.getAvatar() != null) {
             updateUser.setUpdatedAt(OffsetDateTime.now());
         }
 

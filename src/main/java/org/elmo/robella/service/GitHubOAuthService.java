@@ -7,10 +7,16 @@ import org.elmo.robella.model.dto.GitHubUserInfo;
 import org.elmo.robella.model.dto.GithubAccessTokenResponse;
 import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.common.Role;
+import org.elmo.robella.common.ErrorCodeConstants;
+import org.elmo.robella.exception.ApiException;
+import org.elmo.robella.exception.BusinessException;
 import org.elmo.robella.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+
+import cn.dev33.satoken.stp.StpUtil;
+
 import org.elmo.robella.util.JsonUtils;
-import org.elmo.robella.util.JwtUtil;
+
 import org.elmo.robella.util.OkHttpUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -30,7 +36,7 @@ public class GitHubOAuthService {
     
     private final Map<String, String> stateStore = new ConcurrentHashMap<>();
     private final UserMapper userMapper;
-    private final JwtUtil jwtUtil;
+    
     private final OkHttpUtils okHttpUtils;
     private final JsonUtils jsonUtils;
 
@@ -63,7 +69,7 @@ public class GitHubOAuthService {
                 authUrl, clientId, redirectUri, scope, state);
     }
 
-    public String handleOAuthCallback(String code, String state) {
+    public void handleOAuthCallback(String code, String state) {
         if (!validateState(state)) {
             throw new IllegalArgumentException("Invalid or expired state parameter");
         }
@@ -73,16 +79,15 @@ public class GitHubOAuthService {
             String accessToken = getAccessToken(code, state);
             GitHubUserInfo userInfo = getUserInfo(accessToken);
 
-            String refreshToken = processGitHubUser(userInfo);
+            processGitHubUser(userInfo);
             log.info("GitHub OAuth login successful");
-            return refreshToken;
         } catch (Exception e) {
             log.error("GitHub OAuth login failed: {}", e.getMessage());
-            throw new RuntimeException("GitHub OAuth login failed", e);
+            throw new ApiException(ErrorCodeConstants.INTERNAL_ERROR, "GitHub OAuth login failed");
         }
     }
 
-    private String processGitHubUser(GitHubUserInfo userInfo) throws IOException {
+    private void processGitHubUser(GitHubUserInfo userInfo) throws IOException {
         String githubId = String.valueOf(userInfo.getId());
         String username = userInfo.getLogin();
         String email = userInfo.getEmail();
@@ -116,9 +121,10 @@ public class GitHubOAuthService {
 
         user.setLastLoginAt(OffsetDateTime.now());
         userMapper.updateById(user);
-        String refreshToken = jwtUtil.generateRefreshToken(user);
+        
+        // 使用Sa-Token登录
+        StpUtil.login(user.getId());
 
-        return refreshToken;
     }
 
     private boolean validateState(String state) {

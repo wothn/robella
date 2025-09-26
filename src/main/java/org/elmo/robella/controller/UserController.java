@@ -1,8 +1,6 @@
 package org.elmo.robella.controller;
 
 import org.elmo.robella.annotation.RequiredRole;
-import org.elmo.robella.common.ErrorCodeConstants;
-import org.elmo.robella.exception.BusinessException;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
 import org.elmo.robella.model.request.UserCreateRequest;
@@ -12,14 +10,15 @@ import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.util.SaResult;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
-import jakarta.servlet.http.Cookie;
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,92 +31,56 @@ public class UserController {
 
     @PostMapping
     @RequiredRole(Role.ADMIN)
-    public UserResponse createUser(@Valid @RequestBody UserCreateRequest request) {
-        return userService.createUser(request);
+    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserCreateRequest request) {
+        return ResponseEntity.ok(userService.createUser(request));
     }
 
     @GetMapping
     @RequiredRole(Role.ADMIN)
-    public List<UserResponse> getUsers(@RequestParam(required = false) Boolean active) {
-        return userService.getUsers(active);
+    public ResponseEntity<List<UserResponse>> getUsers(@RequestParam(required = false) Boolean active) {
+        return ResponseEntity.ok(userService.getUsers(active));
     }
 
     @GetMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public UserResponse getUserById(@PathVariable @NotNull Long id) {
-        return userService.getUserById(id);
+    public ResponseEntity<UserResponse> getUserById(@PathVariable @NotNull Long id) {
+        return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @PutMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public UserResponse updateUser(
+    public ResponseEntity<UserResponse> updateUser(
             @PathVariable @NotNull Long id,
             @Valid @RequestBody UserUpdateRequest request) {
-        return userService.updateUser(id, request);
+        return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
     @PutMapping("/{id}/active")
     @RequiredRole(Role.ADMIN)
-    public UserResponse setUserActive(
+    public ResponseEntity<UserResponse> setUserActive(
             @PathVariable @NotNull Long id,
             @RequestParam Boolean active) {
-        return userService.setUserActive(id, active);
+        return ResponseEntity.ok(userService.setUserActive(id, active));
     }
 
     @DeleteMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public void deleteUser(@PathVariable @NotNull Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable @NotNull Long id) {
         userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/login")
-    public LoginResponse login(
-            @Valid @RequestBody LoginRequest loginRequest,
-            HttpServletResponse response) {
-        var tokens = userService.login(loginRequest);
+    public ResponseEntity<SaResult> login(
+            @Valid @RequestBody LoginRequest loginRequest) {
+        userService.login(loginRequest);
 
-        // Set refreshToken in HttpOnly cookie
-        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("refreshToken", tokens.getRefreshToken());
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
-        cookie.setPath("/");
-        cookie.setMaxAge(30 * 24 * 60 * 60); // 30 days
-        response.addCookie(cookie);
-
-        // Return response with accessToken only
-        return new LoginResponse(tokens.getAccessToken());
-    }
-
-    @PostMapping("/refresh")
-    public LoginResponse refreshToken(
-            @CookieValue(value = "refreshToken", required = false) String refreshToken,
-            HttpServletResponse response) {
-
-        if (refreshToken == null) {
-            throw new BusinessException(ErrorCodeConstants.UNAUTHORIZED, "Refresh token is required");
-        }
-
-        LoginResponse loginResponse = userService.refreshToken(refreshToken);
-
-        Cookie cookie = new Cookie("refreshToken", refreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
-        cookie.setPath("/");
-        cookie.setMaxAge(30 * 24 * 60 * 60); // 30 days
-        response.addCookie(cookie);
-
-        // Return response with accessToken only
-        return new LoginResponse(loginResponse.getAccessToken());
+        return ResponseEntity.ok(SaResult.ok("登录成功"));
     }
 
     @PostMapping("/logout")
-    public void logout(HttpServletResponse response) {
-        // Clear refreshToken cookie by setting maxAge to -1
-        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("refreshToken", "");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
-        cookie.setPath("/");
-        cookie.setMaxAge(-1);
-        response.addCookie(cookie);
+    public ResponseEntity<SaResult> logout() {
+        StpUtil.logout();
+        return ResponseEntity.ok(SaResult.ok("退出成功"));
     }
 }

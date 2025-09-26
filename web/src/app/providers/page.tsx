@@ -6,8 +6,8 @@ import { Provider } from '@/types'
 import { PageHeader } from "@/components/layout/page-header"
 import { Settings } from 'lucide-react'
 import { useProviders } from '@/hooks/use-providers'
-import { ErrorHandler } from '@/components/error-handler'
-import { LoadingState } from '@/components/loading-state'
+import { ErrorHandler } from '@/components/common/error-handler'
+import { LoadingState } from '@/components/common/loading-state'
 import {
   ProviderList,
   ProviderDetails,

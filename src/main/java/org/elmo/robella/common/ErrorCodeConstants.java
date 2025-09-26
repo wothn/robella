@@ -22,6 +22,7 @@ public final class ErrorCodeConstants {
     public static final String QUOTA_EXCEEDED = "20008";
     public static final String UNSUPPORTED_OPERATION = "20009";
     public static final String INVALID_API_KEY = "20010";
+    public static final String USER_NOT_FOUND = "20011";
     
     // API调用错误码 (30000-30999)
     public static final String PROVIDER_ERROR = "30001";
