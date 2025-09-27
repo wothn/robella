@@ -26,12 +26,9 @@ export const useAuthSuccess = () => {
       try {
         console.log('Auth success - Starting authentication process')
 
-        // Try to refresh token using cookie
+        // Get current user using existing session
         try {
-          console.log('Auth success - Attempting token refresh using cookie')
-          const refreshResponse = await apiClient.refreshToken()
-          console.log('Auth success - Token refresh successful')
-
+          console.log('Auth success - Getting current user with existing session')
           const currentUser = await apiClient.getCurrentUser()
           updateUser(currentUser)
           console.log('Auth success - User loaded, redirecting in 3 seconds')
@@ -40,8 +37,8 @@ export const useAuthSuccess = () => {
           setTimeout(() => {
             navigate('/', { replace: true })
           }, 3000)
-        } catch (refreshErr) {
-          throw new Error('Failed to refresh token using cookie')
+        } catch (userErr) {
+          throw new Error('Failed to get current user')
         }
       } catch (err) {
         console.error('Auth success failed:', err)

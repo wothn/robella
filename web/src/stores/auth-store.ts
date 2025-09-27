@@ -23,7 +23,7 @@ export const useAuthStore = create<AuthState>()(
         validateSession: async (): Promise<boolean> => {
           return withGlobalLoading(async () => {
             try {
-              const currentUser = await apiClient.getCurrentUser()
+              const currentUser = await apiClient.getCurrentUser(true)
               set({ user: currentUser })
               return true
             } catch (error) {

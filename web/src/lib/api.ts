@@ -120,8 +120,8 @@ class ApiClient {
   }
 
   // 获取当前用户信息
-  async getCurrentUser(): Promise<User> {
-    return this.get('/profile')
+  async getCurrentUser(skipAuthRedirect: boolean = false): Promise<User> {
+    return this.request('/profile', { method: 'GET' }, skipAuthRedirect)
   }
 
   // 创建用户 (管理员)

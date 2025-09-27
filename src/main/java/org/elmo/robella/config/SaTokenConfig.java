@@ -1,8 +1,9 @@
 package org.elmo.robella.config;
 
 import cn.dev33.satoken.interceptor.SaInterceptor;
-import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpUtil;
+
+import java.util.UUID;
 
 import org.elmo.robella.context.RequestContextHolder;
 import org.elmo.robella.context.RequestContextHolder.RequestContext;
@@ -26,6 +27,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
         registry.addInterceptor(new SaInterceptor(handler -> {
             StpUtil.checkLogin();
             RequestContext requestContext = RequestContextHolder.getContext();
+            requestContext.setRequestId(UUID.randomUUID().toString());
+            requestContext.setUserId(StpUtil.getLoginIdAsLong());
             requestContext.setRole(StpUtil.getRoleList().getFirst());
         }).isAnnotation(false)  // 指定关闭掉注解鉴权能力，这样框架就只会做路由拦截校验了 
         ).addPathPatterns("/**")
@@ -34,7 +37,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/users/register",
                         "/api/users/refresh",
                         "/api/health",
-                        "/api/oauth/github",
+                        "/api/oauth/github/**",
                         "/actuator/**",
                         "/webjars/**",
                         "/swagger-ui/**",

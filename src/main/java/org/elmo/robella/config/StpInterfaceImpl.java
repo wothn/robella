@@ -33,7 +33,14 @@ public class StpInterfaceImpl implements StpInterface {
     @Override
     public List<String> getRoleList(Object loginId, String loginType) {
         // 根据loginId查询用户角色
-        Long userId = (Long) loginId;
+        Long userId;
+        if (loginId instanceof Long) {
+            userId = (Long) loginId;
+        } else if (loginId instanceof String) {
+            userId = Long.parseLong((String) loginId);
+        } else {
+            throw new IllegalArgumentException("Unsupported loginId type: " + loginId.getClass().getName());
+        }
         var user = userService.getUserById(userId);
         List<String> roles = new ArrayList<>();
         if (user != null && user.getRole() != null) {

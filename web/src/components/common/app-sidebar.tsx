@@ -68,20 +68,6 @@ const data = {
       title: "Models",
       url: "/models",
       icon: Bot,
-      items: [
-        {
-          title: "All Models",
-          url: "/models",
-        },
-        {
-          title: "Model Capabilities",
-          url: "/models/capabilities",
-        },
-        {
-          title: "Model Vendors",
-          url: "/models/vendors",
-        },
-      ],
     },
     {
       title: "Documentation",
@@ -110,50 +96,16 @@ const data = {
       title: "Users",
       url: "/users",
       icon: Users,
-      items: [
-        {
-          title: "All Users",
-          url: "/users",
-        },
-        {
-          title: "User Roles",
-          url: "/users/roles",
-        },
-        {
-          title: "User Permissions",
-          url: "/users/permissions",
-        },
-      ],
     },
     {
       title: "Providers",
       url: "/providers",
       icon: Server,
-      items: [
-        {
-          title: "All Providers",
-          url: "/providers",
-        },
-        {
-          title: "Provider Types",
-          url: "/providers/types",
-        },
-        {
-          title: "Provider Models",
-          url: "/providers/models",
-        },
-      ],
     },
     {
       title: "API Keys",
       url: "/apikeys",
       icon: Key,
-      items: [
-        {
-          title: "Manage API Keys",
-          url: "/apikeys",
-        },
-      ],
     },
     {
       title: "Settings",
