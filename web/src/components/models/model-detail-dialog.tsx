@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { api } from '@/lib/api'
+import { formatCurrency } from '@/lib/formatters'
 import type { Model, ModelCapability } from '@/types/model'
 import type { VendorModel } from '@/types/vendor-model'
 import type { Provider } from '@/types/provider'
@@ -322,7 +323,7 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
                                 <div className="flex items-center gap-1">
                                   <DollarSign className="h-3 w-3" />
                                   <span className="text-xs text-muted-foreground">
-                                    输入: {vendorModel.inputPerMillionTokens} {vendorModel.currency || 'USD'}
+                                    输入: {formatCurrency(parseFloat(vendorModel.inputPerMillionTokens), vendorModel.currency || 'USD')}
                                   </span>
                                 </div>
                               )}
@@ -330,7 +331,7 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
                                 <div className="flex items-center gap-1">
                                   <DollarSign className="h-3 w-3" />
                                   <span className="text-xs text-muted-foreground">
-                                    输出: {vendorModel.outputPerMillionTokens} {vendorModel.currency || 'USD'}
+                                    输出: {formatCurrency(parseFloat(vendorModel.outputPerMillionTokens), vendorModel.currency || 'USD')}
                                   </span>
                                 </div>
                               )}

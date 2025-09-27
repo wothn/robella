@@ -149,7 +149,7 @@ export function VendorModelsList({
     if (!price) return null
     const numPrice = parseFloat(price)
     if (isNaN(numPrice)) return null
-    return `${formatCurrency(numPrice)} ${currency}/1M`
+    return `${formatCurrency(numPrice, currency)} /1M`
   }
 
   const formatWeight = (weight: string | undefined) => {

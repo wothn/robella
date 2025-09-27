@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { useProviders } from '@/hooks/use-providers'
 import { api } from '@/lib/api'
+import { formatCurrency } from '@/lib/formatters'
 import type { Model } from '@/types/model'
 import type { Provider } from '@/types/provider'
 import type { VendorModel } from '@/types/vendor-model'
@@ -289,7 +290,12 @@ export function ModelConfigDialog({
                                   )}
                                   {vendorModel.inputPerMillionTokens && (
                                     <p className="text-xs text-muted-foreground mt-1">
-                                      输入: {vendorModel.inputPerMillionTokens} {vendorModel.currency || 'USD'}/1M tokens
+                                      输入: {formatCurrency(parseFloat(vendorModel.inputPerMillionTokens), vendorModel.currency || 'USD')} /1M tokens
+                                    </p>
+                                  )}
+                                  {vendorModel.outputPerMillionTokens && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      输出: {formatCurrency(parseFloat(vendorModel.outputPerMillionTokens), vendorModel.currency || 'USD')} /1M tokens
                                     </p>
                                   )}
                                 </div>
