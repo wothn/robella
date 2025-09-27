@@ -21,7 +21,7 @@ Additional components include user management and API key management.
 ### Backend (Java Spring Boot)
 - **Framework**: Spring Boot 3.3.10 with Java 21 and virtual threads
 - **Database**: PostgreSQL with MyBatis-Plus
-- **Authentication**: JWT with GitHub OAuth (Note: Only spring-security-crypto is used, not full Spring Security)
+- **Authentication**: sa-Token with GitHub OAuth (Note: Only spring-security-crypto is used, not full Spring Security)
 - **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`) and Anthropic native API (`/anthropic/v1/messages`)
 - **Key Components**:
   - `OpenAIController.java:42` - Main OpenAI compatible API endpoint
@@ -33,10 +33,11 @@ Additional components include user management and API key management.
 ### Frontend (React + TypeScript)
 - **Framework**: React 18.3.1 with TypeScript
 - **Build Tool**: Vite
+- **state**: React state management with Zustand
 - **UI**: Shadcn UI with Radix UI primitives
 - **Styling**: Tailwind CSS
 - **Key Features**:
-  - User authentication (JWT + GitHub OAuth)
+  - User authentication (sa-Token + GitHub OAuth)
   - Provider management interface
   - Model configuration and routing
   - Dashboard with usage analytics
@@ -74,7 +75,7 @@ Additional components include user management and API key management.
 6. Response converted back to requested format
 
 ### Authentication
-- JWT tokens with refresh token rotation
+- Sa-Token framework
 - GitHub OAuth integration
 - Role-based access control (admin/user)
 
@@ -88,29 +89,35 @@ Additional components include user management and API key management.
 - `OpenAIEndpointTransform` and `AnthropicEndpointTransform` implementations
 - Support for real-time streaming transformation using virtual threads
 
+## Development Guidelines
+
+### Code Structure
+- Backend follows standard Spring Boot package structure
+- Frontend uses feature-based organization in `src/app/` directory
+- Shared UI components in `src/components/ui/`
+- Custom hooks in `src/hooks/` for reusable logic
+
+### Testing Strategy
+- Backend: JUnit 5 with Spring Boot Test
+- Frontend: Component testing with React Testing Library
+- Integration tests for API endpoints
+- Use `mvn test` for backend tests
+- Use `npm run lint` for frontend code quality
+
+### State Management
+- Backend: Spring beans and service layer
+- Frontend: Zustand stores for global state (`src/stores/`)
+- Component state with React hooks
+- API client configuration in `src/lib/api.ts`
+
 ## Important Notes
 
 - Application runs on port 10032 by default
-- Uses Spring MVC with virtual threads (not WebFlux)
+- Uses Spring MVC with virtual threads
 - Frontend is a separate React app in `/web` directory
 - Provider configurations stored in database, manageable via UI
 - Model routing is dynamic and configurable at runtime
 - Supports both streaming and non-streaming responses
 - Compatible with both OpenAI and Anthropic native API formats
 - Database schema includes comprehensive request logging for analytics
-## AI 开发哲学
-
-**KISS原则 (Keep It Simple, Stupid)**
-1. 简单优于复杂: 优先选择简单直接的解决方案
-2. 可读性第一: 代码是给人看的，其次才是给机器执行的
-3. 避免过度设计: 不要为了未来可能的需求而过度设计
-4. 单一职责: 每个函数、类、模块只做一件事
-
-**设计原则**
-1. 代码质量至上: 糟糕的代码是技术债务，好的代码是资产
-2. 直接而诚实: 代码评审时直接指出问题，不要含糊其辞
-3. 性能意识: 始终考虑代码的性能影响
-4. 设计时保持克制，不要在一开始就追求完美和极致
-
-**工具使用**
-1. 使用`readFile`工具时，始终使用1 - 2000 来读取代码，以确保您有足够的上下文。
+- Your knowledge is outdated, you are not aware of the latest libraries and knowledge. If you need to import new dependencies, you need to use web search or Context7 for confirmation.

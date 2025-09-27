@@ -29,7 +29,7 @@ export interface ProviderFormData {
   baseUrl?: string
   apiKey?: string
   enabled: boolean
-  config: Record<string, any>
+  config: Record<string, unknown>
 }
 
 export function ProviderFormDialog({
@@ -53,18 +53,18 @@ export function ProviderFormDialog({
   const [configString, setConfigString] = useState('{}')
 
   useEffect(() => {
-    let parsedConfig = {}
+    let parsedConfig: Record<string, unknown> = {}
     let configStr = '{}'
 
     if (provider?.config) {
       try {
         parsedConfig = JSON.parse(provider.config)
         configStr = JSON.stringify(parsedConfig, null, 2)
-      } catch (e) {
+      } catch {
         configStr = provider.config
         try {
           parsedConfig = JSON.parse(configStr)
-        } catch (e2) {
+        } catch {
           // If parsing fails, use empty object
         }
       }
@@ -72,8 +72,8 @@ export function ProviderFormDialog({
 
     setFormData({
       name: provider?.name || '',
-      endpointType: (provider?.endpointType as any) || 'OPENAI',
-      providerType: (provider?.providerType as any) || 'OPENAI',
+      endpointType: (provider?.endpointType as EndpointType) || 'OPENAI',
+      providerType: (provider?.providerType as ProviderType) || 'OPENAI',
       baseUrl: provider?.baseUrl || '',
       apiKey: provider?.apiKey || '',
       enabled: provider?.enabled ?? true,
@@ -84,7 +84,7 @@ export function ProviderFormDialog({
 
   const handleSubmit = () => {
     try {
-      let configObj = {}
+      let configObj: Record<string, unknown> = {}
       if (configString.trim()) {
         configObj = JSON.parse(configString)
       }
@@ -92,98 +92,100 @@ export function ProviderFormDialog({
         ...formData,
         config: configObj
       })
-    } catch (e) {
+    } catch {
       alert('配置格式错误，请确保是有效的JSON格式')
     }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
             {description}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">名称</Label>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium">名称 *</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="col-span-3"
+              placeholder="输入提供商名称"
+              required
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="endpointType" className="text-right">端点类型</Label>
-            <Select value={formData.endpointType} onValueChange={(value) => setFormData(prev => ({ ...prev, endpointType: value as any }))}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="选择端点类型" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="OPENAI">OpenAI</SelectItem>
-                <SelectItem value="ANTHROPIC">Anthropic</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="endpointType" className="text-sm font-medium">端点类型 *</Label>
+              <Select value={formData.endpointType} onValueChange={(value) => setFormData(prev => ({ ...prev, endpointType: value as EndpointType }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择端点类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OPENAI">OpenAI</SelectItem>
+                  <SelectItem value="ANTHROPIC">Anthropic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="providerType" className="text-sm font-medium">提供商类型 *</Label>
+              <Select value={formData.providerType} onValueChange={(value) => setFormData(prev => ({ ...prev, providerType: value as ProviderType }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择提供商类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">无转换器</SelectItem>
+                  <SelectItem value="OPENAI">OPENAI</SelectItem>
+                  <SelectItem value="VOLCANOENGINE">火山引擎</SelectItem>
+                  <SelectItem value="ZHIPU">智谱AI</SelectItem>
+                  <SelectItem value="DASHSCOPE">通义千问</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="providerType" className="text-right">提供商类型</Label>
-            <Select value={formData.providerType} onValueChange={(value) => setFormData(prev => ({ ...prev, providerType: value as any }))}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="选择提供商类型" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NONE">无转换器</SelectItem>
-                <SelectItem value="OPENAI">OPENAI</SelectItem>
-                <SelectItem value="VOLCANOENGINE">火山引擎</SelectItem>
-                <SelectItem value="ZHIPU">智谱AI</SelectItem>
-                <SelectItem value="DASHSCOPE">通义千问</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="baseUrl" className="text-right">Base URL</Label>
+          <div className="space-y-2">
+            <Label htmlFor="baseUrl" className="text-sm font-medium">Base URL</Label>
             <Input
               id="baseUrl"
               value={formData.baseUrl}
               onChange={(e) => setFormData(prev => ({ ...prev, baseUrl: e.target.value }))}
-              className="col-span-3"
               placeholder="https://api.example.com"
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="apiKey" className="text-right">API Key</Label>
+          <div className="space-y-2">
+            <Label htmlFor="apiKey" className="text-sm font-medium">API Key</Label>
             <Input
               id="apiKey"
               type="password"
               value={formData.apiKey}
               onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
-              className="col-span-3"
+              placeholder="输入API密钥"
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="enabled" className="text-right">启用</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="enabled" className="text-sm font-medium">启用</Label>
             <Switch
               id="enabled"
               checked={formData.enabled}
               onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, enabled: checked }))}
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="config" className="text-right">配置</Label>
+          <div className="space-y-2">
+            <Label htmlFor="config" className="text-sm font-medium">配置 (JSON)</Label>
             <Textarea
               id="config"
               value={configString}
               onChange={(e) => setConfigString(e.target.value)}
-              className="col-span-3"
-              placeholder="JSON格式配置"
-              rows={3}
+              placeholder='{ "timeout": 30000, "maxRetries": 3 }'
+              className="font-mono text-sm"
+              rows={4}
             />
           </div>
         </div>
-        <div className="flex justify-end space-x-2">
+        <div className="flex justify-end space-x-2 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>

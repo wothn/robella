@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Provider, VendorModel } from '@/types'
+import { Provider, VendorModel, CreateVendorModelRequest, UpdateVendorModelRequest } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VendorModelModal } from '@/components/providers/vendor-model-modal'
 import { apiClient } from '@/lib/api'
@@ -39,7 +39,8 @@ export function ProviderDetails({
   onVendorModelsChange
 }: ProviderDetailsProps) {
   const [deleteModelId, setDeleteModelId] = useState<number | null>(null)
-  const handleCreateVendorModel = async (data: any) => {
+  
+  const handleCreateVendorModel = async (data: CreateVendorModelRequest) => {
     try {
       await apiClient.createVendorModel(provider.id, data)
       onVendorModelsChange()
@@ -48,7 +49,7 @@ export function ProviderDetails({
     }
   }
 
-  const handleUpdateVendorModel = async (modelId: number, data: any) => {
+  const handleUpdateVendorModel = async (modelId: number, data: UpdateVendorModelRequest) => {
     try {
       await apiClient.updateVendorModel(modelId, data)
       onVendorModelsChange()
@@ -56,6 +57,13 @@ export function ProviderDetails({
       console.error('Failed to update vendor model:', error)
     }
   }
+
+  const handleCreateVendorModelWrapper = (data: CreateVendorModelRequest | UpdateVendorModelRequest) => {
+    // When creating a new vendor model, we only expect CreateVendorModelRequest
+    if (!('id' in data) || !data.id) {
+      handleCreateVendorModel(data as CreateVendorModelRequest);
+    }
+  };
 
   const handleDeleteVendorModel = async () => {
     if (!deleteModelId) return
@@ -71,7 +79,7 @@ export function ProviderDetails({
   return (
     <div className="flex-1 overflow-hidden">
       <ScrollArea className="h-full">
-        <div className="p-6 pr-4">
+        <div className="p-6">
           <ProviderBasicInfo
             provider={provider}
             onEdit={() => onEdit(provider)}
@@ -79,22 +87,24 @@ export function ProviderDetails({
           />
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList>
-              <TabsTrigger value="details">详细信息</TabsTrigger>
-              <TabsTrigger value="models">模型列表 ({vendorModels.length})</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="details" className="text-sm font-medium">详细信息</TabsTrigger>
+              <TabsTrigger value="models" className="text-sm font-medium">
+                模型列表 ({vendorModels.length})
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="details" className="space-y-6">
+            <TabsContent value="details" className="space-y-6 mt-6">
               <ProviderDetailsCard provider={provider} />
               <ProviderConfigCard provider={provider} />
             </TabsContent>
 
-            <TabsContent value="models" className="space-y-4">
+            <TabsContent value="models" className="space-y-6 mt-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Vendor Models</h3>
+                <h3 className="text-lg font-semibold">Vendor Models</h3>
                 <VendorModelModal
                   providerId={provider.id}
-                  onSubmit={handleCreateVendorModel}
+                  onSubmit={handleCreateVendorModelWrapper}
                 />
               </div>
 
@@ -120,7 +130,7 @@ export function ProviderDetails({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteVendorModel} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteVendorModel} className="bg-destructive hover:bg-destructive/90">
               删除
             </AlertDialogAction>
           </AlertDialogFooter>

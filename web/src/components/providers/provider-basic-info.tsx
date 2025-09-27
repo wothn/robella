@@ -16,17 +16,17 @@ interface ProviderBasicInfoProps {
 export function ProviderBasicInfo({ provider, onEdit, onDelete }: ProviderBasicInfoProps) {
   return (
     <div className="flex items-center justify-between mb-6">
-      <div>
-        <h1 className="text-2xl font-bold">{provider.name}</h1>
-        <p className="text-gray-500">{provider.endpointType} / {provider.providerType}</p>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">{provider.name}</h1>
+        <p className="text-sm text-muted-foreground">{provider.endpointType} • {provider.providerType}</p>
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onEdit}>
-          <Edit className="h-4 w-4 mr-1" />
+          <Edit className="h-4 w-4 mr-2" />
           编辑
         </Button>
         <Button variant="destructive" size="sm" onClick={() => onDelete(provider.id)}>
-          <Trash2 className="h-4 w-4 mr-1" />
+          <Trash2 className="h-4 w-4 mr-2" />
           删除
         </Button>
       </div>
@@ -42,31 +42,31 @@ export function ProviderDetailsCard({ provider }: ProviderDetailsCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>基本信息</CardTitle>
+        <CardTitle className="text-lg font-semibold">基本信息</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="text-sm font-medium">名称</Label>
-            <p className="text-sm text-gray-600">{provider.name}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">名称</Label>
+            <p className="text-sm font-medium">{provider.name}</p>
           </div>
-          <div>
-            <Label className="text-sm font-medium">端点类型</Label>
-            <p className="text-sm text-gray-600">{provider.endpointType}</p>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">端点类型</Label>
+            <p className="text-sm font-medium">{provider.endpointType}</p>
           </div>
-          <div>
-            <Label className="text-sm font-medium">提供商类型</Label>
-            <p className="text-sm text-gray-600">{provider.providerType}</p>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">提供商类型</Label>
+            <p className="text-sm font-medium">{provider.providerType}</p>
           </div>
-          <div>
-            <Label className="text-sm font-medium">状态</Label>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">状态</Label>
             <Badge variant={provider.enabled ? 'default' : 'secondary'}>
               {provider.enabled ? '启用' : '禁用'}
             </Badge>
           </div>
-          <div className="col-span-2">
-            <Label className="text-sm font-medium">Base URL</Label>
-            <p className="text-sm text-gray-600 break-all">{provider.baseUrl || '未设置'}</p>
+          <div className="space-y-2 md:col-span-2">
+            <Label className="text-sm font-medium text-muted-foreground">Base URL</Label>
+            <p className="text-sm font-medium break-all text-foreground">{provider.baseUrl || '未设置'}</p>
           </div>
         </div>
       </CardContent>
@@ -79,28 +79,27 @@ interface ProviderConfigCardProps {
 }
 
 export function ProviderConfigCard({ provider }: ProviderConfigCardProps) {
+  const formatConfig = (config: string) => {
+    try {
+      const parsed = JSON.parse(config);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return config;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>配置信息</CardTitle>
+        <CardTitle className="text-lg font-semibold">配置信息</CardTitle>
       </CardHeader>
       <CardContent>
-        {provider.config ? (() => {
-          try {
-            return (
-              <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-x-auto">
-                {JSON.stringify(JSON.parse(provider.config), null, 2)}
-              </pre>
-            )
-          } catch (e) {
-            return (
-              <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-x-auto">
-                {provider.config}
-              </pre>
-            )
-          }
-        })() : (
-          <p className="text-gray-500">无额外配置信息</p>
+        {provider.config ? (
+          <pre className="bg-muted p-4 rounded-md text-sm overflow-x-auto font-mono">
+            {formatConfig(provider.config)}
+          </pre>
+        ) : (
+          <p className="text-muted-foreground text-sm">无额外配置信息</p>
         )}
       </CardContent>
     </Card>

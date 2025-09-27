@@ -32,6 +32,7 @@ export function NavMain({
     }[]
   }[]
 }) {
+
   // 需要移除展开功能的菜单项
   const noCollapseItems = ['Models', 'Providers', 'Users', 'API Keys'];
 

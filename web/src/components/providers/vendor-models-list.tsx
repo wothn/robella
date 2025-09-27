@@ -1,6 +1,6 @@
 'use client'
 
-import { VendorModel } from '@/types'
+import { VendorModel, UpdateVendorModelRequest } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +10,7 @@ import { VendorModelModal } from '@/components/providers/vendor-model-modal'
 interface VendorModelsListProps {
   vendorModels: VendorModel[]
   providerId: number
-  onUpdateModel: (modelId: number, data: any) => Promise<void>
+  onUpdateModel: (modelId: number, data: UpdateVendorModelRequest) => Promise<void>
   onDeleteModel: (modelId: number) => void
 }
 

@@ -49,7 +49,7 @@ export default function ProvidersPage() {
     try {
       await createProvider(formData)
       setIsCreateDialogOpen(false)
-    } catch (error) {
+    } catch {
       // Error is handled by the hook
     }
   }
@@ -61,7 +61,7 @@ export default function ProvidersPage() {
       await updateProvider(editingProvider.id, formData)
       setIsCreateDialogOpen(false)
       setEditingProvider(null)
-    } catch (error) {
+    } catch {
       // Error is handled by the hook
     }
   }
@@ -72,7 +72,7 @@ export default function ProvidersPage() {
     try {
       await deleteProvider(deleteProviderId)
       setDeleteProviderId(null)
-    } catch (error) {
+    } catch {
       // Error is handled by the hook
     }
   }
@@ -97,8 +97,8 @@ export default function ProvidersPage() {
     <>
       <PageHeader title="Providers" />
       
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex h-[calc(100vh-8rem)]">
+      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
+        <div className="flex min-h-[calc(100vh-8rem)] rounded-lg border bg-card">
           <ProviderList
             providers={providers}
             selectedProvider={selectedProvider}
@@ -118,13 +118,17 @@ export default function ProvidersPage() {
               onVendorModelsChange={() => refreshVendorModels(selectedProvider.id)}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">选择一个 Provider</h3>
-                <p className="text-gray-500">
-                  从左侧列表中选择一个 Provider 查看详细信息
-                </p>
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center space-y-4">
+                <div className="mx-auto h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                  <Settings className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-semibold text-foreground">选择一个 Provider</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    从左侧列表中选择一个 Provider 查看详细信息和配置选项
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -155,7 +159,7 @@ export default function ProvidersPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteProvider} className="bg-red-600 hover:bg-red-700">
+              <AlertDialogAction onClick={handleDeleteProvider} className="bg-destructive hover:bg-destructive/90">
                 删除
               </AlertDialogAction>
             </AlertDialogFooter>
