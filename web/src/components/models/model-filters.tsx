@@ -7,29 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import type { ModelFilters as ModelFiltersType, ModelCapability } from '@/types/model'
-
-const capabilityOptions: { value: ModelCapability; label: string }[] = [
-  { value: 'TEXT', label: '文本处理' },
-  { value: 'VISION', label: '视觉理解' },
-  { value: 'REASONING', label: '推理分析' },
-  { value: 'FUNCTION_CALLING', label: '函数调用' },
-  { value: 'EMBEDDING', label: '向量嵌入' },
-  { value: 'WEB_SEARCH', label: '网络搜索' },
-  { value: 'RERANKING', label: '重排序' },
-]
-
-const organizationOptions = [
-  'OpenAI',
-  'Anthropic',
-  'Google',
-  'Meta',
-  'Microsoft',
-  'Cohere',
-  'Mistral',
-  'Hugging Face',
-  'Other'
-]
+import { CAPABILITY_OPTIONS, ORGANIZATION_OPTIONS } from '@/constants/model-constants'
+import type { ModelFilters as ModelFiltersType } from '@/types/model'
 
 interface ModelFiltersProps {
   filters: ModelFiltersType
@@ -44,7 +23,7 @@ export function ModelFilters({ filters, onFiltersChange, onClose }: ModelFilters
     setLocalFilters(filters)
   }, [filters])
 
-  const handleFilterChange = (key: keyof ModelFiltersType, value: any) => {
+  const handleFilterChange = (key: keyof ModelFiltersType, value: string | boolean | undefined) => {
     const newFilters = { ...localFilters, [key]: value }
     setLocalFilters(newFilters)
   }
@@ -112,7 +91,7 @@ export function ModelFilters({ filters, onFiltersChange, onClose }: ModelFilters
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">全部组织</SelectItem>
-              {organizationOptions.map((org) => (
+              {ORGANIZATION_OPTIONS.map((org) => (
                 <SelectItem key={org} value={org}>
                   {org}
                 </SelectItem>
@@ -133,7 +112,7 @@ export function ModelFilters({ filters, onFiltersChange, onClose }: ModelFilters
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">全部能力</SelectItem>
-              {capabilityOptions.map((capability) => (
+              {CAPABILITY_OPTIONS.map((capability) => (
                 <SelectItem key={capability.value} value={capability.value}>
                   {capability.label}
                 </SelectItem>
@@ -194,9 +173,9 @@ export function ModelFilters({ filters, onFiltersChange, onClose }: ModelFilters
               )}
               {localFilters.capability && (
                 <Badge variant="outline" className="gap-1">
-                  能力: {capabilityOptions.find(c => c.value === localFilters.capability)?.label}
-                  <X 
-                    className="h-3 w-3 cursor-pointer" 
+                  能力: {CAPABILITY_OPTIONS.find(c => c.value === localFilters.capability)?.label}
+                  <X
+                    className="h-3 w-3 cursor-pointer"
                     onClick={() => handleFilterChange('capability', undefined)}
                   />
                 </Badge>

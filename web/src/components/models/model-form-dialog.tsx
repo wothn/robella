@@ -27,27 +27,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useModels } from '@/hooks/use-models'
+import { MODEL_CAPABILITIES, CAPABILITY_NAMES } from '@/constants/model-constants'
 import type { Model, ModelCapability, CreateModelRequest, UpdateModelRequest } from '@/types/model'
-
-const modelCapabilities: ModelCapability[] = [
-  'TEXT',
-  'VISION',
-  'REASONING',
-  'FUNCTION_CALLING',
-  'EMBEDDING',
-  'WEB_SEARCH',
-  'RERANKING'
-]
-
-const capabilityNames: Record<ModelCapability, string> = {
-  TEXT: '文本处理',
-  VISION: '视觉理解',
-  REASONING: '推理分析',
-  FUNCTION_CALLING: '函数调用',
-  EMBEDDING: '向量嵌入',
-  WEB_SEARCH: '网络搜索',
-  RERANKING: '重排序'
-}
 
 const formSchema = z.object({
   name: z.string().min(1, '模型名称不能为空').max(100, '模型名称不能超过100个字符'),
@@ -294,7 +275,7 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
                       选择模型支持的能力类型
                     </FormDescription>
                     <div className="grid grid-cols-2 gap-3 mt-2">
-                      {modelCapabilities.map((capability) => {
+                      {MODEL_CAPABILITIES.map((capability) => {
                         const currentCapabilities = form.watch('capabilities') || []
                         const isChecked = currentCapabilities.includes(capability)
 
@@ -308,7 +289,7 @@ export function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelF
                               }
                             />
                             <Label htmlFor={capability} className="text-sm">
-                              {capabilityNames[capability]}
+                              {CAPABILITY_NAMES[capability]}
                             </Label>
                           </div>
                         )
