@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Search } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Input } from '@/components/ui/input'
 import { useState, useMemo } from 'react'
+import { SearchBar } from '@/components/common/search-bar'
+import { EmptyState } from '@/components/common/empty-state'
 
 interface ProviderListProps {
   providers: Provider[]
@@ -54,27 +55,26 @@ export function ProviderList({
         </div>
         
         {/* 搜索框 */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="搜索 Providers..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        <SearchBar
+          placeholder="搜索 Providers..."
+          value={searchTerm}
+          onChange={setSearchTerm}
+          onClear={() => setSearchTerm('')}
+        />
       </div>
       
       <ScrollArea className="flex-1">
         <div className="p-2 pr-4 space-y-1">
           {filteredProviders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                <Search className="h-6 w-6 opacity-50" />
-              </div>
-              <p className="text-sm font-medium mb-1">未找到匹配的 Providers</p>
-              <p className="text-xs">尝试其他搜索关键词</p>
-            </div>
+            <EmptyState
+              icon={
+                <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                  <Search className="h-6 w-6 opacity-50" />
+                </div>
+              }
+              title="未找到匹配的 Providers"
+              description="尝试其他搜索关键词"
+            />
           ) : (
             filteredProviders.map((provider) => (
               <div

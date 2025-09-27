@@ -9,9 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-
-export type EndpointType = 'OPENAI' | 'ANTHROPIC'
-export type ProviderType = 'NONE' | 'OPENAI' | 'VOLCANOENGINE' | 'ZHIPU' | 'DASHSCOPE'
+import { PROVIDER_TYPE_LABELS, ENDPOINT_TYPE_LABELS, ProviderType, EndpointType } from '@/lib/constants'
 
 interface ProviderFormDialogProps {
   isOpen: boolean
@@ -42,8 +40,8 @@ export function ProviderFormDialog({
 }: ProviderFormDialogProps) {
   const [formData, setFormData] = useState<ProviderFormData>({
     name: '',
-    endpointType: 'OPENAI',
-    providerType: 'OPENAI',
+    endpointType: 'OPENAI' as EndpointType,
+    providerType: 'OPENAI' as ProviderType,
     baseUrl: '',
     apiKey: '',
     enabled: true,
@@ -125,9 +123,12 @@ export function ProviderFormDialog({
                   <SelectValue placeholder="选择端点类型" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OPENAI">OpenAI</SelectItem>
-                  <SelectItem value="ANTHROPIC">Anthropic</SelectItem>
-                </SelectContent>
+                {Object.entries(ENDPOINT_TYPE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
@@ -137,11 +138,11 @@ export function ProviderFormDialog({
                   <SelectValue placeholder="选择提供商类型" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="NONE">无转换器</SelectItem>
-                  <SelectItem value="OPENAI">OPENAI</SelectItem>
-                  <SelectItem value="VOLCANOENGINE">火山引擎</SelectItem>
-                  <SelectItem value="ZHIPU">智谱AI</SelectItem>
-                  <SelectItem value="DASHSCOPE">通义千问</SelectItem>
+                  {Object.entries(PROVIDER_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

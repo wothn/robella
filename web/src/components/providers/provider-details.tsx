@@ -1,10 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Provider, VendorModel, CreateVendorModelRequest, UpdateVendorModelRequest } from '@/types'
+import { Provider, VendorModel } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VendorModelModal } from '@/components/providers/vendor-model-modal'
-import { apiClient } from '@/lib/api'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   ProviderBasicInfo,
@@ -22,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { useVendorModelOperations } from '@/hooks/use-vendor-model-operations'
 
 interface ProviderDetailsProps {
   provider: Provider
@@ -38,43 +37,13 @@ export function ProviderDetails({
   onDelete,
   onVendorModelsChange
 }: ProviderDetailsProps) {
-  const [deleteModelId, setDeleteModelId] = useState<number | null>(null)
-  
-  const handleCreateVendorModel = async (data: CreateVendorModelRequest) => {
-    try {
-      await apiClient.createVendorModel(provider.id, data)
-      onVendorModelsChange()
-    } catch (error) {
-      console.error('Failed to create vendor model:', error)
-    }
-  }
-
-  const handleUpdateVendorModel = async (modelId: number, data: UpdateVendorModelRequest) => {
-    try {
-      await apiClient.updateVendorModel(modelId, data)
-      onVendorModelsChange()
-    } catch (error) {
-      console.error('Failed to update vendor model:', error)
-    }
-  }
-
-  const handleCreateVendorModelWrapper = (data: CreateVendorModelRequest | UpdateVendorModelRequest) => {
-    // When creating a new vendor model, we only expect CreateVendorModelRequest
-    if (!('id' in data) || !data.id) {
-      handleCreateVendorModel(data as CreateVendorModelRequest);
-    }
-  };
-
-  const handleDeleteVendorModel = async () => {
-    if (!deleteModelId) return
-    try {
-      await apiClient.deleteVendorModel(deleteModelId)
-      onVendorModelsChange()
-      setDeleteModelId(null)
-    } catch (error) {
-      console.error('Failed to delete vendor model:', error)
-    }
-  }
+  const {
+    deleteModelId,
+    setDeleteModelId,
+    handleCreateVendorModel,
+    handleUpdateVendorModel,
+    handleDeleteVendorModel
+  } = useVendorModelOperations({ onVendorModelsChange })
 
   return (
     <div className="flex-1 overflow-hidden">
@@ -104,7 +73,7 @@ export function ProviderDetails({
                 <h3 className="text-lg font-semibold">Vendor Models</h3>
                 <VendorModelModal
                   providerId={provider.id}
-                  onSubmit={handleCreateVendorModelWrapper}
+                  onSubmit={handleCreateVendorModel}
                 />
               </div>
 
