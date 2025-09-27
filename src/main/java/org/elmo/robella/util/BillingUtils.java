@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.context.RequestContextHolder;
 import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.model.openai.core.Usage;
+import org.elmo.robella.service.ExchangeRateService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -14,6 +15,8 @@ import java.math.RoundingMode;
 @Service
 @RequiredArgsConstructor
 public class BillingUtils {
+    
+    private final ExchangeRateService exchangeRateService;
 
     /**
      * 计算请求成本
@@ -50,7 +53,13 @@ public class BillingUtils {
             calculateTokenCost(usage.getCompletionTokens(), vendorModel.getOutputPerMillionTokens()) : BigDecimal.ZERO;
 
         BigDecimal totalCost = inputCost.add(outputCost);
-        return new BillingResult(inputCost, outputCost, totalCost, vendorModel.getCurrency());
+        
+        // 将所有成本转换为CNY
+        BigDecimal inputCostCNY = exchangeRateService.convertToCNY(inputCost, vendorModel.getCurrency());
+        BigDecimal outputCostCNY = exchangeRateService.convertToCNY(outputCost, vendorModel.getCurrency());
+        BigDecimal totalCostCNY = exchangeRateService.convertToCNY(totalCost, vendorModel.getCurrency());
+        
+        return new BillingResult(inputCostCNY, outputCostCNY, totalCostCNY, "CNY");
     }
 
     /**
