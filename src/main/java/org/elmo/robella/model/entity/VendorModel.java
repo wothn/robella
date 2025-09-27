@@ -61,10 +61,7 @@ public class VendorModel {
     @JsonSerialize(using = ToStringSerializer.class)
     private BigDecimal cachedInputPrice;
 
-    @NotNull(message = "Cached output price cannot be null")
-    @DecimalMin(value = "0.0", message = "Cached output price must be non-negative")
-    @JsonSerialize(using = ToStringSerializer.class)
-    private BigDecimal cachedOutputPrice;
+
 
     @NotNull(message = "Weight cannot be null")
     @DecimalMin(value = "0.1", message = "Weight must be positive")

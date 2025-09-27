@@ -10,7 +10,6 @@ export interface VendorModel {
   outputPerMillionTokens?: string
   currency?: string
   cachedInputPrice?: string
-  cachedOutputPrice?: string
   weight?: number
   enabled: boolean
   createdAt?: string
@@ -30,7 +29,6 @@ export interface CreateVendorModelRequest {
   outputPerMillionTokens?: string
   currency?: string
   cachedInputPrice?: string
-  cachedOutputPrice?: string
   weight?: number
   enabled: boolean
 }
@@ -46,7 +44,6 @@ export interface UpdateVendorModelRequest {
   outputPerMillionTokens?: string
   currency?: string
   cachedInputPrice?: string
-  cachedOutputPrice?: string
   weight?: number
   enabled?: boolean
 }
