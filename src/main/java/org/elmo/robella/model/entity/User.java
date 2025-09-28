@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Data
@@ -31,6 +32,8 @@ public class User {
     private String displayName;
 
     private String avatar;
+
+    private BigDecimal credits;
 
     private Boolean active;
     private Role role;

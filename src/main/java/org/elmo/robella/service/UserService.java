@@ -10,6 +10,7 @@ import org.elmo.robella.model.request.UserCreateRequest;
 import org.elmo.robella.model.request.UserUpdateRequest;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.mapper.UserMapper;
+import org.elmo.robella.exception.InsufficientCreditsException;
 import cn.dev33.satoken.stp.StpUtil;
 import org.elmo.robella.common.ErrorCodeConstants;
 import org.elmo.robella.exception.*;
@@ -19,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -152,6 +154,40 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         UserResponse response = convertToResponse(updatedUser);
         log.info("用户状态更新成功: {} -> {}", response.getUsername(), active);
         return response;
+    }
+
+    @Transactional
+    public void updateUserCredits(Long userId, BigDecimal credits) {
+        LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
+        updateWrapper.eq(User::getId, userId);
+
+        User updateUser = new User();
+        updateUser.setId(userId);
+        updateUser.setCredits(credits);
+        updateUser.setUpdatedAt(OffsetDateTime.now());
+
+        update(updateUser, updateWrapper);
+        log.info("用户credits更新成功: userId={}, credits={}", userId, credits);
+    }
+
+    @Transactional
+    public void deductUserCredits(Long userId, BigDecimal amount) throws InsufficientCreditsException {
+        // 获取当前用户
+        User user = getById(userId);
+        if (user == null) {
+            throw new ResourceNotFoundException(ErrorCodeConstants.USER_NOT_FOUND, "User not found with id: " + userId);
+        }
+
+        // 扣减credits（允许为负值）
+        BigDecimal currentCredits = user.getCredits() != null ? user.getCredits() : BigDecimal.ZERO;
+        BigDecimal newCredits = currentCredits.subtract(amount);
+        updateUserCredits(userId, newCredits);
+        log.info("用户credits扣减成功: userId={}, amount={}, newCredits={}", userId, amount, newCredits);
+        
+        // 如果扣减后余额为负，抛出异常（但仍然扣减）
+        if (newCredits.compareTo(BigDecimal.ZERO) < 0) {
+            throw new InsufficientCreditsException("Insufficient credits for user: " + userId + ". Required: " + amount + ", Available: " + currentCredits);
+        }
     }
 
     @Transactional

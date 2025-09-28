@@ -3,6 +3,7 @@ package org.elmo.robella.exception;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elmo.robella.model.dto.ErrorResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;

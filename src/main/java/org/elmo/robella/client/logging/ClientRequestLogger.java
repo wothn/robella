@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.model.entity.RequestLog;
 import org.elmo.robella.context.RequestContextHolder;
 import org.elmo.robella.context.RequestContextHolder.RequestContext;
+import org.elmo.robella.exception.InsufficientCreditsException;
 import org.elmo.robella.model.anthropic.core.AnthropicChatRequest;
 import org.elmo.robella.model.anthropic.core.AnthropicMessage;
 import org.elmo.robella.model.openai.core.ChatCompletionRequest;
@@ -18,6 +19,7 @@ import org.elmo.robella.model.anthropic.stream.AnthropicMessageDeltaEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicMessageStartEvent;
 import org.elmo.robella.model.anthropic.stream.AnthropicContentBlockStartEvent;
 import org.elmo.robella.service.RequestLogService;
+import org.elmo.robella.service.UserService;
 import org.elmo.robella.util.BillingUtils;
 import org.elmo.robella.util.TokenCountingUtils;
 import org.springframework.stereotype.Component;
@@ -37,6 +39,7 @@ public class ClientRequestLogger {
     private final RequestLogService requestLogService;
     private final TokenCountingUtils tokenCountingUtils;
     private final BillingUtils billingUtils;
+    private final UserService userService;
 
     // 统一的请求状态跟踪
     private static final Map<String, LogState> requestStateMap = new ConcurrentHashMap<>();
@@ -271,6 +274,20 @@ public class ClientRequestLogger {
             RequestLog logEntry = builder.build();
             log.info("[ClientRequestLogger]RequestLog: {}", logEntry);
             requestLogService.save(logEntry);
+            
+            // 实时扣减用户credits
+            if (isSuccess && logEntry.getUserId() != null && logEntry.getTotalCost() != null) {
+                try {
+                    userService.deductUserCredits(logEntry.getUserId(), logEntry.getTotalCost());
+                } catch (InsufficientCreditsException e) {
+                    log.warn("用户credits不足: userId={}, cost={}, error={}", 
+                            logEntry.getUserId(), logEntry.getTotalCost(), e.getMessage());
+                    // 可以在这里添加额外的处理逻辑，比如通知用户或记录特殊日志
+                } catch (Exception e) {
+                    log.error("扣减用户credits失败: userId={}, cost={}, error={}", 
+                            logEntry.getUserId(), logEntry.getTotalCost(), e.getMessage(), e);
+                }
+            }
         } finally {
             requestStateMap.remove(requestId);
         }
