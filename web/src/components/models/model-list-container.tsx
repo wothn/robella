@@ -73,23 +73,23 @@ export const ModelListContainer = memo(({
   // 加载状态
   if (loading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i}>
+          <Card key={i} className="border-0 shadow-sm">
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-2">
-                    <Skeleton className="h-5 w-[150px]" />
-                    <Skeleton className="h-4 w-[100px]" />
+                    <Skeleton className="h-5 w-[150px] rounded-md" />
+                    <Skeleton className="h-4 w-[100px] rounded-md" />
                   </div>
-                  <Skeleton className="h-8 w-8 rounded" />
+                  <Skeleton className="h-8 w-8 rounded-md" />
                 </div>
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full rounded-md" />
+                <Skeleton className="h-4 w-3/4 rounded-md" />
                 <div className="flex gap-2">
-                  <Skeleton className="h-6 w-16" />
-                  <Skeleton className="h-6 w-16" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
                 </div>
               </div>
             </CardContent>
@@ -102,10 +102,10 @@ export const ModelListContainer = memo(({
   // 错误状态
   if (error) {
     return (
-      <Card>
+      <Card className="border-0 shadow-sm bg-gradient-to-br from-background to-muted/20">
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={onRefresh}>重试</Button>
+          <Button onClick={onRefresh} variant="outline">重试</Button>
         </CardContent>
       </Card>
     )
@@ -114,7 +114,7 @@ export const ModelListContainer = memo(({
   // 空状态
   if (filteredData.length === 0) {
     return (
-      <Card>
+      <Card className="border-0 shadow-sm bg-gradient-to-br from-background to-muted/20">
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground mb-4">
             {Object.keys(filters).some(key => filters[key as keyof ModelFiltersType])
@@ -122,14 +122,14 @@ export const ModelListContainer = memo(({
               : '暂无模型数据'
             }
           </p>
-          <Button onClick={onRefresh}>刷新</Button>
+          <Button onClick={onRefresh} variant="outline">刷新</Button>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {filteredData.map((model) => (
         <div
           key={model.id}

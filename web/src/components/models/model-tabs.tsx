@@ -44,7 +44,7 @@ export const ModelTabs = memo(({
 }: ModelTabsProps) => {
   return (
     <Tabs value={activeTab} onValueChange={onTabChange}>
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-3 bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm">
         <TabsTrigger value="all" className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
           全部模型
@@ -57,7 +57,7 @@ export const ModelTabs = memo(({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="all" className="mt-6">
+      <TabsContent value="all" className="mt-6 animate-in fade-in-50">
         <ModelListContainer
           models={models}
           publishedModels={publishedModels}
@@ -77,7 +77,7 @@ export const ModelTabs = memo(({
         />
       </TabsContent>
 
-      <TabsContent value="published" className="mt-6">
+      <TabsContent value="published" className="mt-6 animate-in fade-in-50">
         <ModelListContainer
           models={models}
           publishedModels={publishedModels}
@@ -97,7 +97,7 @@ export const ModelTabs = memo(({
         />
       </TabsContent>
 
-      <TabsContent value="draft" className="mt-6">
+      <TabsContent value="draft" className="mt-6 animate-in fade-in-50">
         <ModelListContainer
           models={models}
           publishedModels={publishedModels}

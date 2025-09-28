@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Search, ChevronRight, ChevronDown, Link, Unlink } from 'lucide-react'
+import { Link } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -9,19 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { useProviders } from '@/hooks/use-providers'
 import { api } from '@/lib/api'
-import { formatCurrency } from '@/lib/formatters'
 import type { Model } from '@/types/model'
 import type { Provider } from '@/types/provider'
 import type { VendorModel } from '@/types/vendor-model'
+import { SearchSection } from './model-config-dialog/search-section'
+import { ProviderCard } from './model-config-dialog/provider-card'
+import { LoadingState, EmptyState } from './model-config-dialog/loading-states'
 
 interface ModelConfigDialogProps {
   model: Model | null
@@ -176,7 +173,7 @@ export function ModelConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link className="h-5 w-5" />
@@ -187,156 +184,35 @@ export function ModelConfigDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* 搜索框 */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="搜索供应商或模型..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+        <div className="space-y-4 flex flex-col">
+          <SearchSection
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            boundCount={boundVendorModels.length}
+          />
 
-          {/* 已绑定模型统计 */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              已绑定 {boundVendorModels.length} 个供应商模型
-            </span>
-            {boundVendorModels.length > 0 && (
-              <Badge variant="secondary">
-                {boundVendorModels.length} 个绑定
-              </Badge>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* 供应商和模型列表 */}
-          <ScrollArea className="h-[400px] w-full">
-            {loading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="text-muted-foreground">加载中...</div>
-              </div>
-            ) : filteredProviders.length === 0 ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="text-muted-foreground">
-                  {searchQuery ? '未找到匹配的供应商或模型' : '暂无可用的供应商'}
+          <div className="flex-1 min-h-0">
+            <ScrollArea className="h-[60vh]">
+              {loading ? (
+                <LoadingState />
+              ) : filteredProviders.length === 0 ? (
+                <EmptyState hasSearchQuery={!!searchQuery} />
+              ) : (
+                <div className="space-y-2">
+                  {filteredProviders.map((provider) => (
+                    <ProviderCard
+                      key={provider.id}
+                      provider={provider}
+                      isModelBound={isVendorModelBound}
+                      onToggle={toggleProvider}
+                      onToggleModel={toggleVendorModel}
+                    />
+                  ))}
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredProviders.map((provider) => (
-                  <Card key={provider.id}>
-                    <CardContent className="p-4">
-                      {/* 供应商头部 */}
-                      <div 
-                        className="flex items-center justify-between cursor-pointer"
-                        onClick={() => toggleProvider(provider.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          {provider.expanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                          <div>
-                            <h3 className="font-medium">{provider.name}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {provider.type} • {provider.vendorModels.length} 个模型
-                            </p>
-                          </div>
-                        </div>
-                        <Badge 
-                          variant={provider.enabled ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {provider.enabled ? '启用' : '禁用'}
-                        </Badge>
-                      </div>
-
-                      {/* VendorModel列表 */}
-                      {provider.expanded && provider.vendorModels.length > 0 && (
-                        <div className="mt-4 divide-y rounded-md border bg-background">
-                          {provider.vendorModels.map((vendorModel, idx) => {
-                            const isBound = isVendorModelBound(vendorModel.id)
-                            return (
-                              <div
-                                key={vendorModel.id}
-                                className="flex items-center justify-between gap-4 p-3 hover:bg-muted/50 transition-colors"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium text-sm truncate">
-                                      {vendorModel.vendorModelName}
-                                    </h4>
-                                    <Badge variant="outline" className="text-xs">
-                                      {vendorModel.vendorModelKey}
-                                    </Badge>
-                                    {isBound && (
-                                      <Badge variant="default" className="text-xs">
-                                        已绑定
-                                      </Badge>
-                                    )}
-                                    {!vendorModel.enabled && (
-                                      <Badge variant="secondary" className="text-xs">已禁用</Badge>
-                                    )}
-                                  </div>
-                                  {vendorModel.description && (
-                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                      {vendorModel.description}
-                                    </p>
-                                  )}
-                                  {vendorModel.inputPerMillionTokens && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      输入: {formatCurrency(parseFloat(vendorModel.inputPerMillionTokens), vendorModel.currency || 'USD')} /1M tokens
-                                    </p>
-                                  )}
-                                  {vendorModel.outputPerMillionTokens && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      输出: {formatCurrency(parseFloat(vendorModel.outputPerMillionTokens), vendorModel.currency || 'USD')} /1M tokens
-                                    </p>
-                                  )}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant={isBound ? "outline" : "default"}
-                                  onClick={() => toggleVendorModel(vendorModel)}
-                                  disabled={!vendorModel.enabled}
-                                >
-                                  {isBound ? (
-                                    <>
-                                      <Unlink className="h-3 w-3 mr-1" />
-                                      解绑
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Link className="h-3 w-3 mr-1" />
-                                      绑定
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {provider.expanded && provider.vendorModels.length === 0 && (
-                        <div className="mt-4 text-center text-sm text-muted-foreground">
-                          该供应商暂无可用模型
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+              )}
+            </ScrollArea>
+          </div>
         </div>
-
-        {/* 底部默认 Dialog 会有关闭图标，这里不再重复放置按钮 */}
       </DialogContent>
     </Dialog>
   )

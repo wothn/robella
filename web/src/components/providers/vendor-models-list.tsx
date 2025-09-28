@@ -8,7 +8,7 @@ import { VendorModelFilters } from './vendor-model-filters'
 import { VendorModelGrid } from './vendor-model-grid'
 import { EmptyState } from '@/components/common/empty-state'
 import { SearchBar } from '@/components/common/search-bar'
-import { ModelSortOption, SortOrder } from '@/lib/constants'
+import { ModelSortOption, SortOrder } from '@/constants/provider-constants'
 
 interface VendorModelsListProps {
   vendorModels: VendorModel[]

@@ -62,39 +62,46 @@ export const ModelCard = memo(({
   }
 
   return (
-    <Card className="group hover:shadow-md transition-shadow cursor-pointer">
-      <CardHeader>
+    <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-0 shadow-sm hover:shadow-xl hover:-translate-y-0.5 bg-gradient-to-br from-background to-muted/20 backdrop-blur-sm">
+      <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">{model.name}</CardTitle>
-            <CardDescription className="flex flex-col gap-1">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold tracking-tight">{model.name}</CardTitle>
+              <Badge
+                variant={model.published ? 'default' : 'secondary'}
+                className="text-xs px-2 py-0.5 rounded-full"
+              >
+                {model.published ? '已发布' : '草稿'}
+              </Badge>
+            </div>
+            <CardDescription className="flex flex-col gap-2">
               <div
-                className="text-xs font-mono bg-muted px-2 py-1 rounded cursor-pointer hover:bg-muted/80 transition-colors flex items-center gap-1 group"
+                className="text-xs font-mono bg-muted/60 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80 transition-all duration-200 flex items-center gap-2 group border border-border/50"
                 onClick={(e) => onCopyModelKey(model.modelKey, e)}
                 data-no-card-click="true"
                 title="点击复制"
               >
-                <span className="truncate">{model.modelKey}</span>
+                <span className="truncate font-medium">{model.modelKey}</span>
                 {copiedModelKey === model.modelKey ? (
-                  <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
+                  <Check className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
                 ) : (
-                  <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                  <Copy className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                 )}
               </div>
               {model.organization && (
-                <span className="text-sm">{model.organization}</span>
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <span className="w-1 h-1 bg-muted-foreground/50 rounded-full"></span>
+                  {model.organization}
+                </span>
               )}
-              <Badge
-                variant={model.published ? 'default' : 'secondary'}
-                className="text-xs"
-              >
-                {model.published ? '已发布' : '草稿'}
-              </Badge>
-              {bindingsCount > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  {bindingsCount} 个绑定
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {bindingsCount > 0 && (
+                  <Badge variant="outline" className="text-xs bg-background/50">
+                    {bindingsCount} 个绑定
+                  </Badge>
+                )}
+              </div>
             </CardDescription>
           </div>
           <DropdownMenu>
@@ -102,7 +109,7 @@ export const ModelCard = memo(({
               <Button
                 variant="ghost"
                 size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-accent/50 data-[state=open]:opacity-100"
                 data-no-card-click="true"
               >
                 <MoreHorizontal className="h-4 w-4" />
@@ -110,7 +117,7 @@ export const ModelCard = memo(({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="w-48 min-w-[8rem]"
+              className="w-48 min-w-[8rem] backdrop-blur-sm border-border/50"
             >
               <DropdownMenuItem data-no-card-click="true" onClick={() => onEdit(model)}>
                 <Edit className="h-4 w-4 mr-2" />
@@ -141,7 +148,7 @@ export const ModelCard = memo(({
               <DropdownMenuItem
                 data-no-card-click="true"
                 onClick={() => onDelete(model)}
-                className="text-red-600"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 删除
@@ -150,37 +157,38 @@ export const ModelCard = memo(({
           </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4 min-h-[120px]">
         {model.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
+          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
             {model.description}
           </p>
         )}
 
         {model.capabilities && model.capabilities.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {model.capabilities.slice(0, 3).map((capability) => (
               <Badge
                 key={capability}
                 variant="outline"
-                className={`text-xs ${CAPABILITY_COLORS[capability]}`}
+                className={`text-xs bg-background/50 hover:bg-background/80 transition-colors ${CAPABILITY_COLORS[capability]}`}
               >
                 {CAPABILITY_NAMES[capability]}
               </Badge>
             ))}
             {model.capabilities.length > 3 && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs bg-background/50">
                 +{model.capabilities.length - 3}
               </Badge>
             )}
           </div>
         )}
 
-        <div className="flex justify-between items-center text-xs text-muted-foreground">
-          <span>
+        <div className="flex justify-between items-center text-xs text-muted-foreground pt-2 border-t border-border/50">
+          <span className="flex items-center gap-1">
+            <span className="w-1 h-1 bg-muted-foreground/50 rounded-full"></span>
             {model.contextWindow && `上下文: ${model.contextWindow.toLocaleString()}`}
           </span>
-          <span>
+          <span className="font-medium">
             {formatTime(model.updatedAt)}
           </span>
         </div>

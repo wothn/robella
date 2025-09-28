@@ -2,7 +2,7 @@
 
 import { SearchBar } from '@/components/common/search-bar'
 import { SortFilter } from '@/components/common/sort-filter'
-import { MODEL_SORT_OPTIONS, ModelSortOption, SortOrder } from '@/lib/constants'
+import { MODEL_SORT_OPTIONS, ModelSortOption, SortOrder } from '@/constants/provider-constants'
 
 interface VendorModelFiltersProps {
   searchQuery: string
