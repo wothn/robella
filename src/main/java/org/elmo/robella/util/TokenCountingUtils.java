@@ -32,6 +32,7 @@ import org.elmo.robella.model.anthropic.stream.AnthropicDelta;
 import org.elmo.robella.model.anthropic.stream.AnthropicMessageDeltaEvent;
 import org.elmo.robella.model.anthropic.tool.AnthropicTool;
 import org.elmo.robella.model.anthropic.tool.AnthropicCustomTool;
+import org.elmo.robella.model.internal.UnifiedChatRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -533,6 +534,53 @@ public class TokenCountingUtils {
         if (response.getUsage() != null) {
             // Usage信息通常包含在响应中，但这里我们只计算实际内容的tokens
             // Usage的input_tokens和output_tokens应该与我们计算的结果一致
+        }
+
+        return totalTokens;
+    }
+
+    /**
+     * 估算UnifiedChatRequest的token数量
+     * 专业方法用于请求成本估算，支持消息、工具调用等内容的token计算
+     *
+     * @param request 统一聊天请求
+     * @param modelName 模型名称（用于选择编码）
+     * @return 估算的token数量
+     */
+    public int estimateRequestTokens(UnifiedChatRequest request, String modelName) {
+        if (request == null) {
+            return 0;
+        }
+
+        int totalTokens = 0;
+
+        // 计算消息token数量
+        if (request.getMessages() != null && !request.getMessages().isEmpty()) {
+            totalTokens += countOpenAIMessageTokens(request.getMessages(), modelName);
+        }
+
+        // 计算工具调用的token数量
+        if (request.getTools() != null && !request.getTools().isEmpty()) {
+            // 工具调用通常需要额外的token，基于实际工具内容计算
+            StringBuilder toolsStr = new StringBuilder(1024);
+            for (Tool tool : request.getTools()) {
+                if (tool.getFunction() != null) {
+                    // 添加工具名称token
+                    if (tool.getFunction().getName() != null) {
+                        toolsStr.append(tool.getFunction().getName());
+                    }
+                    // 添加工具描述token
+                    if (tool.getFunction().getDescription() != null && !tool.getFunction().getDescription().isEmpty()) {
+                        toolsStr.append(tool.getFunction().getDescription());
+                    }
+                    // 添加工具参数schema token
+                    if (tool.getFunction().getParameters() != null) {
+                        toolsStr.append(tool.getFunction().getParameters().toString());
+                    }
+                }
+            }
+            totalTokens += calculateTokens(toolsStr.toString(), modelName);
+            totalTokens += TOOL_FORMAT_OVERHEAD; // 固定的工具格式开销
         }
 
         return totalTokens;

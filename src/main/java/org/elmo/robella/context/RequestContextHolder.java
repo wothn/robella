@@ -4,6 +4,7 @@ import org.elmo.robella.model.entity.VendorModel;
 
 import lombok.Builder;
 import lombok.Data;
+import java.math.BigDecimal;
 
 @Data
 public class RequestContextHolder {
@@ -39,6 +40,7 @@ public class RequestContextHolder {
         private String modelKey;
         private Long providerId;
         private VendorModel vendorModel;
+        private BigDecimal preBilledAmount;
 
 
     }

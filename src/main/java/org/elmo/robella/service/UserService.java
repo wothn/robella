@@ -191,6 +191,21 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     }
 
     @Transactional
+    public void refundUserCredits(Long userId, BigDecimal amount) {
+        // 获取当前用户
+        User user = getById(userId);
+        if (user == null) {
+            throw new ResourceNotFoundException(ErrorCodeConstants.USER_NOT_FOUND, "User not found with id: " + userId);
+        }
+
+        // 退还credits
+        BigDecimal currentCredits = user.getCredits() != null ? user.getCredits() : BigDecimal.ZERO;
+        BigDecimal newCredits = currentCredits.add(amount);
+        updateUserCredits(userId, newCredits);
+        log.info("用户credits退还成功: userId={}, refundAmount={}, newCredits={}", userId, amount, newCredits);
+    }
+
+    @Transactional
     public void deleteUser(Long id) {
         User user = getById(id);
         if (user == null) {

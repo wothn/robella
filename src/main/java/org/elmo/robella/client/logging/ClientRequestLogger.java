@@ -275,10 +275,37 @@ public class ClientRequestLogger {
             log.info("[ClientRequestLogger]RequestLog: {}", logEntry);
             requestLogService.save(logEntry);
             
-            // 实时扣减用户credits
+            // 基于预扣费的精确扣费逻辑
             if (isSuccess && logEntry.getUserId() != null && logEntry.getTotalCost() != null) {
                 try {
-                    userService.deductUserCredits(logEntry.getUserId(), logEntry.getTotalCost());
+                    BigDecimal actualCost = logEntry.getTotalCost();
+                    BigDecimal preBilledAmount = ctx.getPreBilledAmount();
+                    
+                    if (preBilledAmount != null && preBilledAmount.compareTo(BigDecimal.ZERO) > 0) {
+                        // 有预扣费，计算差额
+                        BigDecimal costDifference = actualCost.subtract(preBilledAmount);
+                        
+                        if (costDifference.compareTo(BigDecimal.ZERO) > 0) {
+                            // 实际成本高于预扣费，需要补扣差额
+                            userService.deductUserCredits(logEntry.getUserId(), costDifference);
+                            log.info("请求完成扣费: userId={}, preBilled={}, actualCost={}, additionalCharge={}", 
+                                    logEntry.getUserId(), preBilledAmount, actualCost, costDifference);
+                        } else if (costDifference.compareTo(BigDecimal.ZERO) < 0) {
+                            // 实际成本低于预扣费，需要退还差额
+                            BigDecimal refundAmount = costDifference.abs();
+                            userService.refundUserCredits(logEntry.getUserId(), refundAmount);
+                            log.info("请求完成退费: userId={}, preBilled={}, actualCost={}, refund={}", 
+                                    logEntry.getUserId(), preBilledAmount, actualCost, refundAmount);
+                        } else {
+                            // 预扣费与实际成本完全一致，无需额外操作
+                            log.info("请求完成扣费: userId={}, preBilled=actualCost={}, no additional charge", 
+                                    logEntry.getUserId(), preBilledAmount);
+                        }
+                    } else {
+                        // 没有预扣费，按原有逻辑直接扣费（兼容旧版本或特殊情况）
+                        userService.deductUserCredits(logEntry.getUserId(), actualCost);
+                        log.info("请求完成直接扣费: userId={}, cost={}", logEntry.getUserId(), actualCost);
+                    }
                 } catch (InsufficientCreditsException e) {
                     log.warn("用户credits不足: userId={}, cost={}, error={}", 
                             logEntry.getUserId(), logEntry.getTotalCost(), e.getMessage());
