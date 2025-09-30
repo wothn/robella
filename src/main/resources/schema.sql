@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS vendor_model (
     output_per_million_tokens DECIMAL(19, 6),
     currency VARCHAR(10),
     cached_input_price DECIMAL(19, 6),
-    cached_output_price DECIMAL(19, 6),
     enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -170,7 +169,6 @@ COMMENT ON COLUMN vendor_model.input_per_million_tokens IS '每百万输入令�
     COMMENT ON COLUMN vendor_model.output_per_million_tokens IS '每百万输出令牌价格';
     COMMENT ON COLUMN vendor_model.currency IS '货币类型';
     COMMENT ON COLUMN vendor_model.cached_input_price IS '缓存输入价格';
-    COMMENT ON COLUMN vendor_model.cached_output_price IS '缓存输出价格';
 COMMENT ON COLUMN vendor_model.enabled IS '是否启用';
 COMMENT ON COLUMN vendor_model.created_at IS '创建时间';
 COMMENT ON COLUMN vendor_model.updated_at IS '更新时间';

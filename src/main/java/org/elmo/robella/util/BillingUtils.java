@@ -6,6 +6,10 @@ import org.elmo.robella.context.RequestContextHolder;
 import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.model.openai.core.Usage;
 import org.elmo.robella.service.ExchangeRateService;
+import org.elmo.robella.model.enums.PricingStrategyType;
+import org.elmo.robella.service.pricing.PricingStrategyFactory;
+import org.elmo.robella.service.pricing.PricingStrategy;
+import org.elmo.robella.service.pricing.PricingValidationService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,6 +21,8 @@ import java.math.RoundingMode;
 public class BillingUtils {
     
     private final ExchangeRateService exchangeRateService;
+    private final PricingStrategyFactory pricingStrategyFactory;
+    private final PricingValidationService validationService;
 
     /**
      * 计算请求成本
@@ -31,53 +37,51 @@ public class BillingUtils {
         }
 
         VendorModel vendorModel = context.getVendorModel();
-        BigDecimal inputCost = BigDecimal.ZERO;
-        BigDecimal outputCost = BigDecimal.ZERO;
-
-        // 计算输入成本：区分缓存和正常token
+        
+        // 使用计费策略工厂获取合适的计费策略
+        PricingStrategy pricingStrategy = pricingStrategyFactory.createPricingStrategy(vendorModel);
+        
+        // 获取输入令牌数量
+        long inputTokens = 0;
+        long cachedTokens = 0;
+        
         if (usage.getPromptCacheHitTokens() != null && usage.getPromptCacheMissTokens() != null) {
-            // 有详细的缓存信息，分别计算
-            BigDecimal cachedInputCost = calculateTokenCost(usage.getPromptCacheHitTokens(), vendorModel.getCachedInputPrice());
-            BigDecimal normalInputCost = calculateTokenCost(usage.getPromptCacheMissTokens(), vendorModel.getInputPerMillionTokens());
-            inputCost = cachedInputCost.add(normalInputCost);
-            log.debug("Mixed billing: cached={} tokens @ ${}, normal={} tokens @ ${}",
-                     usage.getPromptCacheHitTokens(), vendorModel.getCachedInputPrice(),
-                     usage.getPromptCacheMissTokens(), vendorModel.getInputPerMillionTokens());
+            // 有详细的缓存信息
+            inputTokens = usage.getPromptCacheHitTokens() + usage.getPromptCacheMissTokens();
+            cachedTokens = usage.getPromptCacheHitTokens();
         } else if (usage.getPromptTokens() != null) {
-            // 没有详细缓存信息，使用正常价格
-            inputCost = calculateTokenCost(usage.getPromptTokens(), vendorModel.getInputPerMillionTokens());
+            // 没有详细缓存信息，全部视为非缓存
+            inputTokens = usage.getPromptTokens();
+            cachedTokens = 0;
         }
-
-        // 计算输出成本（输出token没有缓存）
-        outputCost = usage.getCompletionTokens() != null ?
-            calculateTokenCost(usage.getCompletionTokens(), vendorModel.getOutputPerMillionTokens()) : BigDecimal.ZERO;
-
+        
+        // 获取输出令牌数量
+        long outputTokens = usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0;
+        
+        // 使用验证服务验证令牌数量
+        validationService.validateTokenCounts(inputTokens, cachedTokens, outputTokens);
+        
+        // 如果是按次计费，只计算一次总成本
+        if (vendorModel.getPricingStrategy() == PricingStrategyType.PER_REQUEST) {
+            BigDecimal totalCost = pricingStrategy.calculateTotalCost(inputTokens, cachedTokens, outputTokens);
+            BigDecimal totalCostCNY = exchangeRateService.convertToCNY(totalCost, pricingStrategy.getCurrency());
+            return new BillingResult(BigDecimal.ZERO, BigDecimal.ZERO, totalCostCNY, "CNY");
+        }
+        
+        // 使用计费策略计算成本（原有的令牌计费逻辑）
+        BigDecimal inputCost = pricingStrategy.calculateInputCost(inputTokens, cachedTokens);
+        BigDecimal outputCost = pricingStrategy.calculateOutputCost(outputTokens);
         BigDecimal totalCost = inputCost.add(outputCost);
         
+        log.debug("Cost calculation: strategy={}, inputTokens={}, cachedTokens={}, outputTokens={}, inputCost={}, outputCost={}, totalCost={}",
+                 vendorModel.getPricingStrategy(), inputTokens, cachedTokens, outputTokens, inputCost, outputCost, totalCost);
+        
         // 将所有成本转换为CNY
-        BigDecimal inputCostCNY = exchangeRateService.convertToCNY(inputCost, vendorModel.getCurrency());
-        BigDecimal outputCostCNY = exchangeRateService.convertToCNY(outputCost, vendorModel.getCurrency());
-        BigDecimal totalCostCNY = exchangeRateService.convertToCNY(totalCost, vendorModel.getCurrency());
+        BigDecimal inputCostCNY = exchangeRateService.convertToCNY(inputCost, pricingStrategy.getCurrency());
+        BigDecimal outputCostCNY = exchangeRateService.convertToCNY(outputCost, pricingStrategy.getCurrency());
+        BigDecimal totalCostCNY = exchangeRateService.convertToCNY(totalCost, pricingStrategy.getCurrency());
         
         return new BillingResult(inputCostCNY, outputCostCNY, totalCostCNY, "CNY");
-    }
-
-    /**
-     * 计算token成本
-     * @param tokens token数量
-     * @param pricePerMillionTokens 每百万token价格
-     * @return 计算后的成本
-     */
-    private BigDecimal calculateTokenCost(int tokens, BigDecimal pricePerMillionTokens) {
-        if (tokens <= 0 || pricePerMillionTokens.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
-        }
-
-        // 成本 = (token数量 / 1,000,000) * 每百万token价格
-        return BigDecimal.valueOf(tokens)
-                .divide(BigDecimal.valueOf(1_000_000), 10, RoundingMode.HALF_UP)
-                .multiply(pricePerMillionTokens)
-                .setScale(6, RoundingMode.HALF_UP);
     }
 
     /**

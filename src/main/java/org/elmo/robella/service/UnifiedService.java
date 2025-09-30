@@ -19,10 +19,12 @@ import org.elmo.robella.mapper.ModelMapper;
 import org.elmo.robella.model.openai.core.Usage;
 import org.elmo.robella.util.BillingUtils;
 import org.elmo.robella.util.TokenCountingUtils;
+import org.elmo.robella.model.enums.PricingStrategyType;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Stream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Slf4j
 @Service
@@ -90,11 +92,19 @@ public class UnifiedService {
      */
     private BigDecimal estimateRequestCost(UnifiedChatRequest request, VendorModel vendorModel) {
         try {
+            // 如果是按次计费，直接返回固定价格
+            if (vendorModel.getPricingStrategy() == PricingStrategyType.PER_REQUEST) {
+                // 使用inputPerMillionTokens作为每次请求的固定价格
+                return vendorModel.getInputPerMillionTokens()
+                    .setScale(6, RoundingMode.HALF_UP)
+                    .max(MIN_PRE_BILLING_AMOUNT);
+            }
+            
             // 使用TokenCountingUtils专业方法估算输入token数量
             int estimatedInputTokens = tokenCountingUtils.estimateRequestTokens(request, vendorModel.getModelKey());
             
-            // 估算输出token数量（基于输入的一定比例，设置上限防止过度预扣费）
-            int estimatedOutputTokens = Math.min(estimatedInputTokens * 2, 8192); // 最大8K输出token
+            // 估算输出 token 数量，300 token
+            int estimatedOutputTokens = 300; 
             
             // 创建临时的Usage对象用于成本计算
             Usage estimatedUsage = new Usage();
@@ -151,12 +161,15 @@ public class UnifiedService {
      */
     private RoutingService.ClientWithInfo beforeRequest(UnifiedChatRequest request) {
         String modelKey = request.getModel();
+        // 路由到合适的供应商
         RoutingService.ClientWithInfo clientWithInfo = routingService.routeAndClient(modelKey);
         if (clientWithInfo == null) {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "No available provider for model: " + modelKey);
         }
+        // 替换模型名为供应商模型Key
         request.setModel(clientWithInfo.getVendorModel().getVendorModelKey());
         
+        // 设置请求上下文
         RequestContext ctx = RequestContextHolder.getContext();
         ctx.setProviderId(clientWithInfo.getProvider().getId());
         ctx.setVendorModel(clientWithInfo.getVendorModel());
