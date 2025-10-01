@@ -10,19 +10,23 @@ import org.elmo.robella.model.entity.Model;
 import org.elmo.robella.model.entity.Provider;
 import org.elmo.robella.model.dto.VendorModelDTO;
 import org.elmo.robella.model.enums.PricingStrategyType;
+import org.elmo.robella.common.ErrorCodeConstants;
+import org.elmo.robella.exception.BusinessException;
+import org.elmo.robella.exception.ResourceNotFoundException;
 import org.elmo.robella.exception.ValidationException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,7 +54,8 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
     public VendorModelDTO getVendorModelById(Long id) {
         VendorModel vendorModel = this.getById(id);
         if (vendorModel == null) {
-            return null;
+            throw new ResourceNotFoundException(ErrorCodeConstants.RESOURCE_NOT_FOUND,
+                    "Vendor model not found with id: " + id);
         }
         return convertToDTO(vendorModel);
     }
@@ -110,20 +115,14 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
         // 检查vendorModelKey是否已存在
         validateUniqueVendorModelKey(vendorModel.getVendorModelKey());
 
-        // 设置默认值
-        if (vendorModel.getWeight() == null) {
-            vendorModel.setWeight(BigDecimal.valueOf(5.0));
-        }
         if (vendorModel.getEnabled() == null) {
             vendorModel.setEnabled(true);
-        }
-        if (vendorModel.getCachedInputPrice() == null) {
-            vendorModel.setCachedInputPrice(BigDecimal.ZERO);
         }
 
         boolean saved = this.save(vendorModel);
         if (!saved) {
-            throw new RuntimeException("Failed to save vendor model");
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodeConstants.TRANSACTION_FAILED,
+                    "Failed to save vendor model");
         }
 
         // 保存阶梯计费配置
@@ -140,56 +139,22 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
      */
     @Transactional
     public VendorModelDTO updateVendorModel(Long id, VendorModelDTO.UpdateRequest request) {
-        VendorModel existingVendorModel = this.getById(id);
-        if (existingVendorModel == null) {
-            throw new ValidationException("VENDOR_MODEL_NOT_FOUND", "Vendor model not found with id: " + id);
+
+        VendorModel existing = this.getById(id);
+        if (existing == null) {
+            throw new ResourceNotFoundException(ErrorCodeConstants.RESOURCE_NOT_FOUND,
+                    "Vendor model not found with id: " + id);
         }
 
         VendorModel vendorModel = request.getVendorModel();
         vendorModel.setId(id);
-
-        if (!StringUtils.hasText(vendorModel.getVendorModelName())) {
-            vendorModel.setVendorModelName(existingVendorModel.getVendorModelName());
-        }
-        if (!StringUtils.hasText(vendorModel.getVendorModelKey())) {
-            vendorModel.setVendorModelKey(existingVendorModel.getVendorModelKey());
-        }
-        if (!StringUtils.hasText(vendorModel.getModelKey())) {
-            vendorModel.setModelKey(existingVendorModel.getModelKey());
-        }
-        if (vendorModel.getProviderId() == null) {
-            vendorModel.setProviderId(existingVendorModel.getProviderId());
-        }
-        if (vendorModel.getProviderType() == null) {
-            vendorModel.setProviderType(existingVendorModel.getProviderType());
-        }
-        if (vendorModel.getPricingStrategy() == null) {
-            vendorModel.setPricingStrategy(existingVendorModel.getPricingStrategy());
-        }
-        if (vendorModel.getCachedInputPrice() == null) {
-            vendorModel.setCachedInputPrice(existingVendorModel.getCachedInputPrice());
-        }
-        if (vendorModel.getWeight() == null) {
-            vendorModel.setWeight(existingVendorModel.getWeight());
-        }
-        if (vendorModel.getEnabled() == null) {
-            vendorModel.setEnabled(existingVendorModel.getEnabled());
-        }
-
-        // 验证关联的Model和Provider是否存在
-        validateModelAndProvider(vendorModel.getModelId(), vendorModel.getProviderId());
-
-        // 如果vendorModelKey发生变化，检查唯一性
-        if (!existingVendorModel.getVendorModelKey().equals(vendorModel.getVendorModelKey())) {
-            validateUniqueVendorModelKey(vendorModel.getVendorModelKey());
-        }
-
         // 验证定价信息
         validatePricingInfo(vendorModel);
 
         boolean updated = this.updateById(vendorModel);
         if (!updated) {
-            throw new RuntimeException("Failed to update vendor model");
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodeConstants.TRANSACTION_FAILED,
+                    "Failed to update vendor model");
         }
 
         // 更新阶梯计费配置
@@ -210,20 +175,23 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
      * 删除VendorModel
      */
     @Transactional
-    public boolean deleteVendorModel(Long id) {
+    public void deleteVendorModel(Long id) {
         VendorModel vendorModel = this.getById(id);
         if (vendorModel == null) {
-            return false;
+            throw new ResourceNotFoundException(ErrorCodeConstants.RESOURCE_NOT_FOUND,
+                    "Vendor model not found with id: " + id);
         }
 
         // 删除关联的阶梯计费配置
         deletePricingTiersByVendorModelId(id);
 
         boolean deleted = this.removeById(id);
-        if (deleted) {
-            log.info("Deleted vendor model: {}", vendorModel.getVendorModelName());
+        if (!deleted) {
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodeConstants.TRANSACTION_FAILED,
+                    "Failed to delete vendor model");
         }
-        return deleted;
+
+        log.info("Deleted vendor model: {}", vendorModel.getVendorModelName());
     }
 
     /**
@@ -232,13 +200,15 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
     public VendorModelDTO toggleVendorModelStatus(Long id, boolean enabled) {
         VendorModel vendorModel = this.getById(id);
         if (vendorModel == null) {
-            throw new ValidationException("VENDOR_MODEL_NOT_FOUND", "Vendor model not found with id: " + id);
+            throw new ResourceNotFoundException(ErrorCodeConstants.RESOURCE_NOT_FOUND,
+                    "Vendor model not found with id: " + id);
         }
 
         vendorModel.setEnabled(enabled);
         boolean updated = this.updateById(vendorModel);
         if (!updated) {
-            throw new RuntimeException("Failed to update vendor model status");
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCodeConstants.TRANSACTION_FAILED,
+                    "Failed to update vendor model status");
         }
 
         log.info("{} vendor model: {}", enabled ? "Enabled" : "Disabled", vendorModel.getVendorModelName());
@@ -250,7 +220,11 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
      */
     public VendorModelDTO findByVendorModelKey(String vendorModelKey) {
         VendorModel vendorModel = baseMapper.findByVendorModelKey(vendorModelKey);
-        return vendorModel != null ? convertToDTO(vendorModel) : null;
+        if (vendorModel == null) {
+            throw new ResourceNotFoundException(ErrorCodeConstants.RESOURCE_NOT_FOUND,
+                    "Vendor model not found with key: " + vendorModelKey);
+        }
+        return convertToDTO(vendorModel);
     }
 
     /**
@@ -258,7 +232,11 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
      */
     public VendorModelDTO findEnabledByVendorModelKey(String vendorModelKey) {
         VendorModel vendorModel = baseMapper.findByVendorModelKeyAndEnabledTrue(vendorModelKey);
-        return vendorModel != null ? convertToDTO(vendorModel) : null;
+        if (vendorModel == null) {
+            throw new ResourceNotFoundException(ErrorCodeConstants.RESOURCE_NOT_FOUND,
+                    "Enabled vendor model not found with key: " + vendorModelKey);
+        }
+        return convertToDTO(vendorModel);
     }
 
     // 私有辅助方法
@@ -296,40 +274,53 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
 
     private void validateModelAndProvider(Long modelId, Long providerId) {
         if (providerId == null) {
-            throw new ValidationException("PROVIDER_ID_REQUIRED", "Provider ID is required");
+            throw new ValidationException(ErrorCodeConstants.CONSTRAINT_VIOLATION, "Provider ID is required");
         }
 
         if (modelId != null) {
             Model model = modelMapper.selectById(modelId);
             if (model == null) {
-                throw new ValidationException("MODEL_NOT_FOUND", "Model not found with id: " + modelId);
+                throw new ValidationException(ErrorCodeConstants.RECORD_NOT_FOUND,
+                        "Model not found with id: " + modelId);
             }
         }
 
         Provider provider = providerMapper.selectById(providerId);
         if (provider == null) {
-            throw new ValidationException("PROVIDER_NOT_FOUND", "Provider not found with id: " + providerId);
+            throw new ValidationException(ErrorCodeConstants.RECORD_NOT_FOUND,
+                    "Provider not found with id: " + providerId);
         }
     }
 
     private void validateUniqueVendorModelKey(String vendorModelKey) {
         VendorModel existing = baseMapper.findByVendorModelKey(vendorModelKey);
         if (existing != null) {
-            throw new ValidationException("VENDOR_MODEL_KEY_EXISTS", "Vendor model key already exists: " + vendorModelKey);
+            throw new ValidationException(ErrorCodeConstants.CONSTRAINT_VIOLATION,
+                    "Vendor model key already exists: " + vendorModelKey);
         }
     }
 
     private void validatePricingInfo(VendorModel vendorModel) {
+        // 如果定价策略为 null(例如解绑模型时),跳过验证
+        if (vendorModel.getPricingStrategy() == null) {
+            return;
+        }
+        
         // 根据定价策略验证相应的价格字段
         switch (vendorModel.getPricingStrategy()) {
             case FIXED:
-                if (vendorModel.getCachedInputPrice() == null || vendorModel.getCachedInputPrice().compareTo(BigDecimal.ZERO) < 0) {
-                    throw new ValidationException("INVALID_FIXED_PRICING", "Cached input price is required and must be non-negative for fixed pricing");
+                // cachedInputPrice 现在是可选的,如果提供则必须为非负数
+                if (vendorModel.getCachedInputPrice() != null
+                        && vendorModel.getCachedInputPrice().compareTo(BigDecimal.ZERO) < 0) {
+                    throw new ValidationException("INVALID_FIXED_PRICING",
+                            "Cached input price must be non-negative for fixed pricing");
                 }
                 break;
             case PER_REQUEST:
-                if (vendorModel.getPerRequestPrice() == null || vendorModel.getPerRequestPrice().compareTo(BigDecimal.ZERO) < 0) {
-                    throw new ValidationException("INVALID_PER_REQUEST_PRICING", "Per request price is required and must be non-negative for per-request pricing");
+                if (vendorModel.getPerRequestPrice() == null
+                        || vendorModel.getPerRequestPrice().compareTo(BigDecimal.ZERO) < 0) {
+                    throw new ValidationException("INVALID_PER_REQUEST_PRICING",
+                            "Per request price is required and must be non-negative for per-request pricing");
                 }
                 break;
             case TIERED:
@@ -341,7 +332,6 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
     private void savePricingTiers(Long vendorModelId, List<PricingTier> pricingTiers) {
         for (PricingTier tier : pricingTiers) {
             tier.setVendorModelId(vendorModelId);
-            tier.setCreatedAt(OffsetDateTime.now());
             pricingTierMapper.insert(tier);
         }
     }
@@ -377,7 +367,7 @@ public class VendorModelService extends ServiceImpl<VendorModelMapper, VendorMod
         if (vendorModel.getPricingStrategy() == PricingStrategyType.TIERED) {
             LambdaQueryWrapper<PricingTier> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(PricingTier::getVendorModelId, vendorModel.getId())
-                       .orderByAsc(PricingTier::getMinTokens);
+                    .orderByAsc(PricingTier::getMinTokens);
             List<PricingTier> tiers = pricingTierMapper.selectList(queryWrapper);
             dto.setPricingTiers(tiers);
         }

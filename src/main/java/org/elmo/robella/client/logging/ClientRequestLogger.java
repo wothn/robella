@@ -216,6 +216,7 @@ public class ClientRequestLogger {
      * 通用
      */
     public void completeLog(boolean isSuccess) {
+        log.info("[ClientRequestLogger] completeLog isSuccess={}", isSuccess);
         createLog(isSuccess);
     }
 

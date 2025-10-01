@@ -22,7 +22,6 @@ public class VendorModel {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    @NotNull(message = "Model ID cannot be null")
     private Long modelId;
 
     @NotBlank(message = "Model key cannot be blank")
@@ -59,7 +58,6 @@ public class VendorModel {
 
     private String currency;
 
-    @NotNull(message = "Cached input price cannot be null")
     @DecimalMin(value = "0.0", message = "Cached input price must be non-negative")
     @JsonSerialize(using = ToStringSerializer.class)
     private BigDecimal cachedInputPrice;
@@ -71,7 +69,7 @@ public class VendorModel {
     @NotNull(message = "Weight cannot be null")
     @DecimalMin(value = "0.1", message = "Weight must be positive")
     @JsonSerialize(using = ToStringSerializer.class)
-    private BigDecimal weight = BigDecimal.valueOf(5.0);
+    private BigDecimal weight;
 
     @NotNull(message = "Enabled status cannot be null")
     private Boolean enabled;

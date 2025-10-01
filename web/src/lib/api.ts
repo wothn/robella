@@ -336,7 +336,7 @@ class ApiClient {
       outputPerMillionTokens: safeNumber(data.outputPerMillionTokens),
       perRequestPrice: safeNumber(data.perRequestPrice),
       currency: data.currency ?? null,
-      cachedInputPrice: safeNumber(data.cachedInputPrice) ?? 0,
+      cachedInputPrice: safeNumber(data.cachedInputPrice),
       pricingStrategy: data.pricingStrategy,
       weight: (typeof data.weight === 'number' ? data.weight : safeNumber(data.weight)) ?? 5,
       enabled: data.enabled ?? true
