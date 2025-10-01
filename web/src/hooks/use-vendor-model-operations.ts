@@ -17,7 +17,18 @@ export function useVendorModelOperations({ onVendorModelsChange }: UseVendorMode
   const handleCreateVendorModel = async (data: CreateVendorModelRequest) => {
     setIsCreating(true)
     try {
-      await apiClient.createVendorModel(data.providerId, data)
+      const payload: CreateVendorModelRequest = {
+        ...data,
+        modelKey: data.modelKey ?? data.vendorModelKey,
+        pricingTiers:
+          data.pricingStrategy === 'TIERED' && data.pricingTiers && data.pricingTiers.length > 0
+            ? data.pricingTiers
+            : data.pricingStrategy === 'TIERED'
+              ? []
+              : undefined
+      }
+
+      await apiClient.createVendorModel(payload)
       onVendorModelsChange()
     } catch (error) {
       console.error('Failed to create vendor model:', error)
@@ -30,7 +41,18 @@ export function useVendorModelOperations({ onVendorModelsChange }: UseVendorMode
   const handleUpdateVendorModel = async (modelId: number, data: UpdateVendorModelRequest) => {
     setIsUpdating(true)
     try {
-      await apiClient.updateVendorModel(modelId, data)
+      const payload: UpdateVendorModelRequest = {
+        ...data,
+        modelKey: data.modelKey ?? data.vendorModelKey,
+        pricingTiers:
+          data.pricingStrategy === 'TIERED'
+            ? data.pricingTiers ?? []
+            : data.pricingTiers !== undefined
+              ? []
+              : undefined
+      }
+
+      await apiClient.updateVendorModel(modelId, payload)
       onVendorModelsChange()
     } catch (error) {
       console.error('Failed to update vendor model:', error)

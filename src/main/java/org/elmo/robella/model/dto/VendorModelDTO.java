@@ -1,8 +1,9 @@
-package org.elmo.robella.model.entity;
+package org.elmo.robella.model.dto;
 
 import org.elmo.robella.common.ProviderType;
+import org.elmo.robella.model.entity.PricingTier;
+import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.model.enums.PricingStrategyType;
-import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
@@ -13,31 +14,27 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Data
-@TableName("vendor_model")
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class VendorModel {
-    
-    @TableId(type = IdType.AUTO)
+public class VendorModelDTO {
+
     private Long id;
 
     @NotNull(message = "Model ID cannot be null")
     private Long modelId;
 
     @NotBlank(message = "Model key cannot be blank")
-    @TableField("model_key")
     private String modelKey;
 
     @NotNull(message = "Provider ID cannot be null")
     private Long providerId;
 
     @NotBlank(message = "Vendor model name cannot be blank")
-    @TableField("vendor_model_name")
     private String vendorModelName;
 
     @NotBlank(message = "Vendor model key cannot be blank")
-    @TableField("vendor_model_key")
     private String vendorModelKey;
 
     @NotNull(message = "Provider type cannot be null")
@@ -65,7 +62,6 @@ public class VendorModel {
     private BigDecimal cachedInputPrice;
 
     @NotNull(message = "Pricing strategy cannot be null")
-    @TableField("pricing_strategy")
     private PricingStrategyType pricingStrategy;
 
     @NotNull(message = "Weight cannot be null")
@@ -76,9 +72,33 @@ public class VendorModel {
     @NotNull(message = "Enabled status cannot be null")
     private Boolean enabled;
 
-    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private OffsetDateTime createdAt;
 
-    @TableField(value = "updated_at", fill = FieldFill.UPDATE)
     private OffsetDateTime updatedAt;
+
+    // 阶梯计费相关字段
+    private List<PricingTier> pricingTiers;
+
+    // 静态内部类用于创建和更新请求
+    public static class CreateRequest {
+        private VendorModel vendorModel;
+        private List<PricingTier> pricingTiers;
+
+        // Getters and Setters
+        public VendorModel getVendorModel() { return vendorModel; }
+        public void setVendorModel(VendorModel vendorModel) { this.vendorModel = vendorModel; }
+        public List<PricingTier> getPricingTiers() { return pricingTiers; }
+        public void setPricingTiers(List<PricingTier> pricingTiers) { this.pricingTiers = pricingTiers; }
+    }
+
+    public static class UpdateRequest {
+        private VendorModel vendorModel;
+        private List<PricingTier> pricingTiers;
+
+        // Getters and Setters
+        public VendorModel getVendorModel() { return vendorModel; }
+        public void setVendorModel(VendorModel vendorModel) { this.vendorModel = vendorModel; }
+        public List<PricingTier> getPricingTiers() { return pricingTiers; }
+        public void setPricingTiers(List<PricingTier> pricingTiers) { this.pricingTiers = pricingTiers; }
+    }
 }

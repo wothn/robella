@@ -65,8 +65,8 @@ public class PricingController {
     
     /**
      * 更新定价阶梯
-     * @param pricingTierId 定价阶梯ID
-     * @param updatedTier 更新的阶梯信息
+     * @param vendorModelId 供应商模型ID
+     * @param pricingTiers 更新的阶梯列表
      * @return 操作结果
      */
     @PutMapping("/tiers/{vendorModelId}")
@@ -76,10 +76,10 @@ public class PricingController {
         try {
             // 验证定价阶梯的完整性
             pricingTierService.validatePricingTiers(pricingTiers);
-            
-            // 更新定价阶梯
+
+            // 更新定价阶梯（通过删除后重建的方式）
             pricingTierService.createPricingTiers(vendorModelId, pricingTiers);
-            
+
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             log.error("Failed to update pricing tiers for vendor model {}: {}", vendorModelId, e.getMessage(), e);
@@ -109,10 +109,10 @@ public class PricingController {
      * @param inputTokens 输入令牌数
      * @param cachedTokens 缓存令牌数
      * @param outputTokens 输出令牌数
-     * @return 成本计算结果
+     * @return 详细成本计算结果
      */
     @GetMapping("/calculate/{vendorModelId}")
-    public ResponseEntity<BigDecimal> calculateCost(
+    public ResponseEntity<CostCalculationResponse> calculateCost(
             @PathVariable Long vendorModelId,
             @RequestParam long inputTokens,
             @RequestParam(defaultValue = "0") long cachedTokens,
@@ -122,16 +122,23 @@ public class PricingController {
             if (vendorModel == null) {
                 return ResponseEntity.badRequest().build();
             }
-            
+
             // 使用计费策略工厂计算成本
-            org.elmo.robella.service.pricing.PricingStrategy strategy = 
+            org.elmo.robella.service.pricing.PricingStrategy strategy =
                 pricingStrategyFactory.createPricingStrategy(vendorModel);
-            
+
             BigDecimal inputCost = strategy.calculateInputCost(inputTokens, cachedTokens);
             BigDecimal outputCost = strategy.calculateOutputCost(outputTokens);
-            BigDecimal totalCost = inputCost.add(outputCost);
-            
-            return ResponseEntity.ok(totalCost);
+            BigDecimal totalCost = strategy.calculateTotalCost(inputTokens, cachedTokens, outputTokens);
+
+            CostCalculationResponse response = new CostCalculationResponse(
+                inputTokens, cachedTokens, outputTokens,
+                inputCost, outputCost, totalCost,
+                strategy.getCurrency(),
+                vendorModel.getPricingStrategy().getDescription()
+            );
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Failed to calculate cost for vendor model {}: {}", vendorModelId, e.getMessage(), e);
             return ResponseEntity.badRequest().build();

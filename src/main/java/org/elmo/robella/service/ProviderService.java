@@ -61,29 +61,4 @@ public class ProviderService extends ServiceImpl<ProviderMapper, Provider> {
         }
         return removeById(id);
     }
-
-    // VendorModel methods
-    public List<VendorModel> getVendorModelsByProviderId(Long providerId) {
-        return vendorModelMapper.findByProviderId(providerId);
-    }
-
-    public boolean createVendorModel(Long providerId, VendorModel vendorModel) {
-        vendorModel.setProviderId(providerId);
-        vendorModel.setEnabled(true);
-        return vendorModelMapper.insert(vendorModel) > 0;
-    }
-
-    public boolean updateVendorModel(Long id, VendorModel vendorModel) {
-        VendorModel existingVendorModel = vendorModelMapper.selectById(id);
-        if (existingVendorModel == null) {
-            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "VendorModel not found with id: " + id);
-        }
-
-        vendorModel.setId(id);
-        return vendorModelMapper.updateById(vendorModel) > 0;
-    }
-
-    public boolean deleteVendorModel(Long id) {
-        return vendorModelMapper.deleteById(id) > 0;
-    }
 }

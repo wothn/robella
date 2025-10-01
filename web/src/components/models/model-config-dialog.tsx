@@ -45,25 +45,9 @@ export function ModelConfigDialog({
   const { toast } = useToast()
   const { providers: allProviders } = useProviders()
 
-  // 加载数据
-  useEffect(() => {
-    if (open && model) {
-      loadData()
-    }
-  }, [open, model, allProviders])
-
-  // 关闭对话框时重置状态
-  useEffect(() => {
-    if (!open) {
-      setSearchQuery('')
-      setProviders([])
-      setBoundVendorModels([])
-    }
-  }, [open])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!model) return
-    
+
     setLoading(true)
     try {
       // 获取已绑定的VendorModel
@@ -90,7 +74,7 @@ export function ModelConfigDialog({
           }
         })
       )
-      
+
       setProviders(providersWithModels)
     } catch (error) {
       console.error('Failed to load configuration data:', error)
@@ -102,8 +86,25 @@ export function ModelConfigDialog({
     } finally {
       setLoading(false)
     }
-  }
+  }, [model, allProviders, toast])
 
+  // 加载数据
+  useEffect(() => {
+    if (open && model) {
+      loadData()
+    }
+  }, [open, model, loadData])
+
+  // 关闭对话框时重置状态
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery('')
+      setProviders([])
+      setBoundVendorModels([])
+    }
+  }, [open])
+
+  
   // 切换供应商展开状态 - 使用useCallback优化性能
   const toggleProvider = useCallback((providerId: number) => {
     setProviders(prev => prev.map(p => 
@@ -133,7 +134,10 @@ export function ModelConfigDialog({
         })
       } else {
         // 绑定：调用绑定API
-        const updatedVendorModel = await api.addVendorModelToModel(model.id, vendorModel.id)
+        const updatedVendorModel = await api.updateVendorModel(vendorModel.id, {
+          modelId: model.id,
+          modelKey: model.modelKey
+        })
         setBoundVendorModels(prev => [...prev, updatedVendorModel])
         toast({
           title: '绑定成功',

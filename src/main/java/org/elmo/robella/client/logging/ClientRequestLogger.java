@@ -251,6 +251,7 @@ public class ClientRequestLogger {
                        .cachedTokens(usage.getPromptTokensDetails() != null ? usage.getPromptTokensDetails().getCachedTokens() : null)
                        .completionTokens(usage.getCompletionTokens())
                        .totalTokens(usage.getTotalTokens());
+                // 计算成本
                 BillingUtils.BillingResult billingResult = billingUtils.calculateCost(usage);
                 builder.inputCost(billingResult.inputCost())
                        .outputCost(billingResult.outputCost())

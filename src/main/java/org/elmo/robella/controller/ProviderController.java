@@ -3,7 +3,6 @@ package org.elmo.robella.controller;
 import org.elmo.robella.annotation.RequiredRole;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.entity.Provider;
-import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.service.ProviderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -66,40 +65,6 @@ public class ProviderController {
     public ResponseEntity<Void> deleteProvider(@PathVariable Long id) {
         providerService.deleteProvider(id);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/{id}/models")
-    public List<VendorModel> getVendorModelsByProviderId(@PathVariable Long id) {
-        return providerService.getVendorModelsByProviderId(id);
-    }
-
-    @PostMapping("/{id}/models")
-    @RequiredRole(Role.ROOT)
-    public ResponseEntity<VendorModel> createModel(@PathVariable Long id, @RequestBody VendorModel model) {
-        boolean created = providerService.createVendorModel(id, model);
-        if (created) {
-            return ResponseEntity.ok(model);
-        } else {
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    @PutMapping("/models/{id}")
-    @RequiredRole(Role.ROOT)
-    public ResponseEntity<VendorModel> updateModel(@PathVariable Long id, @RequestBody VendorModel model) {
-        providerService.updateVendorModel(id, model);
-        return ResponseEntity.ok(model);
-    }
-
-    @DeleteMapping("/models/{id}")
-    @RequiredRole(Role.ROOT)
-    public ResponseEntity<Void> deleteVendorModel(@PathVariable Long id) {
-        boolean deleted = providerService.deleteVendorModel(id);
-        if (deleted) {
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
     }
 
 }

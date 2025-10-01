@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { VendorModel, CreateVendorModelRequest, UpdateVendorModelRequest } from '@/types'
+import { VendorModel, CreateVendorModelRequest, UpdateVendorModelRequest, PricingTier } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Bot, Plus, Edit } from 'lucide-react'
+import { Bot, Plus, Edit, Layers, Trash2 } from 'lucide-react'
 import { PROVIDER_TYPE_LABELS, ProviderType } from '@/constants/provider-constants'
 
 interface VendorModelModalProps {
@@ -34,12 +34,44 @@ export function VendorModelModal({
     description: '',
     inputPerMillionTokens: '',
     outputPerMillionTokens: '',
+    perRequestPrice: '',
     currency: '',
     cachedInputPrice: '',
+    pricingStrategy: 'FIXED' as 'FIXED' | 'PER_REQUEST' | 'TIERED',
     weight: '',
     providerType: 'OPENAI' as ProviderType,
     enabled: true
   })
+
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([])
+
+  // 添加新的定价阶梯
+  const addPricingTier = () => {
+    const newTier: PricingTier = {
+      id: Date.now(), // 使用临时ID
+      vendorModelId: 0,
+      tierNumber: pricingTiers.length + 1,
+      minTokens: 0,
+      maxTokens: undefined,
+      inputPerMillionTokens: '',
+      outputPerMillionTokens: '',
+      cachedInputPrice: '',
+      currency: 'USD'
+    }
+    setPricingTiers([...pricingTiers, newTier])
+  }
+
+  // 更新定价阶梯
+  const updatePricingTier = (index: number, field: keyof PricingTier, value: any) => {
+    const updatedTiers = [...pricingTiers]
+    updatedTiers[index] = { ...updatedTiers[index], [field]: value }
+    setPricingTiers(updatedTiers)
+  }
+
+  // 删除定价阶梯
+  const removePricingTier = (index: number) => {
+    setPricingTiers(pricingTiers.filter((_, i) => i !== index))
+  }
   const [open, setOpen] = useState(isOpen || false)
 
   // Reset form when modal closes (for new models)
@@ -53,12 +85,15 @@ export function VendorModelModal({
         description: '',
         inputPerMillionTokens: '',
         outputPerMillionTokens: '',
+        perRequestPrice: '',
         currency: '',
         cachedInputPrice: '',
+        pricingStrategy: 'FIXED' as 'FIXED' | 'PER_REQUEST' | 'TIERED',
         weight: '',
         providerType: 'OPENAI' as ProviderType,
         enabled: true
       })
+      setPricingTiers([])
     }
     if (!newOpen) {
       onClose?.()
@@ -74,12 +109,15 @@ export function VendorModelModal({
         description: vendorModel.description || '',
         inputPerMillionTokens: vendorModel.inputPerMillionTokens || '',
         outputPerMillionTokens: vendorModel.outputPerMillionTokens || '',
+        perRequestPrice: vendorModel.perRequestPrice || '',
         currency: vendorModel.currency || '',
         cachedInputPrice: vendorModel.cachedInputPrice || '',
+        pricingStrategy: vendorModel.pricingStrategy || 'FIXED',
         weight: vendorModel.weight?.toString() || '',
         providerType: (vendorModel.providerType as ProviderType) || 'OPENAI',
         enabled: vendorModel.enabled ?? true
       })
+      setPricingTiers(vendorModel.pricingTiers || [])
     } else {
       // Reset form when no vendorModel (for creating new)
       setFormData({
@@ -88,12 +126,15 @@ export function VendorModelModal({
         description: '',
         inputPerMillionTokens: '',
         outputPerMillionTokens: '',
+        perRequestPrice: '',
         currency: '',
         cachedInputPrice: '',
+        pricingStrategy: 'FIXED' as 'FIXED' | 'PER_REQUEST' | 'TIERED',
         weight: '',
         providerType: 'OPENAI' as ProviderType,
         enabled: true
       })
+      setPricingTiers([])
     }
   }, [vendorModel])
 
@@ -109,10 +150,13 @@ export function VendorModelModal({
           description: formData.description || undefined,
           inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
           outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
+          perRequestPrice: formData.perRequestPrice || undefined,
           currency: formData.currency || undefined,
           cachedInputPrice: formData.cachedInputPrice || undefined,
+          pricingStrategy: formData.pricingStrategy,
           weight: formData.weight ? parseFloat(formData.weight) : undefined,
-          enabled: formData.enabled
+          enabled: formData.enabled,
+          pricingTiers: formData.pricingStrategy === 'TIERED' ? pricingTiers : undefined
         } as UpdateVendorModelRequest
       : {
           providerId,
@@ -122,14 +166,17 @@ export function VendorModelModal({
           description: formData.description || undefined,
           inputPerMillionTokens: formData.inputPerMillionTokens || undefined,
           outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
+          perRequestPrice: formData.perRequestPrice || undefined,
           currency: formData.currency || undefined,
           cachedInputPrice: formData.cachedInputPrice || undefined,
+          pricingStrategy: formData.pricingStrategy,
           weight: formData.weight ? parseFloat(formData.weight) : undefined,
-          enabled: formData.enabled
+          enabled: formData.enabled,
+          pricingTiers: formData.pricingStrategy === 'TIERED' ? pricingTiers : undefined
         } as CreateVendorModelRequest
 
     onSubmit(data)
-    
+
     // Clear form data immediately after submission for new models
     if (!vendorModel) {
       setFormData({
@@ -138,14 +185,17 @@ export function VendorModelModal({
         description: '',
         inputPerMillionTokens: '',
         outputPerMillionTokens: '',
+        perRequestPrice: '',
         currency: '',
         cachedInputPrice: '',
+        pricingStrategy: 'FIXED' as 'FIXED' | 'PER_REQUEST' | 'TIERED',
         weight: '',
         providerType: 'NONE' as ProviderType,
         enabled: true
       })
+      setPricingTiers([])
     }
-    
+
     setOpen(false)
   }
 
@@ -226,24 +276,142 @@ export function VendorModelModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="inputPerMillionTokens">输入价格 (每百万tokens)</Label>
-            <Input
-              id="inputPerMillionTokens"
-              value={formData.inputPerMillionTokens}
-              onChange={(e) => setFormData({ ...formData, inputPerMillionTokens: e.target.value })}
-              placeholder="例如: 0.01"
-            />
+            <Label htmlFor="pricingStrategy">计费策略 *</Label>
+            <Select value={formData.pricingStrategy} onValueChange={(value) => setFormData({ ...formData, pricingStrategy: value as 'FIXED' | 'PER_REQUEST' | 'TIERED' })}>
+              <SelectTrigger>
+                <SelectValue placeholder="选择计费策略" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="FIXED">固定价格</SelectItem>
+                <SelectItem value="PER_REQUEST">按次收费</SelectItem>
+                <SelectItem value="TIERED">阶梯计费</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="outputPerMillionTokens">输出价格 (每百万tokens)</Label>
-            <Input
-              id="outputPerMillionTokens"
-              value={formData.outputPerMillionTokens}
-              onChange={(e) => setFormData({ ...formData, outputPerMillionTokens: e.target.value })}
-              placeholder="例如: 0.03"
-            />
-          </div>
+          {/* 根据计费策略显示不同的价格配置 */}
+          {formData.pricingStrategy === 'PER_REQUEST' ? (
+            <div className="space-y-2">
+              <Label htmlFor="perRequestPrice">单次请求价格</Label>
+              <Input
+                id="perRequestPrice"
+                value={formData.perRequestPrice}
+                onChange={(e) => setFormData({ ...formData, perRequestPrice: e.target.value })}
+                placeholder="例如: 0.1"
+              />
+            </div>
+          ) : formData.pricingStrategy === 'TIERED' ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">阶梯定价配置</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPricingTier}
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  添加阶梯
+                </Button>
+              </div>
+
+              {pricingTiers.map((tier, index) => (
+                <div key={tier.id} className="space-y-2 p-3 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">阶梯 {tier.tierNumber}</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removePricingTier(index)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor={`minTokens-${index}`} className="text-xs">最小Token数</Label>
+                      <Input
+                        id={`minTokens-${index}`}
+                        type="number"
+                        min="0"
+                        value={tier.minTokens}
+                        onChange={(e) => updatePricingTier(index, 'minTokens', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`maxTokens-${index}`} className="text-xs">最大Token数 (可选)</Label>
+                      <Input
+                        id={`maxTokens-${index}`}
+                        type="number"
+                        min="0"
+                        value={tier.maxTokens || ''}
+                        onChange={(e) => updatePricingTier(index, 'maxTokens', e.target.value ? parseInt(e.target.value) : undefined)}
+                        placeholder="留空表示无上限"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label htmlFor={`inputPrice-${index}`} className="text-xs">输入价格/百万Token</Label>
+                      <Input
+                        id={`inputPrice-${index}`}
+                        value={tier.inputPerMillionTokens}
+                        onChange={(e) => updatePricingTier(index, 'inputPerMillionTokens', e.target.value)}
+                        placeholder="0.01"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`outputPrice-${index}`} className="text-xs">输出价格/百万Token</Label>
+                      <Input
+                        id={`outputPrice-${index}`}
+                        value={tier.outputPerMillionTokens}
+                        onChange={(e) => updatePricingTier(index, 'outputPerMillionTokens', e.target.value)}
+                        placeholder="0.03"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`cachePrice-${index}`} className="text-xs">缓存价格/百万Token</Label>
+                      <Input
+                        id={`cachePrice-${index}`}
+                        value={tier.cachedInputPrice}
+                        onChange={(e) => updatePricingTier(index, 'cachedInputPrice', e.target.value)}
+                        placeholder="0.005"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* 固定价格 */
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="inputPerMillionTokens">输入价格 (每百万tokens)</Label>
+                <Input
+                  id="inputPerMillionTokens"
+                  value={formData.inputPerMillionTokens}
+                  onChange={(e) => setFormData({ ...formData, inputPerMillionTokens: e.target.value })}
+                  placeholder="例如: 0.01"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="outputPerMillionTokens">输出价格 (每百万tokens)</Label>
+                <Input
+                  id="outputPerMillionTokens"
+                  value={formData.outputPerMillionTokens}
+                  onChange={(e) => setFormData({ ...formData, outputPerMillionTokens: e.target.value })}
+                  placeholder="例如: 0.03"
+                />
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="currency">货币</Label>
@@ -255,16 +423,19 @@ export function VendorModelModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cachedInputPrice">缓存输入价格</Label>
-            <Input
-              id="cachedInputPrice"
-              value={formData.cachedInputPrice}
-              onChange={(e) => setFormData({ ...formData, cachedInputPrice: e.target.value })}
-              placeholder="例如: 0.005"
-            />
-          </div>
+          {(formData.pricingStrategy === 'FIXED' || formData.pricingStrategy === 'TIERED') && (
+            <div className="space-y-2">
+              <Label htmlFor="cachedInputPrice">缓存输入价格</Label>
+              <Input
+                id="cachedInputPrice"
+                value={formData.cachedInputPrice}
+                onChange={(e) => setFormData({ ...formData, cachedInputPrice: e.target.value })}
+                placeholder="例如: 0.005"
+              />
+            </div>
+          )}
 
+          
 
 
           <div className="space-y-2">

@@ -1,5 +1,6 @@
 package org.elmo.robella.service;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.mapper.PricingTierMapper;
@@ -16,7 +17,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PricingTierService {
+public class PricingTierService extends ServiceImpl<PricingTierMapper, PricingTier> {
     
     private final PricingTierMapper pricingTierMapper;
     private final VendorModelMapper vendorModelMapper;
@@ -113,6 +114,44 @@ public class PricingTierService {
         log.info("Deleted pricing tier {}", pricingTierId);
     }
     
+    /**
+     * 批量保存定价阶梯
+     * @param pricingTiers 定价阶梯列表
+     * @return 是否成功
+     */
+    @Transactional
+    public boolean saveBatch(List<PricingTier> pricingTiers) {
+        if (pricingTiers == null || pricingTiers.isEmpty()) {
+            return true;
+        }
+
+        try {
+            boolean result = this.saveBatch(pricingTiers, 1000); // 使用MyBatis-Plus原生批量插入，每批1000条
+            log.info("Saved {} pricing tiers in batch, result: {}", pricingTiers.size(), result);
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to save pricing tiers in batch", e);
+            return false;
+        }
+    }
+
+    /**
+     * 根据供应商模型ID删除所有定价阶梯
+     * @param vendorModelId 供应商模型ID
+     * @return 是否成功
+     */
+    @Transactional
+    public boolean deleteByVendorModelId(Long vendorModelId) {
+        try {
+            pricingTierMapper.deleteByVendorModelId(vendorModelId);
+            log.info("Deleted all pricing tiers for vendor model {}", vendorModelId);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to delete pricing tiers for vendor model {}", vendorModelId, e);
+            return false;
+        }
+    }
+
     /**
      * 验证定价阶梯的完整性
      * @param pricingTiers 定价阶梯列表

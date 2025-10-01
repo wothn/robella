@@ -37,11 +37,7 @@ public class UnifiedService {
     private final BillingUtils billingUtils;
     private final TokenCountingUtils tokenCountingUtils;
 
-    // 预扣费系数：基于最大可能的输出token比例进行预扣费
-    private static final BigDecimal PRE_BILLING_OUTPUT_RATIO = BigDecimal.valueOf(4.0);
-    // 最小预扣费金额（CNY）
-    private static final BigDecimal MIN_PRE_BILLING_AMOUNT = BigDecimal.valueOf(0.01);
-
+  
     public ModelListResponse listModels() {
         List<Model> models = modelMapper.findByPublishedTrue();
         
@@ -94,36 +90,30 @@ public class UnifiedService {
         try {
             // 如果是按次计费，直接返回固定价格
             if (vendorModel.getPricingStrategy() == PricingStrategyType.PER_REQUEST) {
-                // 使用inputPerMillionTokens作为每次请求的固定价格
-                return vendorModel.getInputPerMillionTokens()
-                    .setScale(6, RoundingMode.HALF_UP)
-                    .max(MIN_PRE_BILLING_AMOUNT);
+                // 使用perRequestPrice作为每次请求的固定价格
+                return vendorModel.getPerRequestPrice()
+                    .setScale(6, RoundingMode.HALF_UP);
             }
             
             // 使用TokenCountingUtils专业方法估算输入token数量
             int estimatedInputTokens = tokenCountingUtils.estimateRequestTokens(request, vendorModel.getModelKey());
             
-            // 估算输出 token 数量，300 token
-            int estimatedOutputTokens = 300; 
             
             // 创建临时的Usage对象用于成本计算
             Usage estimatedUsage = new Usage();
             estimatedUsage.setPromptTokens(estimatedInputTokens);
-            estimatedUsage.setCompletionTokens(estimatedOutputTokens);
-            estimatedUsage.setTotalTokens(estimatedInputTokens + estimatedOutputTokens);
+            estimatedUsage.setCompletionTokens(0);
+            estimatedUsage.setTotalTokens(estimatedInputTokens);
             
             // 计算预估成本
             BillingUtils.BillingResult estimatedCost = billingUtils.calculateCost(estimatedUsage);
-            
-            // 应用预扣费系数，确保有足够的余额覆盖可能的超额使用
-            BigDecimal preBillingAmount = estimatedCost.totalCost().multiply(PRE_BILLING_OUTPUT_RATIO);
-            
-            // 确保最小预扣费金额
-            return preBillingAmount.max(MIN_PRE_BILLING_AMOUNT);
+
+            // 直接使用预估成本
+            return estimatedCost.totalCost();
             
         } catch (Exception e) {
-            log.warn("估算请求成本失败，使用默认最小预扣费金额: {}", e.getMessage());
-            return MIN_PRE_BILLING_AMOUNT;
+            log.warn("估算请求成本失败，使用默认值: {}", e.getMessage());
+            return BigDecimal.valueOf(0.001);
         }
     }
 

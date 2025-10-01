@@ -306,33 +306,165 @@ class ApiClient {
 
   // 获取模型关联的VendorModel
   async getVendorModelsByModelId(modelId: number): Promise<VendorModel[]> {
-    return this.get(`/models/${modelId}/vendor-models`)
-  }
-
-  // 为模型添加VendorModel关联
-  async addVendorModelToModel(modelId: number, vendorModelId: number): Promise<VendorModel> {
-    return this.post(`/models/${modelId}/vendor-models/${vendorModelId}`, {})
+    return this.get(`/vendor-models/model/${modelId}`)
   }
 
   // ================= Vendor Model Management =================
   // 获取某 Provider 的所有 Vendor Models
   async getVendorModelsByProviderId(providerId: number): Promise<VendorModel[]> {
-    return this.get(`/providers/${providerId}/models`)
+    return this.get(`/vendor-models/provider/${providerId}`)
+  }
+
+  private buildCreateVendorModelPayload(data: CreateVendorModelRequest) {
+    const safeNumber = (value?: string | number | null): number | undefined => {
+      if (value === undefined || value === null || value === '') {
+        return undefined
+      }
+      const num = typeof value === 'number' ? value : parseFloat(value)
+      return Number.isFinite(num) ? num : undefined
+    }
+
+    const vendorModel: Record<string, unknown> = {
+      modelId: data.modelId ?? null,
+      modelKey: data.modelKey ?? data.vendorModelKey,
+      providerId: data.providerId,
+      providerType: data.providerType,
+      vendorModelName: data.vendorModelName,
+      vendorModelKey: data.vendorModelKey,
+      description: data.description ?? null,
+      inputPerMillionTokens: safeNumber(data.inputPerMillionTokens),
+      outputPerMillionTokens: safeNumber(data.outputPerMillionTokens),
+      perRequestPrice: safeNumber(data.perRequestPrice),
+      currency: data.currency ?? null,
+      cachedInputPrice: safeNumber(data.cachedInputPrice) ?? 0,
+      pricingStrategy: data.pricingStrategy,
+      weight: (typeof data.weight === 'number' ? data.weight : safeNumber(data.weight)) ?? 5,
+      enabled: data.enabled ?? true
+    }
+
+    const tiers =
+      data.pricingStrategy === 'TIERED' && data.pricingTiers?.length
+        ? data.pricingTiers.map(tier => ({
+            ...tier,
+            inputPerMillionTokens: safeNumber(tier.inputPerMillionTokens),
+            outputPerMillionTokens: safeNumber(tier.outputPerMillionTokens),
+            cachedInputPrice: safeNumber(tier.cachedInputPrice)
+          }))
+        : undefined
+
+    return {
+      vendorModel,
+      pricingTiers: tiers
+    }
+  }
+
+  private buildUpdateVendorModelPayload(id: number, data: UpdateVendorModelRequest) {
+    const safeNumber = (value?: string | number | null): number | undefined => {
+      if (value === undefined || value === null || value === '') {
+        return undefined
+      }
+      const num = typeof value === 'number' ? value : parseFloat(value)
+      return Number.isFinite(num) ? num : undefined
+    }
+
+    const vendorModel: Record<string, unknown> = { id }
+
+    if ('modelId' in data) {
+      vendorModel.modelId = data.modelId ?? null
+    }
+
+    if (data.modelKey !== undefined) {
+      vendorModel.modelKey = data.modelKey
+    }
+
+    if (data.providerId !== undefined) {
+      vendorModel.providerId = data.providerId
+    }
+
+    if (data.providerType !== undefined) {
+      vendorModel.providerType = data.providerType
+    }
+
+    if (data.vendorModelName !== undefined) {
+      vendorModel.vendorModelName = data.vendorModelName
+    }
+
+    if (data.vendorModelKey !== undefined) {
+      vendorModel.vendorModelKey = data.vendorModelKey
+    }
+
+    if (data.description !== undefined) {
+      vendorModel.description = data.description ?? null
+    }
+
+    if (data.pricingStrategy !== undefined) {
+      vendorModel.pricingStrategy = data.pricingStrategy
+    }
+
+    const inputPrice = safeNumber(data.inputPerMillionTokens)
+    if (inputPrice !== undefined) {
+      vendorModel.inputPerMillionTokens = inputPrice
+    }
+
+    const outputPrice = safeNumber(data.outputPerMillionTokens)
+    if (outputPrice !== undefined) {
+      vendorModel.outputPerMillionTokens = outputPrice
+    }
+
+    const perRequestPrice = safeNumber(data.perRequestPrice)
+    if (perRequestPrice !== undefined) {
+      vendorModel.perRequestPrice = perRequestPrice
+    }
+
+    if (data.currency !== undefined) {
+      vendorModel.currency = data.currency ?? null
+    }
+
+    const cachedPrice = safeNumber(data.cachedInputPrice)
+    if (cachedPrice !== undefined) {
+      vendorModel.cachedInputPrice = cachedPrice
+    }
+
+    const weightValue = typeof data.weight === 'number' ? data.weight : safeNumber(data.weight)
+    if (weightValue !== undefined) {
+      vendorModel.weight = weightValue
+    }
+
+    if (data.enabled !== undefined) {
+      vendorModel.enabled = data.enabled
+    }
+
+    const tiers =
+      data.pricingTiers !== undefined
+        ? data.pricingTiers.map(tier => ({
+            ...tier,
+            inputPerMillionTokens: safeNumber(tier.inputPerMillionTokens),
+            outputPerMillionTokens: safeNumber(tier.outputPerMillionTokens),
+            cachedInputPrice: safeNumber(tier.cachedInputPrice)
+          }))
+        : undefined
+
+    return {
+      vendorModel,
+      pricingTiers: tiers
+    }
   }
 
   // 创建 Vendor Model
-  async createVendorModel(providerId: number, data: CreateVendorModelRequest): Promise<VendorModel> {
-    return this.post(`/providers/${providerId}/models`, data)
+  async createVendorModel(data: CreateVendorModelRequest): Promise<VendorModel> {
+    const payload = this.buildCreateVendorModelPayload(data)
+    return this.post('/vendor-models', payload)
   }
 
   // 更新 Vendor Model
   async updateVendorModel(modelId: number, data: UpdateVendorModelRequest): Promise<VendorModel> {
-    return this.put(`/providers/models/${modelId}`, data)
+    const payload = this.buildUpdateVendorModelPayload(modelId, data)
+    return this.put(`/vendor-models/${modelId}`, payload)
   }
 
   // 删除 Vendor Model
   async deleteVendorModel(modelId: number): Promise<void> {
-    return this.delete(`/providers/models/${modelId}`)
+    return this.delete(`/vendor-models/${modelId}`)
   }
 
   // ================= Statistics API =================

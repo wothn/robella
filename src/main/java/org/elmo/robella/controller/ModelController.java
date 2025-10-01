@@ -1,10 +1,8 @@
 package org.elmo.robella.controller;
 
 import org.elmo.robella.annotation.RequiredRole;
-import org.elmo.robella.exception.ValidationException;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.entity.Model;
-import org.elmo.robella.model.entity.VendorModel;
 import org.elmo.robella.service.ModelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -121,22 +119,4 @@ public class ModelController {
         return modelService.findByCapability(capability);
     }
 
-
-    // VendorModel 管理
-    @GetMapping("/{id}/vendor-models")
-    public List<VendorModel> getVendorModelsByModelId(@PathVariable @NotNull Long id) {
-        return modelService.getVendorModelsByModelId(id);
-    }
-
-    @PostMapping("/{modelId}/vendor-models/{vendorModelId}")
-    @RequiredRole(Role.ROOT)
-    public ResponseEntity<VendorModel> addVendorModelToModel(
-            @PathVariable @NotNull Long modelId,
-            @PathVariable @NotNull Long vendorModelId) {
-        VendorModel vendorModel = modelService.addVendorModelToModel(modelId, vendorModelId);
-        if (vendorModel != null) {
-            return ResponseEntity.ok(vendorModel);
-        }
-        return ResponseEntity.badRequest().build();
-    }
 }

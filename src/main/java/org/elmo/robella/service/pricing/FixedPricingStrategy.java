@@ -43,7 +43,8 @@ public class FixedPricingStrategy implements PricingStrategy {
     public BigDecimal calculateOutputCost(long outputTokens) {
         return BigDecimal.valueOf(outputTokens)
             .multiply(vendorModel.getOutputPerMillionTokens())
-            .divide(BigDecimal.valueOf(1_000_000), 6, RoundingMode.HALF_UP);
+            .divide(BigDecimal.valueOf(1_000_000), 10, RoundingMode.HALF_UP)
+            .setScale(6, RoundingMode.HALF_UP);
     }
     
     @Override

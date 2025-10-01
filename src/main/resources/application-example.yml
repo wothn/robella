@@ -1,94 +1,123 @@
 server:
-  port: 8080
+  port: 10032
 
 spring:
   application:
     name: robella
-  # WebFlux 相关配置
-  webflux:
-    multipart:
-      max-in-memory-size: 32MB
-      max-disk-usage-per-part: 256MB
-  # 提升服务端编解码默认内存上限 (默认 256KB)，避免大请求体触发 DataBufferLimitException
-  codec:
-    max-in-memory-size: 32MB
-  
-  # PostgreSQL R2DBC 配置
-  r2dbc:
-    url: r2dbc:postgresql://localhost:5432/robella
-    username: ${POSTGRES_USERNAME:postgres}
-    password: ${POSTGRES_PASSWORD:password}
-    properties:
-      ssl: false
-      sslMode: disable
-    pool:
+  # 启用虚拟线程
+  threads:
+    virtual:
       enabled: true
-      initial-size: 5
-      max-size: 20
-      max-idle-time: 30m
-      max-life-time: 60m
-      acquire-timeout: 30s
-      validation-query: SELECT 1
-  
+  # MyBatis-Plus 配置
+  datasource:
+    url: jdbc:postgresql://localhost:5432/robella
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:123654789}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 30000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+  # 文件上传配置 (MVC)
+  servlet:
+    multipart:
+      max-file-size: 256MB
+      max-request-size: 256MB
+
+  # Jackson 配置
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      indent-output: false
+    deserialization:
+      fail-on-unknown-properties: false
+
   # 数据库初始化配置
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema.sql
-      data-locations: classpath:data.sql
+      mode: never  # 禁用自动初始化，改为手动执行 schema.sql 和 data.sql
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:/mapper/**/*.xml
 
 # 应用特定配置
 robella:
-  webclient:
+  okhttp:
     # 连接池配置
     connection-pool:
-      max-connections: 500
-      max-idle-time: 20s
-      max-lifetime: 60s
-      acquire-timeout: 10s       # 获取连接的超时时间
-      evict-in-background: 120s  # 后台线程清理过期连接的间隔时间
-    # 超时配置  
+      max-idle-connections: 50
+    # 超时配置
     timeout:
       connect: 10s
       read: 60s
       write: 30s
+      call: 30000s
     # 重试配置
     retry:
+      enabled: true
       max-attempts: 3
       initial-delay: 1s
       max-delay: 10s
-    # 缓冲区配置 (客户端 WebClient 使用)
+    # 缓冲区配置
     buffer:
       max-in-memory-size: 32MB
-      enable-logging-request-details: true  # 是否启动请求详情的日志
-      keep-alive: true
-      compress: true
+      enable-logging: true
+  # 负载均衡配置
+  loadbalancer:
+    strategy: HYBRID_WEIGHTED  # 负载均衡策略: ROUND_ROBIN, RANDOM, HYBRID_WEIGHTED
+
 
 logging:
   level:
-    org.elmo.robella: TRACE
-    reactor.netty.http.client: DEBUG  # 网络调试日志
+    org.elmo.robella: DEBUG
+    org.springframework.web: DEBUG
+    com.baomidou.mybatisplus: DEBUG
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/robella.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+# Sa-Token配置
+sa-token:
+  # token名称 (同时也是cookie名称)
+  token-name: satoken
+  # token有效期 (单位: 秒) 默认30天, -1代表永不过期
+  timeout: 2592000
+# token 最低活跃频率（单位：秒），如果 token 超过此时间没有访问系统就会被冻结，默认-1 代表不限制，永不冻结
+  active-timeout: -1
+  # 是否允许同一账号并发登录 (为true时允许一起登录, 为false时新登录挤掉旧登录)
+  is-concurrent: true
+  # 在多人登录同一账号时，是否共用一个token (为true时所有登录共用一个token, 为false时每次登录新建一个token)
+  is-share: false
+  # token风格
+  token-style: uuid
+  # 是否输出操作日志
+  is-log: true
 
-providers:
-  aihubmix:
-    name: aihubmix
-    type: OpenAI
-    api-key: ${AIHUBMIX_API_KEY}
-    base-url: https://aihubmix.com/v1
-    models:
-      - name: GLM-4.5
-        vendor-model: GLM-4.5
-      - name: gpt-5-nano
-        vendor-model: gpt-5-nano
-      - name: doubao-seed-1-6-flash
-        vendor-model: doubao-seed-1-6-flash-250615
-  modelscope:
-    name: modelscope
-    type: OpenAI
-    api-key: ${MODELSCOPE_API_KEY}
-    base-url: https://api-inference.modelscope.cn/v1
-    models:
-      - name: modelscope/GLM-4.5
-        vendor-model: ZhipuAI/GLM-4.5
+# GitHub OAuth配置
+github:
+  oauth:
+    client-id: ${GITHUB_CLIENT_ID}
+    client-secret: ${GITHUB_CLIENT_SECRET}
+    redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:10032/api/oauth/github/callback}
+    scope: user:email,read:user
+    auth-url: https://github.com/login/oauth/authorize
+    token-url: https://github.com/login/oauth/access_token
+    user-url: https://api.github.com/user
