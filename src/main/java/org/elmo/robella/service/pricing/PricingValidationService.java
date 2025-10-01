@@ -55,9 +55,6 @@ public class PricingValidationService {
                 throw new IllegalArgumentException("Cached input price cannot be negative");
             }
             
-            if (tier.getCurrency() == null || tier.getCurrency().trim().isEmpty()) {
-                throw new IllegalArgumentException("Currency cannot be empty");
-            }
             
             // 验证阶梯间的连续性
             if (i > 0) {

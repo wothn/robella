@@ -23,18 +23,19 @@ class TieredPricingStrategyTest {
         vendorModel = new VendorModel();
         vendorModel.setId(1L);
         vendorModel.setPricingStrategy(PricingStrategyType.TIERED);
-        
+        vendorModel.setCurrency("USD");
+
         // 创建测试阶梯：
         // Tier 1: 0-1000 tokens, $0.01/1K tokens
-        // Tier 2: 1001-10000 tokens, $0.008/1K tokens  
+        // Tier 2: 1001-10000 tokens, $0.008/1K tokens
         // Tier 3: 10001+ tokens, $0.006/1K tokens
         pricingTiers = Arrays.asList(
             createPricingTier(1, 0, 1000, 0.01, 0.03, 0.005),
             createPricingTier(2, 1001, 10000, 0.008, 0.024, 0.004),
             createPricingTier(3, 10001, Long.MAX_VALUE, 0.006, 0.018, 0.003)
         );
-        
-        tieredPricingStrategy = new TieredPricingStrategy(pricingTiers);
+
+        tieredPricingStrategy = new TieredPricingStrategy(pricingTiers, vendorModel);
     }
     
     private PricingTier createPricingTier(int tierNumber, long minTokens, long maxTokens, 
@@ -47,7 +48,6 @@ class TieredPricingStrategyTest {
         tier.setInputPerMillionTokens(BigDecimal.valueOf(inputPrice));
         tier.setOutputPerMillionTokens(BigDecimal.valueOf(outputPrice));
         tier.setCachedInputPrice(BigDecimal.valueOf(cachedPrice));
-        tier.setCurrency("USD");
         return tier;
     }
     
@@ -125,14 +125,14 @@ class TieredPricingStrategyTest {
     @Test
     void testInvalidPricingTiers_NullList() {
         assertThrows(IllegalArgumentException.class, () -> {
-            new TieredPricingStrategy(null);
+            new TieredPricingStrategy(null, vendorModel);
         });
     }
     
     @Test
     void testInvalidPricingTiers_EmptyList() {
         assertThrows(IllegalArgumentException.class, () -> {
-            new TieredPricingStrategy(Arrays.asList());
+            new TieredPricingStrategy(Arrays.asList(), vendorModel);
         });
     }
 }

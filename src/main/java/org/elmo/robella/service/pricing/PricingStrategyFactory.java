@@ -50,6 +50,6 @@ public class PricingStrategyFactory {
             return new FixedPricingStrategy(vendorModel);
         }
         
-        return new TieredPricingStrategy(pricingTiers);
+        return new TieredPricingStrategy(pricingTiers, vendorModel);
     }
 }

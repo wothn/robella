@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Bot, Plus, Edit, Layers, Trash2 } from 'lucide-react'
+import { Bot, Plus, Edit, Trash2 } from 'lucide-react'
 import { PROVIDER_TYPE_LABELS, ProviderType } from '@/constants/provider-constants'
 
 interface VendorModelModalProps {
@@ -152,7 +152,7 @@ export function VendorModelModal({
           outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
           perRequestPrice: formData.perRequestPrice || undefined,
           currency: formData.currency || undefined,
-          cachedInputPrice: formData.cachedInputPrice || undefined,
+          cachedInputPrice: formData.pricingStrategy === 'TIERED' ? undefined : (formData.cachedInputPrice || undefined),
           pricingStrategy: formData.pricingStrategy,
           weight: formData.weight ? parseFloat(formData.weight) : undefined,
           enabled: formData.enabled,
@@ -168,7 +168,7 @@ export function VendorModelModal({
           outputPerMillionTokens: formData.outputPerMillionTokens || undefined,
           perRequestPrice: formData.perRequestPrice || undefined,
           currency: formData.currency || undefined,
-          cachedInputPrice: formData.cachedInputPrice || undefined,
+          cachedInputPrice: formData.pricingStrategy === 'TIERED' ? undefined : (formData.cachedInputPrice || undefined),
           pricingStrategy: formData.pricingStrategy,
           weight: formData.weight ? parseFloat(formData.weight) : undefined,
           enabled: formData.enabled,
@@ -423,7 +423,7 @@ export function VendorModelModal({
             />
           </div>
 
-          {(formData.pricingStrategy === 'FIXED' || formData.pricingStrategy === 'TIERED') && (
+          {formData.pricingStrategy === 'FIXED' && (
             <div className="space-y-2">
               <Label htmlFor="cachedInputPrice">缓存输入价格</Label>
               <Input

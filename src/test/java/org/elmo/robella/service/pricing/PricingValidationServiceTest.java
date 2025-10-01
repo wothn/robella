@@ -32,7 +32,6 @@ class PricingValidationServiceTest {
         tier.setInputPerMillionTokens(BigDecimal.valueOf(inputPrice));
         tier.setOutputPerMillionTokens(BigDecimal.valueOf(outputPrice));
         tier.setCachedInputPrice(BigDecimal.valueOf(cachedPrice));
-        tier.setCurrency("USD");
         return tier;
     }
     

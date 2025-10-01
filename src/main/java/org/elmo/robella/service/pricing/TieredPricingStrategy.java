@@ -1,23 +1,27 @@
 package org.elmo.robella.service.pricing;
 
 import org.elmo.robella.model.entity.PricingTier;
+import org.elmo.robella.model.entity.VendorModel;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
 public class TieredPricingStrategy implements PricingStrategy {
-    
+
     private final List<PricingTier> pricingTiers;
     private final String currency;
-    
-    public TieredPricingStrategy(List<PricingTier> pricingTiers) {
+
+    public TieredPricingStrategy(List<PricingTier> pricingTiers, VendorModel vendorModel) {
         if (pricingTiers == null || pricingTiers.isEmpty()) {
             throw new IllegalArgumentException("Pricing tiers cannot be null or empty");
+        }
+        if (vendorModel == null) {
+            throw new IllegalArgumentException("Vendor model cannot be null");
         }
         this.pricingTiers = pricingTiers.stream()
             .sorted((a, b) -> Integer.compare(a.getTierNumber(), b.getTierNumber()))
             .toList();
-        this.currency = pricingTiers.get(0).getCurrency();
+        this.currency = vendorModel.getCurrency();
     }
     
     @Override

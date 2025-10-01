@@ -7,7 +7,6 @@ export interface PricingTier {
   inputPerMillionTokens: string
   outputPerMillionTokens: string
   cachedInputPrice: string
-  currency: string
   createdAt?: string
   updatedAt?: string
 }

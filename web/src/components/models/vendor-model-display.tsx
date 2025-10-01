@@ -32,7 +32,7 @@ const getPricingStrategyLabel = (strategy?: string) => {
 }
 
 // 格式化阶梯计费显示
-const formatTieredPricingDisplay = (tiers: PricingTier[]) => {
+const formatTieredPricingDisplay = (tiers: PricingTier[], currency?: string) => {
   if (!tiers || tiers.length === 0) return null
 
   return tiers.map((tier) => {
@@ -44,9 +44,9 @@ const formatTieredPricingDisplay = (tiers: PricingTier[]) => {
       <div key={tier.id} className="text-xs space-y-1 p-2 bg-muted/50 rounded">
         <div className="font-medium">阶梯 {tier.tierNumber}: {range}</div>
         <div className="flex flex-wrap gap-2 text-muted-foreground">
-          <span>输入: {formatPriceDisplay(tier.inputPerMillionTokens, tier.currency)}</span>
-          <span>输出: {formatPriceDisplay(tier.outputPerMillionTokens, tier.currency)}</span>
-          <span>缓存: {formatPriceDisplay(tier.cachedInputPrice, tier.currency)}</span>
+          <span>输入: {formatPriceDisplay(tier.inputPerMillionTokens, currency)}</span>
+          <span>输出: {formatPriceDisplay(tier.outputPerMillionTokens, currency)}</span>
+          <span>缓存: {formatPriceDisplay(tier.cachedInputPrice, currency)}</span>
         </div>
       </div>
     )
@@ -278,7 +278,7 @@ export function VendorModelDisplay({ vendorModels, providers }: VendorModelDispl
                             <p className="text-sm font-medium">阶梯价格详情</p>
                           </div>
                           <div className="space-y-2">
-                            {formatTieredPricingDisplay(model.pricingTiers)}
+                            {formatTieredPricingDisplay(model.pricingTiers, model.currency)}
                           </div>
                         </div>
                       )}

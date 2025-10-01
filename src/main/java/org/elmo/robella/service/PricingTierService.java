@@ -80,7 +80,6 @@ public class PricingTierService extends ServiceImpl<PricingTierMapper, PricingTi
         existingTier.setInputPerMillionTokens(updatedTier.getInputPerMillionTokens());
         existingTier.setOutputPerMillionTokens(updatedTier.getOutputPerMillionTokens());
         existingTier.setCachedInputPrice(updatedTier.getCachedInputPrice());
-        existingTier.setCurrency(updatedTier.getCurrency());
         
         pricingTierMapper.updateById(existingTier);
         log.info("Updated pricing tier {}", pricingTierId);

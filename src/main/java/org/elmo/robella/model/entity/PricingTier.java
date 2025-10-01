@@ -52,10 +52,6 @@ public class PricingTier {
     @TableField("cached_input_price")
     private BigDecimal cachedInputPrice;
 
-    @NotBlank(message = "Currency cannot be blank")
-    @TableField("currency")
-    private String currency;
-
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private OffsetDateTime createdAt;
 
