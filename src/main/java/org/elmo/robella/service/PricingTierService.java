@@ -51,7 +51,10 @@ public class PricingTierService extends ServiceImpl<PricingTierMapper, PricingTi
         }
         
         // 删除现有的定价阶梯
-        pricingTierMapper.deleteByVendorModelId(vendorModelId);
+        LambdaQueryWrapper<PricingTier> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PricingTier::getVendorModelId, vendorModelId);
+        pricingTierMapper.delete(queryWrapper);
+    
         
         // 设置供应商模型ID并创建新的定价阶梯
         for (PricingTier tier : pricingTiers) {
@@ -105,7 +108,9 @@ public class PricingTierService extends ServiceImpl<PricingTierMapper, PricingTi
         
         // 检查是否还有其他阶梯，如果没有则恢复为固定价格
         Long vendorModelId = tier.getVendorModelId();
-        List<PricingTier> remainingTiers = pricingTierMapper.findByVendorModelId(vendorModelId);
+        LambdaQueryWrapper<PricingTier> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PricingTier::getVendorModelId, vendorModelId);
+        List<PricingTier> remainingTiers = pricingTierMapper.selectList(queryWrapper);
         if (remainingTiers.isEmpty()) {
             VendorModel vendorModel = vendorModelMapper.selectById(vendorModelId);
             if (vendorModel != null) {
@@ -147,7 +152,9 @@ public class PricingTierService extends ServiceImpl<PricingTierMapper, PricingTi
     @Transactional
     public boolean deleteByVendorModelId(Long vendorModelId) {
         try {
-            pricingTierMapper.deleteByVendorModelId(vendorModelId);
+            LambdaQueryWrapper<PricingTier> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(PricingTier::getVendorModelId, vendorModelId);
+            pricingTierMapper.delete(queryWrapper);
             log.info("Deleted all pricing tiers for vendor model {}", vendorModelId);
             return true;
         } catch (Exception e) {

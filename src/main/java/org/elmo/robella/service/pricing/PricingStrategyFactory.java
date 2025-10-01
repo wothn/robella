@@ -6,6 +6,8 @@ import org.elmo.robella.model.entity.VendorModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+
 import org.elmo.robella.model.enums.PricingStrategyType;
 
 import java.util.List;
@@ -43,8 +45,11 @@ public class PricingStrategyFactory {
     }
     
     private PricingStrategy createTieredPricingStrategy(VendorModel vendorModel) {
-        List<PricingTier> pricingTiers = pricingTierMapper.findByVendorModelId(vendorModel.getId());
         
+        LambdaQueryWrapper<PricingTier> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PricingTier::getVendorModelId, vendorModel.getId());
+        List<PricingTier> pricingTiers = pricingTierMapper.selectList(queryWrapper);
+
         if (pricingTiers == null || pricingTiers.isEmpty()) {
             // 如果没有配置阶梯价格，回退到固定价格
             return new FixedPricingStrategy(vendorModel);
