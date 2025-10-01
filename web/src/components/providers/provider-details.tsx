@@ -2,14 +2,14 @@
 
 import { Provider, VendorModel } from '@/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { VendorModelModal } from '@/components/providers/vendor-model-modal'
+import { VendorModelModal } from '@/components/vendor-model/vendor-model-modal'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   ProviderBasicInfo,
   ProviderDetailsCard,
   ProviderConfigCard
 } from './provider-basic-info'
-import { VendorModelsList } from './vendor-models-list'
+import { VendorModelsList } from '../vendor-model/vendor-models-list'
 import {
   AlertDialog,
   AlertDialogAction,

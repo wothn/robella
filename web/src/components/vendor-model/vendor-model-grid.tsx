@@ -14,7 +14,7 @@ import {
   Trash2,
   Layers
 } from 'lucide-react'
-import { VendorModelModal } from './vendor-model-modal'
+import { VendorModelModal } from '../providers/vendor-model-modal'
 import { cn } from '@/lib/utils'
 import { formatPriceDisplay, formatWeightDisplay, getProviderTypeLabel } from '@/lib/formatters'
 
