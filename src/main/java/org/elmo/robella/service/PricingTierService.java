@@ -1,6 +1,8 @@
 package org.elmo.robella.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elmo.robella.mapper.PricingTierMapper;
@@ -29,7 +31,10 @@ public class PricingTierService extends ServiceImpl<PricingTierMapper, PricingTi
      * @return 定价阶梯列表
      */
     public List<PricingTier> getPricingTiersByVendorModel(Long vendorModelId) {
-        return pricingTierMapper.findByVendorModelId(vendorModelId);
+        LambdaQueryWrapper<PricingTier> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PricingTier::getVendorModelId, vendorModelId)
+                    .orderByAsc(PricingTier::getTierNumber);
+        return pricingTierMapper.selectList(queryWrapper);
     }
     
     /**
