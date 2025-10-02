@@ -28,6 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/stores/auth-store"
+import { useNavigate } from "react-router-dom"
 
 export function NavUser({
   user,
@@ -40,6 +41,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const { logout } = useAuthStore()
+  const navigate = useNavigate()
 
   return (
     <SidebarMenu>
@@ -88,9 +90,14 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault()
+                  navigate("/profile")
+                }}
+              >
                 <BadgeCheck />
-                Account
+                个人资料
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard />

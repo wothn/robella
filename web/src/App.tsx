@@ -9,6 +9,7 @@ import UsersPage from './app/users/page'
 import ProvidersPage from './app/providers/page'
 import ModelsPage from './app/models/page'
 import ApiKeysPage from './app/apikeys/page'
+import ProfilePage from './app/profile/page'
 import AuthCallbackPage from './app/auth/callback/page'
 import AuthSuccessPage from './app/auth/success/page'
 import AuthErrorPage from './app/auth/error/page'
@@ -79,6 +80,14 @@ function AppContent() {
         element={isAuthenticated ? (
           <DashboardLayout>
             <ApiKeysPage />
+          </DashboardLayout>
+        ) : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/profile"
+        element={isAuthenticated ? (
+          <DashboardLayout>
+            <ProfilePage />
           </DashboardLayout>
         ) : <Navigate to="/login" replace />}
       />

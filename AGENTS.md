@@ -19,7 +19,7 @@ Request flow: User request → RoutingService (maps model name to provider model
 Additional components include user management and API key management.
 
 ### Backend (Java Spring Boot)
-- **Framework**: Spring Boot 3.3.10 with Java 21 and virtual threads
+- **Framework**: Spring Boot 3.5.6 with Java 21 and virtual threads
 - **Database**: PostgreSQL with MyBatis-Plus
 - **Authentication**: sa-Token with GitHub OAuth (Note: Only spring-security-crypto is used, not full Spring Security)
 - **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`) and Anthropic native API (`/anthropic/v1/messages`)

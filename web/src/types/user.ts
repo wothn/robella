@@ -4,7 +4,6 @@ export interface User {
   email: string
   displayName: string
   avatar?: string | null
-  phone?: string | null
   active: boolean
   role: string
   createdAt: string
@@ -41,8 +40,6 @@ export interface CreateUserRequest {
   role?: string
 }
 
-
 export interface UserProfileUpdateRequest {
   displayName?: string
-  phone?: string | null
 }

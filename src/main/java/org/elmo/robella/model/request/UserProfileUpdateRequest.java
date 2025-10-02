@@ -22,7 +22,6 @@ public class UserProfileUpdateRequest {
     @Size(max = 100, message = "显示名称长度不能超过100个字符")
     private String displayName;
 
-  
     @Size(max = 500, message = "头像URL长度不能超过500个字符")
     private String avatar;
 }
