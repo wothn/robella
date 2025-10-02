@@ -25,7 +25,7 @@ The system is structured in three layers:
 ### Backend
 - **Java**: 21 with virtual threads
 - **Framework**: Spring Boot 3.3.10 (MVC, not WebFlux)
-- **Database**: PostgreSQL with MyBatis-Plus
+- **Database**: PostgreSQL (default) or SQLite via Spring profiles, powered by MyBatis-Plus
 - **Authentication**: JWT with GitHub OAuth
 - **Build**: Maven 3.8+
 
@@ -41,19 +41,28 @@ The system is structured in three layers:
 
 - Java 21+
 - Maven 3.8+
-- PostgreSQL database
+- One of:
+	- PostgreSQL instance (default profile)
+	- Or SQLite (file-based, no additional service required)
 
 ### Environment Variables
 
 Set the following environment variables before running the application:
 
 ```bash
-export POSTGRES_USERNAME="your-db-username"
-export POSTGRES_PASSWORD="your-db-password"
+export SPRING_PROFILES_ACTIVE=postgres   # or sqlite
+export POSTGRES_USERNAME="your-db-username"   # postgres profile only
+export POSTGRES_PASSWORD="your-db-password"   # postgres profile only
+export SQLITE_DB_PATH="./data/robella.db"     # optional, sqlite profile only
 export JWT_SECRET="your-jwt-secret"
 export GITHUB_CLIENT_ID="your-github-client-id"
 export GITHUB_CLIENT_SECRET="your-github-client-secret"
 ```
+
+### Choose Your Database
+
+- **PostgreSQL (default)**: leave `SPRING_PROFILES_ACTIVE` unset or set it to `postgres`. Configure credentials with the `POSTGRES_*` variables above.
+- **SQLite**: set `SPRING_PROFILES_ACTIVE=sqlite`. The application will create or reuse the file pointed to by `SQLITE_DB_PATH` (defaults to `./data/robella.db`). Ensure the directory exists; this repository already ships with an empty `data/` folder for convenience. Flyway is disabled by default for SQLite—enable it with `FLYWAY_ENABLED=true` only after verifying your migration scripts are compatible and, if needed, adding the optional `org.flywaydb:flyway-database-sqlite` dependency to your own build.
 
 ### Build Project
 
@@ -67,11 +76,19 @@ mvn clean package
 java -jar target/robella-0.1.0.jar
 ```
 
+By default the application runs with the `postgres` profile. To switch to SQLite, run with:
+
+```bash
+java -jar target/robella-0.1.0.jar --spring.profiles.active=sqlite
+```
+
 ### Development Mode
 
 ```bash
 mvn spring-boot:run
 ```
+
+Add `-Dspring-boot.run.profiles=sqlite` to use SQLite during development.
 
 The application runs on port 10032 by default.
 
@@ -135,8 +152,9 @@ web/
 
 ### Key Configuration Files
 
-- `src/main/resources/application.yml` - Main application configuration
-- `src/main/resources/schema.sql` - Database schema
+- `src/main/resources/application.yml` - Shared configuration, defaults to the Postgres profile
+- `src/main/resources/application-postgres.yml` - PostgreSQL-specific datasource settings
+- `src/main/resources/application-sqlite.yml` - SQLite-specific datasource settings
 - `web/vite.config.ts` - Frontend build configuration
 
 ### Database Schema

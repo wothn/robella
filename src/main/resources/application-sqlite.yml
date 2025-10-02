@@ -1,0 +1,17 @@
+spring:
+  config:
+    activate:
+      on-profile: sqlite
+  datasource:
+    url: jdbc:sqlite:${SQLITE_DB_PATH:./data/robella.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 30000
+      max-lifetime: 30000
+      connection-timeout: 30000
+      auto-commit: true
+      connection-test-query: SELECT 1
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}

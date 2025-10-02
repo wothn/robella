@@ -4,23 +4,14 @@ server:
 spring:
   application:
     name: robella
+  profiles:
+    default: postgres
+  # 数据源配置现在拆分在 application-postgres.yml 和 application-sqlite.yml 中，
+  # 通过设置 SPRING_PROFILES_ACTIVE 选择数据库类型。
   # 启用虚拟线程
   threads:
     virtual:
       enabled: true
-  # MyBatis-Plus 配置
-  datasource:
-    url: jdbc:postgresql://localhost:5432/robella
-    username: ${POSTGRES_USERNAME:postgres}
-    password: ${POSTGRES_PASSWORD:123654789}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      idle-timeout: 30000
-      max-lifetime: 30000
-      connection-timeout: 30000
-      connection-test-query: SELECT 1
 
   # 文件上传配置 (MVC)
   servlet:
