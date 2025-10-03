@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -19,6 +19,6 @@ public class LatencyStatsResponse {
     private Double p95DurationMs;
     private Double p99DurationMs;
     private Double averageFirstTokenLatencyMs;
-    private LocalDateTime periodStart;
-    private LocalDateTime periodEnd;
+    private OffsetDateTime periodStart;
+    private OffsetDateTime periodEnd;
 }

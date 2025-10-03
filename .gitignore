@@ -151,3 +151,5 @@ web/.dynamodb/
 web/.tern-port
 web/.pnp
 web/.pnp.js
+
+/data/robella.db

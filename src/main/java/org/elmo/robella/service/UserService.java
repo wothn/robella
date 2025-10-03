@@ -90,44 +90,29 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     }
 
 
-    public UserResponse getUserByUsername(String username) {
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getUsername, username);
-        User user = getOne(queryWrapper);
-        if (user == null) {
-            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + username);
-        }
-        return convertToResponse(user);
-    }
-
     @Transactional
     public UserResponse updateUser(Long id, UserUpdateRequest request) {
-        // 先验证用户是否存在
-        if (getById(id) == null) {
+        // 先验证用户是否存在并获取现有用户
+        User existingUser = getById(id);
+        if (existingUser == null) {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + id);
         }
 
-        // 构建更新条件
-        LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
-        updateWrapper.eq(User::getId, id);
-
-        // 构建更新内容
-        User updateUser = new User();
-        updateUser.setId(id); // 设置ID用于条件更新
-        
+        // 直接更新现有用户对象
         if (request.getDisplayName() != null) {
-            updateUser.setDisplayName(request.getDisplayName());
+            existingUser.setDisplayName(request.getDisplayName());
         }
         if (request.getAvatar() != null) {
-            updateUser.setAvatar(request.getAvatar());
+            existingUser.setAvatar(request.getAvatar());
         }
         if (request.getActive() != null) {
-            updateUser.setActive(request.getActive());
+            existingUser.setActive(request.getActive());
         }
 
-        updateUser.setUpdatedAt(OffsetDateTime.now());
+        existingUser.setUpdatedAt(OffsetDateTime.now());
 
-        update(updateUser, updateWrapper);
+        // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
+        updateById(existingUser);
         
         User updatedUser = getById(id);
         UserResponse response = convertToResponse(updatedUser);
@@ -137,19 +122,17 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
     @Transactional
     public UserResponse setUserActive(Long id, Boolean active) {
-        if (getById(id) == null) {
+        User existingUser = getById(id);
+        if (existingUser == null) {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + id);
         }
 
-        LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
-        updateWrapper.eq(User::getId, id);
+        existingUser.setActive(active);
+        existingUser.setUpdatedAt(OffsetDateTime.now());
 
-        User updateUser = new User();
-        updateUser.setId(id);
-        updateUser.setActive(active);
-        updateUser.setUpdatedAt(OffsetDateTime.now());
-
-        update(updateUser, updateWrapper);
+        // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
+        updateById(existingUser);
+        
         User updatedUser = getById(id);
         UserResponse response = convertToResponse(updatedUser);
         log.info("用户状态更新成功: {} -> {}", response.getUsername(), active);
@@ -158,15 +141,16 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
     @Transactional
     public void updateUserCredits(Long userId, BigDecimal credits) {
-        LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
-        updateWrapper.eq(User::getId, userId);
+        User user = getById(userId);
+        if (user == null) {
+            throw new ResourceNotFoundException(ErrorCodeConstants.USER_NOT_FOUND, "User not found with id: " + userId);
+        }
 
-        User updateUser = new User();
-        updateUser.setId(userId);
-        updateUser.setCredits(credits);
-        updateUser.setUpdatedAt(OffsetDateTime.now());
+        user.setCredits(credits);
+        user.setUpdatedAt(OffsetDateTime.now());
 
-        update(updateUser, updateWrapper);
+        // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
+        updateById(user);
         log.info("用户credits更新成功: userId={}, credits={}", userId, credits);
     }
 
@@ -244,15 +228,11 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new BusinessException(ErrorCodeConstants.ACCOUNT_DISABLED, "User account is disabled: " + username);
         }
 
-        LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
-        updateWrapper.eq(User::getUsername, username);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(OffsetDateTime.now());
 
-        User updateUser = new User();
-        updateUser.setId(user.getId());
-        updateUser.setPassword(passwordEncoder.encode(newPassword));
-        updateUser.setUpdatedAt(OffsetDateTime.now());
-
-        update(updateUser, updateWrapper);
+        // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
+        updateById(user);
         log.info("密码修改成功: {}", username);
     }
 
@@ -273,14 +253,10 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "Invalid username or password");
         }
 
-        LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
-        updateWrapper.eq(User::getUsername, loginRequest.getUsername());
+        user.setLastLoginAt(OffsetDateTime.now());
 
-        User updateUser = new User();
-        updateUser.setId(user.getId());
-        updateUser.setLastLoginAt(OffsetDateTime.now());
-
-        update(updateUser, updateWrapper);
+        // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
+        updateById(user);
 
         // 使用 Sa-Token 进行登录
         StpUtil.login(user.getId());
@@ -331,27 +307,24 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new BusinessException(ErrorCodeConstants.ACCOUNT_DISABLED, "User account is disabled: " + existingUser.getUsername());
         }
 
-        // 构建更新条件
-        LambdaQueryWrapper<User> updateWrapper = new LambdaQueryWrapper<>();
-        updateWrapper.eq(User::getId, userId);
-
-        // 构建更新内容
-        User updateUser = new User();
-        updateUser.setId(existingUser.getId());
+        boolean hasUpdate = false;
         
         if (updateRequest.getDisplayName() != null) {
-            updateUser.setDisplayName(updateRequest.getDisplayName());
+            existingUser.setDisplayName(updateRequest.getDisplayName());
+            hasUpdate = true;
         }
         if (updateRequest.getAvatar() != null) {
-            updateUser.setAvatar(updateRequest.getAvatar());
+            existingUser.setAvatar(updateRequest.getAvatar());
+            hasUpdate = true;
         }
 
-        // 只要有任何更新就设置更新时间
-        if (updateRequest.getDisplayName() != null || updateRequest.getAvatar() != null) {
-            updateUser.setUpdatedAt(OffsetDateTime.now());
+        // 只要有任何更新就设置更新时间并保存
+        if (hasUpdate) {
+            existingUser.setUpdatedAt(OffsetDateTime.now());
+            // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
+            updateById(existingUser);
         }
 
-        update(updateUser, updateWrapper);
         User updatedUser = getById(existingUser.getId());
         UserResponse response = convertToResponse(updatedUser);
         log.info("用户资料更新成功: {}", response.getUsername());

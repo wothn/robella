@@ -61,8 +61,8 @@ export GITHUB_CLIENT_SECRET="your-github-client-secret"
 
 ### Choose Your Database
 
-- **PostgreSQL (default)**: leave `SPRING_PROFILES_ACTIVE` unset or set it to `postgres`. Configure credentials with the `POSTGRES_*` variables above.
-- **SQLite**: set `SPRING_PROFILES_ACTIVE=sqlite`. The application will create or reuse the file pointed to by `SQLITE_DB_PATH` (defaults to `./data/robella.db`). Ensure the directory exists; this repository already ships with an empty `data/` folder for convenience. Flyway is disabled by default for SQLite—enable it with `FLYWAY_ENABLED=true` only after verifying your migration scripts are compatible and, if needed, adding the optional `org.flywaydb:flyway-database-sqlite` dependency to your own build.
+- **PostgreSQL (default)**: leave `SPRING_PROFILES_ACTIVE` unset or set it to `postgres`. Configure credentials with the `POSTGRES_*` variables above. Flyway migrations are enabled by default and will automatically create the database schema.
+- **SQLite**: set `SPRING_PROFILES_ACTIVE=sqlite`. The application will create or reuse the file pointed to by `SQLITE_DB_PATH` (defaults to `./data/robella.db`). Ensure the directory exists; this repository already ships with an empty `data/` folder for convenience. Flyway migrations are enabled by default and use SQLite-specific migration scripts. You can disable migrations with `FLYWAY_ENABLED=false` if needed.
 
 ### Build Project
 
@@ -91,6 +91,16 @@ mvn spring-boot:run
 Add `-Dspring-boot.run.profiles=sqlite` to use SQLite during development.
 
 The application runs on port 10032 by default.
+
+### Default Login Credentials
+
+After the first database initialization, a default ROOT administrator account will be created:
+
+- **Username**: `root`
+- **Password**: `root123`
+- **Email**: `root@robella.local`
+
+⚠️ **Security Warning**: Please change the default password immediately after first login! See [Default Users Documentation](docs/default-users.md) for details.
 
 
 ## Frontend Development

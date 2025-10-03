@@ -6,7 +6,8 @@ import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 
 /**
  * Flyway配置类
- * 由于项目使用R2DBC，Flyway需要单独的JDBC DataSource配置
+ * 确保数据库迁移在应用启动时正确执行
+ * 不同数据库的迁移脚本通过 profile 配置选择不同的 locations
  */
 @Configuration
 public class FlywayConfig {

@@ -151,3 +151,11 @@ CREATE INDEX IF NOT EXISTS idx_request_log_status ON request_log(status);
 
 CREATE INDEX IF NOT EXISTS idx_pricing_tier_vendor_model_id ON pricing_tier(vendor_model_id);
 
+-- 插入默认 ROOT 用户
+-- 用户名: root
+-- 密码: root123 (BCrypt 加密)
+-- 邮箱: root@robella.local
+-- 注意：CURRENT_TIMESTAMP 在 PostgreSQL 中返回带时区的时间戳
+INSERT INTO users (username, email, display_name, role, password, active, created_at, updated_at)
+VALUES ('root', 'root@robella.local', 'Root Administrator', 'ROOT', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (username) DO NOTHING;

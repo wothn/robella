@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -17,6 +17,6 @@ public class TokenSpeedResponse {
     private BigDecimal maxTokensPerSecond;
     private BigDecimal minTokensPerSecond;
     private BigDecimal medianTokensPerSecond;
-    private LocalDateTime periodStart;
-    private LocalDateTime periodEnd;
+    private OffsetDateTime periodStart;
+    private OffsetDateTime periodEnd;
 }

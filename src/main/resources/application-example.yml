@@ -5,7 +5,7 @@ spring:
   application:
     name: robella
   profiles:
-    default: postgres
+    default: sqlite
   # 数据源配置现在拆分在 application-postgres.yml 和 application-sqlite.yml 中，
   # 通过设置 SPRING_PROFILES_ACTIVE 选择数据库类型。
   # 启用虚拟线程
@@ -26,11 +26,6 @@ spring:
       indent-output: false
     deserialization:
       fail-on-unknown-properties: false
-
-  # 数据库初始化配置
-  sql:
-    init:
-      mode: never  # 禁用自动初始化，改为手动执行 schema.sql 和 data.sql
 
 # MyBatis-Plus 配置
 mybatis-plus:
@@ -75,7 +70,7 @@ robella:
 logging:
   level:
     org.elmo.robella: DEBUG
-    org.springframework.web: DEBUG
+    org.springframework.web: INFO
     com.baomidou.mybatisplus: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
