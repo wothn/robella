@@ -113,6 +113,26 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     }
 
     @Transactional
+    public boolean unlinkGitHubAccount(Long userId) {
+        User user = getById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + userId);
+        }
+
+        if (user.getGithubId() == null) {
+            return true;
+        }
+
+        user.setGithubId(null);
+        user.setUpdatedAt(OffsetDateTime.now());
+        boolean result = updateById(user);
+        if (result) {
+            log.info("GitHub account unlinked for user {}", userId);
+        }
+        return result;
+    }
+
+    @Transactional
     public void updateUserCredits(Long userId, BigDecimal credits) {
         User user = getById(userId);
         if (user == null) {

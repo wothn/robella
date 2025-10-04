@@ -191,6 +191,14 @@ class ApiClient {
     window.location.href = '/api/oauth/github/login'
   }
 
+  async githubBind(): Promise<void> {
+    window.location.href = '/api/oauth/github/bind'
+  }
+
+  async unbindGithub(): Promise<boolean> {
+    return this.delete('/profile/github')
+  }
+
   // GitHub OAuth回调
   async githubCallback(code: string, state: string): Promise<void> {
     await this.get<void>(`/oauth/github/callback?code=${code}&state=${state}`)

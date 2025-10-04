@@ -83,4 +83,17 @@ public class ProfileController {
 
         return ResponseEntity.ok(userService.changePassword(userId, currentPassword, newPassword));
     }
+
+    @DeleteMapping("/github")
+    public ResponseEntity<Boolean> unbindGitHubAccount() {
+        Long userId = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUserId() : null;
+
+        if (userId == null) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
+        }
+
+        log.info("取消 GitHub 绑定: {}", userId);
+        return ResponseEntity.ok(userService.unlinkGitHubAccount(userId));
+    }
 }

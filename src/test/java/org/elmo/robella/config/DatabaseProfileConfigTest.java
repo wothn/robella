@@ -15,12 +15,12 @@ import java.util.Properties;
 class DatabaseProfileConfigTest {
 
     @Test
-    @DisplayName("Base application config sets postgres as the default profile")
-    void baseConfigShouldDefaultToPostgresProfile() throws IOException {
+    @DisplayName("Base application config sets sqlite as the default profile")
+    void baseConfigShouldDefaultToSqliteProfile() throws IOException {
         Properties properties = loadYaml("application.yml");
         Assertions.assertThat(properties.getProperty("spring.profiles.default"))
                 .as("default Spring profile")
-                .isEqualTo("postgres");
+                .isEqualTo("sqlite");
     }
 
     @Test

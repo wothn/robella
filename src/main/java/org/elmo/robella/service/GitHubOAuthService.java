@@ -23,18 +23,21 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.util.StringUtils;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GitHubOAuthService {
     
-    private final Map<String, String> stateStore = new ConcurrentHashMap<>();
+    private final Map<String, OAuthState> stateStore = new ConcurrentHashMap<>();
     private final UserMapper userMapper;
     
     private final OkHttpUtils okHttpUtils;
@@ -62,32 +65,54 @@ public class GitHubOAuthService {
     private String userUrl;
 
     public String generateAuthorizationUrl() {
+        return generateAuthorizationUrlInternal(OAuthFlowType.LOGIN, null);
+    }
+
+    public String generateAuthorizationUrlForBinding(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
+        }
+        return generateAuthorizationUrlInternal(OAuthFlowType.BIND, userId);
+    }
+
+    private String generateAuthorizationUrlInternal(OAuthFlowType flowType, Long userId) {
         String state = generateState();
-        stateStore.put(state, Instant.now().toString());
+        stateStore.put(state, new OAuthState(flowType, userId, Instant.now()));
 
         return String.format("%s?client_id=%s&redirect_uri=%s&scope=%s&state=%s",
                 authUrl, clientId, redirectUri, scope, state);
     }
 
-    public void handleOAuthCallback(String code, String state) {
-        if (!validateState(state)) {
-            throw new IllegalArgumentException("Invalid or expired state parameter");
-        }
-
+    public OAuthCallbackResult handleOAuthCallback(String code, String state) {
+        OAuthState oauthState = getValidState(state);
         try {
             // 获取access token
             String accessToken = getAccessToken(code, state);
             GitHubUserInfo userInfo = getUserInfo(accessToken);
+            String githubId = String.valueOf(userInfo.getId());
 
-            processGitHubUser(userInfo);
-            log.info("GitHub OAuth login successful");
+            if (oauthState.flowType() == OAuthFlowType.LOGIN) {
+                User user = findOrCreateGitHubUser(userInfo);
+                StpUtil.login(user.getId());
+                log.info("GitHub OAuth login successful for user {}", user.getUsername());
+                return new OAuthCallbackResult(OAuthFlowType.LOGIN, user.getId(), githubId);
+            }
+
+            bindGitHubUserToExistingAccount(oauthState.userId(), userInfo);
+            log.info("GitHub account {} bound to user {}", githubId, oauthState.userId());
+            return new OAuthCallbackResult(OAuthFlowType.BIND, oauthState.userId(), githubId);
+        } catch (BusinessException e) {
+            log.error("GitHub OAuth processing failed: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
-            log.error("GitHub OAuth login failed: {}", e.getMessage());
-            throw new ApiException(ErrorCodeConstants.INTERNAL_ERROR, "GitHub OAuth login failed");
+            log.error("GitHub OAuth processing unexpected error: {}", e.getMessage(), e);
+            throw new ApiException(ErrorCodeConstants.INTERNAL_ERROR, "GitHub OAuth processing failed");
+        } finally {
+            stateStore.remove(state);
         }
     }
 
-    private void processGitHubUser(GitHubUserInfo userInfo) throws IOException {
+    private User findOrCreateGitHubUser(GitHubUserInfo userInfo) throws IOException {
         String githubId = String.valueOf(userInfo.getId());
         String username = userInfo.getLogin();
         String email = userInfo.getEmail();
@@ -121,30 +146,56 @@ public class GitHubOAuthService {
 
         user.setLastLoginAt(OffsetDateTime.now());
         userMapper.updateById(user);
-        
-        // 使用Sa-Token登录
-        StpUtil.login(user.getId());
-
+        return user;
     }
 
-    private boolean validateState(String state) {
-        String timestamp = stateStore.get(state);
-        if (timestamp == null) {
-            return false;
+    private void bindGitHubUserToExistingAccount(Long userId, GitHubUserInfo userInfo) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
         }
 
-        java.time.Instant stateTime = java.time.Instant.parse(timestamp);
-        java.time.Instant now = java.time.Instant.now();
-        java.time.Duration duration = java.time.Duration.between(stateTime, now);
+        String githubId = String.valueOf(userInfo.getId());
 
-        boolean isValid = duration.toMinutes() < 10;
-        
-        // Only remove state if it's valid (prevent replay attacks)
-        if (isValid) {
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getGithubId, githubId);
+        User existingBinding = userMapper.selectOne(queryWrapper);
+        if (existingBinding != null && !existingBinding.getId().equals(userId)) {
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "该 GitHub 账号已绑定到其他用户");
+        }
+
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found");
+        }
+
+        user.setGithubId(githubId);
+        if (!StringUtils.hasText(user.getAvatar()) && StringUtils.hasText(userInfo.getAvatarUrl())) {
+            user.setAvatar(userInfo.getAvatarUrl());
+        }
+        if (!StringUtils.hasText(user.getDisplayName()) && StringUtils.hasText(userInfo.getName())) {
+            user.setDisplayName(userInfo.getName());
+        }
+        user.setUpdatedAt(OffsetDateTime.now());
+        userMapper.updateById(user);
+    }
+
+    private OAuthState getValidState(String state) {
+        OAuthState oauthState = stateStore.get(state);
+        if (oauthState == null) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "Invalid or expired state parameter");
+        }
+
+        Duration duration = Duration.between(oauthState.createdAt(), Instant.now());
+        if (duration.toMinutes() >= 10) {
             stateStore.remove(state);
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "Invalid or expired state parameter");
         }
-        
-        return isValid;
+        return oauthState;
+    }
+
+    public OAuthFlowType peekFlowType(String state) {
+        OAuthState oauthState = stateStore.get(state);
+        return oauthState != null ? oauthState.flowType() : OAuthFlowType.LOGIN;
     }
 
     /**
@@ -152,6 +203,17 @@ public class GitHubOAuthService {
      */
     private String generateState() {
         return UUID.randomUUID().toString();
+    }
+
+    public enum OAuthFlowType {
+        LOGIN,
+        BIND
+    }
+
+    private record OAuthState(OAuthFlowType flowType, Long userId, Instant createdAt) {
+    }
+
+    public record OAuthCallbackResult(OAuthFlowType flowType, Long userId, String githubId) {
     }
 
     public String getAccessToken(String code, String state) throws IOException {

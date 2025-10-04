@@ -107,3 +107,8 @@ github:
     auth-url: https://github.com/login/oauth/authorize
     token-url: https://github.com/login/oauth/access_token
     user-url: https://api.github.com/user
+    frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+    login-success-path: ${GITHUB_LOGIN_SUCCESS_PATH:/auth/success}
+    login-error-path: ${GITHUB_LOGIN_ERROR_PATH:/auth/error}
+    bind-success-path: ${GITHUB_BIND_SUCCESS_PATH:/profile?github=success}
+    bind-error-path: ${GITHUB_BIND_ERROR_PATH:/profile?github=error}
