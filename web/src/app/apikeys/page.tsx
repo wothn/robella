@@ -362,7 +362,7 @@ export default function ApiKeysPage() {
                   <div className="mt-2 text-sm text-yellow-700">
                     <p>
                       Your API key is displayed below. Please copy and store it in a secure location.
-                      For security reasons, we won't be able to show you this key again.
+                      For security reasons, we won&apos;t be able to show you this key again.
                     </p>
                   </div>
                 </div>
@@ -395,7 +395,7 @@ export default function ApiKeysPage() {
                 setCopiedNewKey(false)
               }}
             >
-              I've Saved My API Key
+              I&apos;ve Saved My API Key
             </Button>
           </DialogFooter>
         </DialogContent>

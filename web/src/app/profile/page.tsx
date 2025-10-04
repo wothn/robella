@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { PageHeader } from "@/components/layout/page-header"
 import { PageLoading } from "@/components/common/loading"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -93,49 +93,33 @@ export default function ProfilePage() {
     event.preventDefault()
     setProfileFeedback(null)
 
-    if (!profile) {
-      setProfileFeedback({
-        type: "error",
-        title: "无法更新资料",
-        description: "当前用户信息未加载，请刷新后重试。"
-      })
-      return
-    }
-
     const payload: UserProfileUpdateRequest = {
       displayName: profileForm.displayName?.trim() || undefined
     }
 
+    // Validate display name if provided
+    if (payload.displayName && payload.displayName.length > 20) {
+      setProfileFeedback({ type: "error", title: "Display name must be at most 20 characters" })
+      return;
+    }
+
     try {
-      await withActionLoading("profile-update", async () => {
-        try {
-          const success = await apiClient.updateCurrentUser(payload)
-          if (success) {
-            const current = await apiClient.getCurrentUser()
-            setProfile(current)
-            setProfileForm({
-              displayName: current.displayName ?? ""
-            })
-            updateUser(current)
-            setProfileFeedback({
-              type: "success",
-              title: "资料已更新",
-              description: "您的个人信息已成功保存。"
-            })
-          }
-        } catch (error) {
-          console.error("Failed to update profile:", error)
-          const message = error instanceof Error ? error.message : "未知错误"
-          setProfileFeedback({
-            type: "error",
-            title: "更新失败",
-            description: message
-          })
-          throw error
+      await withPageLoading("profile", async () => {
+        const success = await apiClient.updateCurrentUser(payload)
+        if (success) {
+          const current = await apiClient.getCurrentUser()
+          setProfile(current)
+          setProfileFeedback({ type: "success", title: "Profile updated successfully" })
+          
+          // Update local storage
+          localStorage.setItem("currentUser", JSON.stringify(current))
+        } else {
+          throw new Error("Failed to update profile")
         }
       })
-    } catch {
-      // withActionLoading 已处理loading状态
+    } catch (error) {
+      console.error("Failed to update profile:", error)
+      setProfileFeedback({ type: "error", title: error instanceof Error ? error.message : "Failed to update profile" })
     }
   }
 
@@ -348,7 +332,7 @@ export default function ProfilePage() {
                     onChange={(event) =>
                       setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
                     }
-                    placeholder="至少 8 位"
+                    placeholder="至少 6 位"
                   />
                 </div>
                 <div className="space-y-2">

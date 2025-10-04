@@ -55,13 +55,14 @@ export default function PricingManagement() {
 
   useEffect(() => {
     fetchVendorModels();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchVendorModels = async () => {
     try {
       const response = await api.get('/api/vendor-models');
       setVendorModels(response.data);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to fetch vendor models',
@@ -74,7 +75,7 @@ export default function PricingManagement() {
     try {
       const response = await api.get(`/api/pricing/tiers/${vendorModelId}`);
       setPricingTiers(response.data);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to fetch pricing tiers',
@@ -106,7 +107,7 @@ export default function PricingManagement() {
     setPricingTiers([...pricingTiers, newTier]);
   };
 
-  const updateTier = (index: number, field: keyof PricingTier, value: any) => {
+  const updateTier = (index: number, field: keyof PricingTier, value: string | number) => {
     const updated = [...pricingTiers];
     updated[index] = { ...updated[index], [field]: value };
     setPricingTiers(updated);
@@ -128,7 +129,7 @@ export default function PricingManagement() {
         title: 'Success',
         description: 'Pricing tiers saved successfully'
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to save pricing tiers',
@@ -145,7 +146,7 @@ export default function PricingManagement() {
         `/api/pricing/calculate/${selectedModel.id}?inputTokens=${testTokens.input}&cachedTokens=${testTokens.cached}&outputTokens=${testTokens.output}`
       );
       setCalculation(response.data);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to calculate cost',
@@ -164,7 +165,7 @@ export default function PricingManagement() {
         title: 'Success',
         description: 'Pricing strategy updated successfully'
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to update pricing strategy',

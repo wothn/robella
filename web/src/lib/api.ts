@@ -196,6 +196,24 @@ class ApiClient {
     await this.get<void>(`/oauth/github/callback?code=${code}&state=${state}`)
   }
 
+  // 用户注册
+  async register(username: string, email: string, password: string, confirmPassword: string, displayName?: string): Promise<LoginResponse> {
+    const registerRequest = {
+      username,
+      email,
+      password,
+      confirmPassword,
+      displayName
+    }
+
+    console.log('Attempting registration with:', { username, email })
+
+    return this.request<LoginResponse>('/users/register', {
+      method: 'POST',
+      body: JSON.stringify(registerRequest),
+    })
+  }
+
   // 用户登出
   async logout(): Promise<void> {
     return this.post('/users/logout', {})

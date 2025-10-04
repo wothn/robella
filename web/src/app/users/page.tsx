@@ -88,11 +88,42 @@ export default function UsersPage() {
   const handleCreateUser = async () => {
     return withActionLoading('create-user', async () => {
       try {
+        // Validate input data
+        const username = formData.username.trim();
+        const password = formData.password;
+        const displayName = formData.displayName.trim();
+        
+        // Username validation
+        if (!username) {
+          alert("Username is required");
+          return;
+        }
+        if (username.length > 20) {
+          alert("Username must be at most 20 characters");
+          return;
+        }
+        
+        // Password validation
+        if (!password) {
+          alert("Password is required");
+          return;
+        }
+        if (password.length < 6) {
+          alert("Password must be at least 6 characters");
+          return;
+        }
+        
+        // Display name validation
+        if (displayName && displayName.length > 20) {
+          alert("Display name must be at most 20 characters");
+          return;
+        }
+
         const createData: CreateUserRequest = {
-          username: formData.username,
+          username: username,
           email: formData.email,
-          password: formData.password,
-          displayName: formData.displayName || undefined,
+          password: password,
+          displayName: displayName || undefined,
           role: formData.role
         }
 
@@ -111,8 +142,16 @@ export default function UsersPage() {
 
     return withActionLoading('update-user', async () => {
       try {
+        const displayName = formData.displayName?.trim();
+        
+        // Validate display name if provided
+        if (displayName && displayName.length > 20) {
+          alert("Display name must be at most 20 characters");
+          return;
+        }
+
         const updateData: Partial<User> = {
-          displayName: formData.displayName,
+          displayName: displayName,
           role: formData.role,
           active: formData.active,
           credits: formData.credits

@@ -4,6 +4,7 @@ import { useGlobalLoading } from './stores/loading-store'
 import { Loading } from './components/common/loading'
 import { DashboardLayout } from '@/components/layout'
 import LoginPage from './app/login/page'
+import RegisterPage from './app/register/page'
 import DashboardPage from './app/dashboard/page'
 import UsersPage from './app/users/page'
 import ProvidersPage from './app/providers/page'
@@ -50,6 +51,10 @@ function AppContent() {
       <Route 
         path="/login" 
         element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} 
+      />
+      <Route 
+        path="/register" 
+        element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />} 
       />
       <Route 
         path="/users" 

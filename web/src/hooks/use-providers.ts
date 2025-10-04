@@ -9,7 +9,7 @@ export interface ProviderFormData {
   providerType: string
   baseUrl?: string
   apiKey?: string
-  config: Record<string, any>
+  config: Record<string, unknown>
   enabled: boolean
 }
 
@@ -133,6 +133,7 @@ export function useProviders(): UseProvidersReturn {
 
   useEffect(() => {
     loadProviders()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

@@ -3,6 +3,7 @@ package org.elmo.robella.controller;
 import org.elmo.robella.annotation.RequiredRole;
 import org.elmo.robella.model.common.Role;
 import org.elmo.robella.model.request.LoginRequest;
+import org.elmo.robella.model.request.RegisterRequest;
 import org.elmo.robella.model.request.UserCreateRequest;
 import org.elmo.robella.model.request.UserUpdateRequest;
 import org.elmo.robella.model.response.UserResponse;
@@ -74,6 +75,14 @@ public class UserController {
         userService.login(loginRequest);
 
         return ResponseEntity.ok(SaResult.ok("登录成功"));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<SaResult> register(
+            @Valid @RequestBody RegisterRequest registerRequest) {
+        userService.register(registerRequest);
+
+        return ResponseEntity.ok(SaResult.ok("注册成功"));
     }
 
     @PostMapping("/logout")

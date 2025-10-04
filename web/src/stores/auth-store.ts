@@ -8,6 +8,7 @@ import type { User} from '@/types/user'
 interface AuthState {
   user: User | null
   login: (username: string, password: string) => Promise<void>
+  register: (username: string, email: string, password: string, confirmPassword: string, displayName?: string) => Promise<void>
   logout: () => void
   githubLogin: () => void
   updateUser: (user: User) => void
@@ -43,6 +44,20 @@ export const useAuthStore = create<AuthState>()(
               window.location.href = '/'
             } catch (error) {
               console.error('Login failed:', error)
+              throw error
+            }
+          })
+        },
+
+        register: async (username: string, email: string, password: string, confirmPassword: string, displayName?: string) => {
+          return withGlobalLoading(async () => {
+            try {
+              await apiClient.register(username, email, password, confirmPassword, displayName)
+              const currentUser = await apiClient.getCurrentUser()
+              set({ user: currentUser })
+              window.location.href = '/'
+            } catch (error) {
+              console.error('Registration failed:', error)
               throw error
             }
           })

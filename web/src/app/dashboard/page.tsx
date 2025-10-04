@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -67,7 +67,7 @@ const Dashboard = () => {
     return { startTime, endTime }
   }
 
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     return withPageLoading('dashboard', async () => {
       try {
         const { startTime, endTime } = getTimeRange(timeRange)
@@ -101,11 +101,11 @@ const Dashboard = () => {
         console.error("Failed to load statistics:", error)
       }
     })
-  }
+  }, [timeRange])
 
   useEffect(() => {
     loadStatistics()
-  }, [timeRange])
+  }, [timeRange, loadStatistics])
 
   const formatNumber = (num: number | undefined) => {
     if (num === undefined || num === null) return "0"

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api'
-import { storage } from '@/lib/storage'
 
 export const useAuthSuccess = () => {
   const navigate = useNavigate()
@@ -37,7 +36,7 @@ export const useAuthSuccess = () => {
           setTimeout(() => {
             navigate('/', { replace: true })
           }, 3000)
-        } catch (userErr) {
+        } catch {
           throw new Error('Failed to get current user')
         }
       } catch (err) {

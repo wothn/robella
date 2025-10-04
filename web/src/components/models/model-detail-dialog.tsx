@@ -73,6 +73,7 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
     if (open && modelId) {
       loadModelDetails()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, modelId])
 
   const loadModelDetails = async () => {
@@ -108,12 +109,6 @@ export function ModelDetailDialog({ open, onOpenChange, modelId }: ModelDetailDi
     } catch {
       return dateString
     }
-  }
-
-  // 根据providerId获取provider名称
-  const getProviderName = (providerId: number): string => {
-    const provider = providers.find(p => p.id === providerId)
-    return provider?.name || `Provider ${providerId}`
   }
 
   // 重置状态

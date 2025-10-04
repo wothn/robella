@@ -44,3 +44,10 @@ export interface CreateUserRequest {
 export interface UserProfileUpdateRequest {
   displayName?: string
 }
+
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  confirmPassword: string;
+  displayName?: string;
+}

@@ -55,14 +55,13 @@ export function VendorModelModal({
       maxTokens: undefined,
       inputPerMillionTokens: '',
       outputPerMillionTokens: '',
-      cachedInputPrice: '',
-      currency: 'USD'
+      cachedInputPrice: ''
     }
     setPricingTiers([...pricingTiers, newTier])
   }
 
   // 更新定价阶梯
-  const updatePricingTier = (index: number, field: keyof PricingTier, value: any) => {
+  const updatePricingTier = (index: number, field: keyof PricingTier, value: string | number) => {
     const updatedTiers = [...pricingTiers]
     updatedTiers[index] = { ...updatedTiers[index], [field]: value }
     setPricingTiers(updatedTiers)

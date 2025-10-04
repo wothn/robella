@@ -20,7 +20,7 @@ Additional components include user management and API key management.
 
 ### Backend (Java Spring Boot)
 - **Framework**: Spring Boot 3.3.10 with Java 21 and virtual threads
-- **Database**: PostgreSQL with MyBatis-Plus
+- **Database**: SQLite(default) or PostgreSQL with MyBatis-Plus
 - **Authentication**: sa-Token with GitHub OAuth (Note: Only spring-security-crypto is used, not full Spring Security)
 - **API Compatibility**: OpenAI API compatible endpoints (`/v1/chat/completions`, `/v1/models`) and Anthropic native API (`/anthropic/v1/messages`)
 - **Key Components**:
@@ -31,7 +31,7 @@ Additional components include user management and API key management.
   - `EndpointTransform.java` - Generic interface for request/response transformation
 
 ### Frontend (React + TypeScript)
-- **Framework**: React 18.3.1 with TypeScript
+- **Framework**: React 18.3.1 with TypeScript, React Router DOM
 - **Build Tool**: Vite
 - **state**: React state management with Zustand
 - **UI**: Shadcn UI with Radix UI primitives
@@ -60,7 +60,6 @@ Additional components include user management and API key management.
 ### Environment Variables
 - `POSTGRES_USERNAME` - Database username
 - `POSTGRES_PASSWORD` - Database password
-- `JWT_SECRET` - JWT signing secret
 - `GITHUB_CLIENT_ID` - GitHub OAuth client ID
 - `GITHUB_CLIENT_SECRET` - GitHub OAuth client secret
 
@@ -113,9 +112,7 @@ Additional components include user management and API key management.
 ## Important Notes
 
 - Application runs on port 10032 by default
-- Uses Spring MVC with virtual threads
 - Frontend is a separate React app in `/web` directory
-- Provider configurations stored in database, manageable via UI
 - Model routing is dynamic and configurable at runtime
 - Supports both streaming and non-streaming responses
 - Compatible with both OpenAI and Anthropic native API formats

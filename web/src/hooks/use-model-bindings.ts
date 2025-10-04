@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { useComponentLoading, withComponentLoading } from '@/stores/loading-store'
 
@@ -10,7 +10,9 @@ export function useModelBindings(modelIds: number[]) {
   const [bindings, setBindings] = useState<ModelBindings>({})
   const { loading } = useComponentLoading('model-bindings')
 
-  const loadBindings = async () => {
+  const modelIdsKey = useMemo(() => modelIds.join(','), [modelIds])
+
+  const loadBindings = useCallback(async () => {
     if (modelIds.length === 0) return
 
     return withComponentLoading('model-bindings', async () => {
@@ -36,11 +38,11 @@ export function useModelBindings(modelIds: number[]) {
         console.error('Failed to load model bindings:', error)
       }
     })
-  }
+  }, [modelIds])
 
   useEffect(() => {
     loadBindings()
-  }, [modelIds.join(',')])
+  }, [modelIdsKey, loadBindings])
 
   return {
     bindings,

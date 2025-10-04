@@ -72,15 +72,15 @@ public class ProfileController {
     public ResponseEntity<Boolean> changePassword(
             @RequestParam String currentPassword,
             @RequestParam String newPassword) {
-        String username = RequestContextHolder.getContext() != null ?
-            RequestContextHolder.getContext().getUsername() : null;
+        Long userId = RequestContextHolder.getContext() != null ?
+            RequestContextHolder.getContext().getUserId() : null;
 
-        if (username == null) {
+        if (userId == null) {
             throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "User not authenticated");
         }
 
-        log.info("修改用户密码: {}", username);
+        log.info("修改用户密码: {}", userId);
 
-        return ResponseEntity.ok(userService.changePassword(username, currentPassword, newPassword));
+        return ResponseEntity.ok(userService.changePassword(userId, currentPassword, newPassword));
     }
 }

@@ -36,7 +36,7 @@ const getPricingStrategyLabel = (strategy?: string) => {
 const formatTieredPricingDisplay = (tiers: PricingTier[], currency?: string) => {
   if (!tiers || tiers.length === 0) return null
 
-  return tiers.map((tier, index) => {
+  return tiers.map((tier) => {
     const range = tier.maxTokens
       ? `${tier.minTokens.toLocaleString()} - ${tier.maxTokens.toLocaleString()} tokens`
       : `≥ ${tier.minTokens.toLocaleString()} tokens`

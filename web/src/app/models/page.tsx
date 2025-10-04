@@ -201,7 +201,7 @@ export default function ModelsPage() {
           filters={filters}
           bindings={bindings}
           copiedModelKey={copiedModelKey}
-          onTabChange={(value) => setActiveTab(value as any)}
+          onTabChange={(value) => setActiveTab(value as "all" | "published" | "draft")}
           onRefresh={handleRefresh}
           onViewDetails={handleViewDetails}
           onEdit={setEditingModel}

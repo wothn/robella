@@ -4,10 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.elmo.robella.model.entity.User;
 import org.elmo.robella.model.common.Role;
-import org.elmo.robella.model.request.LoginRequest;
-import org.elmo.robella.model.request.UserProfileUpdateRequest;
-import org.elmo.robella.model.request.UserCreateRequest;
-import org.elmo.robella.model.request.UserUpdateRequest;
+import org.elmo.robella.model.request.*;
 import org.elmo.robella.model.response.UserResponse;
 import org.elmo.robella.mapper.UserMapper;
 import org.elmo.robella.exception.InsufficientCreditsException;
@@ -180,12 +177,12 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
 
     @Transactional
-    public boolean changePassword(String username, String currentPassword, String newPassword) {
+    public boolean changePassword(Long userId, String currentPassword, String newPassword) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getUsername, username);
+        queryWrapper.eq(User::getId, userId);
         User user = getOne(queryWrapper);
         if (user == null) {
-            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + username);
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + userId);
         }
 
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
@@ -193,7 +190,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         }
 
         if (!user.getActive()) {
-            throw new BusinessException(ErrorCodeConstants.ACCOUNT_DISABLED, "User account is disabled: " + username);
+            throw new BusinessException(ErrorCodeConstants.ACCOUNT_DISABLED, "User account is disabled: " + userId);
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
@@ -202,7 +199,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
         boolean result = updateById(user);
         if (result) {
-            log.info("密码修改成功: {}", username);
+            log.info("密码修改成功: {}", userId);
         }
         return result;
     }
@@ -292,6 +289,42 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, username);
         return count(queryWrapper) > 0;
+    }
+
+    @Transactional
+    public void register(RegisterRequest registerRequest) {
+        // Check if passwords match
+        if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
+            throw new BusinessException(ErrorCodeConstants.INVALID_CREDENTIALS, "Passwords do not match");
+        }
+        
+        // Create user entity
+        User user = new User();
+        user.setUsername(registerRequest.getUsername());
+        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        user.setDisplayName(registerRequest.getDisplayName());
+        user.setCredits(BigDecimal.ZERO);
+        user.setActive(true);
+        user.setRole(Role.USER);
+        
+        // Check if username already exists
+        if (existsByUsername(user.getUsername())) {
+            throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Username already exists!");
+        }
+        
+        // Save the user to database
+        try {
+            save(user);
+        } catch (Exception e) {
+            // Handle concurrent insertion due to unique constraint conflicts
+            if (existsByUsername(user.getUsername())) {
+                throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Username already exists!");
+            }
+            // If it's not a unique constraint conflict, re-throw the exception
+            throw e;
+        }
+        
+        log.info("用户注册成功: {}", user.getUsername());
     }
 
     private boolean existsByEmail(String email) {

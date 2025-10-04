@@ -62,64 +62,44 @@ export function useModels() {
 
   // 创建模型
   const createModel = useCallback(async (modelData: CreateModelRequest) => {
-    try {
-      const newModel = await apiClient.createModel(modelData)
-      setModels(prev => [newModel, ...prev])
-      return newModel
-    } catch (err) {
-      throw err
-    }
+    const newModel = await apiClient.createModel(modelData)
+    setModels(prev => [newModel, ...prev])
+    return newModel
   }, [])
 
   // 更新模型
   const updateModel = useCallback(async (id: number, modelData: UpdateModelRequest) => {
-    try {
-      const updatedModel = await apiClient.updateModel(id, modelData)
-      setModels(prev => prev.map(model => 
-        model.id === id ? updatedModel : model
-      ))
-      return updatedModel
-    } catch (err) {
-      throw err
-    }
+    const updatedModel = await apiClient.updateModel(id, modelData)
+    setModels(prev => prev.map(model => 
+      model.id === id ? updatedModel : model
+    ))
+    return updatedModel
   }, [])
 
   // 删除模型
   const deleteModel = useCallback(async (id: number) => {
-    try {
-      await apiClient.deleteModel(id)
-      setModels(prev => prev.filter(model => model.id !== id))
-    } catch (err) {
-      throw err
-    }
+    await apiClient.deleteModel(id)
+    setModels(prev => prev.filter(model => model.id !== id))
   }, [])
 
   // 发布模型
   const publishModel = useCallback(async (id: number) => {
-    try {
-      const updatedModel = await apiClient.publishModel(id)
-      setModels(prev => prev.map(model => 
-        model.id === id ? updatedModel : model
-      ))
-      await fetchPublishedModels()
-      return updatedModel
-    } catch (err) {
-      throw err
-    }
+    const updatedModel = await apiClient.publishModel(id)
+    setModels(prev => prev.map(model => 
+      model.id === id ? updatedModel : model
+    ))
+    await fetchPublishedModels()
+    return updatedModel
   }, [fetchPublishedModels])
 
   // 取消发布模型
   const unpublishModel = useCallback(async (id: number) => {
-    try {
-      const updatedModel = await apiClient.unpublishModel(id)
-      setModels(prev => prev.map(model => 
-        model.id === id ? updatedModel : model
-      ))
-      await fetchPublishedModels()
-      return updatedModel
-    } catch (err) {
-      throw err
-    }
+    const updatedModel = await apiClient.unpublishModel(id)
+    setModels(prev => prev.map(model => 
+      model.id === id ? updatedModel : model
+    ))
+    await fetchPublishedModels()
+    return updatedModel
   }, [fetchPublishedModels])
 
   // 重新获取数据
