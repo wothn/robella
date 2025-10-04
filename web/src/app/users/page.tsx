@@ -147,18 +147,33 @@ export default function UsersPage() {
     })
   }
 
-  const openEditDialog = (user: User) => {
-    setSelectedUser(user)
-    setFormData({
-      username: user.username,
-      email: user.email,
-      password: "",
-      displayName: user.displayName,
-      role: user.role,
-      active: user.active,
-      credits: user.credits || 0
-    })
-    setIsEditDialogOpen(true)
+  const openViewDialog = async (userId: number) => {
+    try {
+      const userDetail = await apiClient.getUserById(userId)
+      setSelectedUser(userDetail)
+      setIsDialogOpen(true)
+    } catch (error) {
+      console.error("Failed to fetch user details:", error)
+    }
+  }
+
+  const openEditDialog = async (userId: number) => {
+    try {
+      const userDetail = await apiClient.getUserById(userId)
+      setSelectedUser(userDetail)
+      setFormData({
+        username: userDetail.username,
+        email: userDetail.email,
+        password: "",
+        displayName: userDetail.displayName,
+        role: userDetail.role,
+        active: userDetail.active,
+        credits: userDetail.credits || 0
+      })
+      setIsEditDialogOpen(true)
+    } catch (error) {
+      console.error("Failed to fetch user details:", error)
+    }
   }
 
   const openDeleteDialog = (user: User) => {
@@ -220,8 +235,6 @@ export default function UsersPage() {
                   <TableHead>Display Name</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Credits</TableHead>
-                  <TableHead>Created</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -229,13 +242,13 @@ export default function UsersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Loading users...
                     </TableCell>
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -254,10 +267,6 @@ export default function UsersPage() {
                           {user.active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{user.credits || 0}</TableCell>
-                      <TableCell>
-                        {dayjs(user.createdAt).format("MMM DD, YYYY")}
-                      </TableCell>
                       <TableCell>
                         {user.lastLoginAt
                           ? dayjs(user.lastLoginAt).format("MMM DD, YYYY")
@@ -268,17 +277,14 @@ export default function UsersPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setSelectedUser(user)
-                              setIsDialogOpen(true)
-                            }}
+                            onClick={() => openViewDialog(user.id)}
                           >
                             View
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openEditDialog(user)}
+                            onClick={() => openEditDialog(user.id)}
                           >
                             Edit
                           </Button>
@@ -350,14 +356,14 @@ export default function UsersPage() {
                   <div>
                     <Label className="text-sm font-medium">Created At</Label>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(selectedUser.createdAt), "MMMM dd, yyyy 'at' HH:mm")}
+                      {dayjs(selectedUser.createdAt).format("MMMM DD, YYYY [at] HH:mm")}
                     </p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Last Login</Label>
                     <p className="text-sm text-muted-foreground">
                       {selectedUser.lastLoginAt
-                        ? format(new Date(selectedUser.lastLoginAt), "MMMM dd, yyyy 'at' HH:mm")
+                        ? dayjs(selectedUser.lastLoginAt).format("MMMM DD, YYYY [at] HH:mm")
                         : "Never"}
                     </p>
                   </div>
@@ -528,6 +534,7 @@ export default function UsersPage() {
                       placeholder="Enter credits"
                     />
                   </div>
+                  
                 </div>
               )}
               <DialogFooter>
