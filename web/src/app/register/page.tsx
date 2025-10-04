@@ -19,7 +19,6 @@ export function RegisterForm({
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -57,7 +56,7 @@ export function RegisterForm({
     }
 
     try {
-      await useAuthStore.getState().register(username, email, password, confirmPassword, displayName);
+      await useAuthStore.getState().register(username, password, confirmPassword, displayName);
       window.location.href = "/login";
     } catch (error) {
       setError(error instanceof Error ? error.message : "Registration failed");
@@ -94,19 +93,6 @@ export function RegisterForm({
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
                   />
                 </div>

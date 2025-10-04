@@ -1,14 +1,14 @@
-import { create } from 'zustand'
-import { devtools, persist } from 'zustand/middleware'
-import { apiClient } from '@/lib/api'
-import { storage } from '@/lib/storage'
-import { useLoadingStore, withGlobalLoading } from '@/stores/loading-store'
-import type { User} from '@/types/user'
+import {create} from 'zustand'
+import {devtools, persist} from 'zustand/middleware'
+import {apiClient} from '@/lib/api'
+import {storage} from '@/lib/storage'
+import {useLoadingStore, withGlobalLoading} from '@/stores/loading-store'
+import type {User} from '@/types/user'
 
 interface AuthState {
   user: User | null
   login: (username: string, password: string) => Promise<void>
-  register: (username: string, email: string, password: string, confirmPassword: string, displayName?: string) => Promise<void>
+  register: (username: string, password: string, confirmPassword: string, displayName?: string) => Promise<void>
   logout: () => void
   githubLogin: () => void
   updateUser: (user: User) => void
@@ -49,10 +49,10 @@ export const useAuthStore = create<AuthState>()(
           })
         },
 
-        register: async (username: string, email: string, password: string, confirmPassword: string, displayName?: string) => {
+        register: async (username: string, password: string, confirmPassword: string, displayName?: string) => {
           return withGlobalLoading(async () => {
             try {
-              await apiClient.register(username, email, password, confirmPassword, displayName)
+              await apiClient.register(username, password, confirmPassword, displayName)
               const currentUser = await apiClient.getCurrentUser()
               set({ user: currentUser })
               window.location.href = '/'
@@ -64,8 +64,7 @@ export const useAuthStore = create<AuthState>()(
         },
 
         githubLogin: () => {
-          const githubLoginUrl = '/api/oauth/github/login'
-          window.location.href = githubLoginUrl
+            window.location.href = '/api/oauth/github/login'
         },
 
         logout: async () => {

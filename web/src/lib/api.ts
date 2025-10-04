@@ -197,16 +197,15 @@ class ApiClient {
   }
 
   // 用户注册
-  async register(username: string, email: string, password: string, confirmPassword: string, displayName?: string): Promise<LoginResponse> {
+  async register(username: string, password: string, confirmPassword: string, displayName?: string): Promise<LoginResponse> {
     const registerRequest = {
       username,
-      email,
       password,
       confirmPassword,
       displayName
     }
 
-    console.log('Attempting registration with:', { username, email })
+    console.log('Attempting registration with:', { username })
 
     return this.request<LoginResponse>('/users/register', {
       method: 'POST',

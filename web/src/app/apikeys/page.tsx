@@ -75,7 +75,7 @@ export default function ApiKeysPage() {
       }
 
       const result = await createApiKey(createData)
-      setNewApiKey(result.apiKey)
+      setNewApiKey(result.apiKey ?? null)
       setIsCreateDialogOpen(false)
       setIsShowKeyDialogOpen(true)
       resetForm()
