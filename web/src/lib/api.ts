@@ -135,32 +135,32 @@ class ApiClient {
   }
 
   // 删除用户 (管理员)
-  async deleteUser(id: number): Promise<void> {
+  async deleteUser(id: number): Promise<boolean> {
     return this.delete(`/users/${id}`)
   }
 
   // 更新当前用户资料
-  async updateCurrentUser(userData: UserProfileUpdateRequest): Promise<User> {
+  async updateCurrentUser(userData: UserProfileUpdateRequest): Promise<boolean> {
     return this.put('/profile', userData)
   }
 
   // 删除当前用户
-  async deleteCurrentUser(): Promise<void> {
+  async deleteCurrentUser(): Promise<boolean> {
     return this.delete('/profile')
   }
 
   // 修改当前用户密码
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
     return this.put(`/profile/password?currentPassword=${encodeURIComponent(currentPassword)}&newPassword=${encodeURIComponent(newPassword)}`)
   }
 
   // 激活用户 (管理员)
-  async activateUser(id: number): Promise<User> {
+  async activateUser(id: number): Promise<boolean> {
     return this.put(`/users/${id}/active?active=true`)
   }
 
   // 停用用户 (管理员)
-  async deactivateUser(id: number): Promise<User> {
+  async deactivateUser(id: number): Promise<boolean> {
     return this.put(`/users/${id}/active?active=false`)
   }
 

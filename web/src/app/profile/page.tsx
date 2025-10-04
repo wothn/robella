@@ -109,17 +109,20 @@ export default function ProfilePage() {
     try {
       await withActionLoading("profile-update", async () => {
         try {
-          const updated = await apiClient.updateCurrentUser(payload)
-          setProfile(updated)
-          setProfileForm({
-            displayName: updated.displayName ?? ""
-          })
-          updateUser(updated)
-          setProfileFeedback({
-            type: "success",
-            title: "资料已更新",
-            description: "您的个人信息已成功保存。"
-          })
+          const success = await apiClient.updateCurrentUser(payload)
+          if (success) {
+            const current = await apiClient.getCurrentUser()
+            setProfile(current)
+            setProfileForm({
+              displayName: current.displayName ?? ""
+            })
+            updateUser(current)
+            setProfileFeedback({
+              type: "success",
+              title: "资料已更新",
+              description: "您的个人信息已成功保存。"
+            })
+          }
         } catch (error) {
           console.error("Failed to update profile:", error)
           const message = error instanceof Error ? error.message : "未知错误"
@@ -161,13 +164,15 @@ export default function ProfilePage() {
     try {
       await withActionLoading("profile-password", async () => {
         try {
-          await apiClient.changePassword(passwordForm.currentPassword, passwordForm.newPassword)
-          setPasswordFeedback({
-            type: "success",
-            title: "密码已更新",
-            description: "下次登录请使用新密码。"
-          })
-          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+          const success = await apiClient.changePassword(passwordForm.currentPassword, passwordForm.newPassword)
+          if (success) {
+            setPasswordFeedback({
+              type: "success",
+              title: "密码已更新",
+              description: "下次登录请使用新密码。"
+            })
+            setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+          }
         } catch (error) {
           console.error("Failed to change password:", error)
           const message = error instanceof Error ? error.message : "未知错误"

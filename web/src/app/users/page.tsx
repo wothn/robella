@@ -48,8 +48,8 @@ export default function UsersPage() {
     password: "",
     displayName: "",
     role: 'USER',
-    phone: "",
-    active: true
+    active: true,
+    credits: 0
   })
 
   useEffect(() => {
@@ -70,11 +70,16 @@ export default function UsersPage() {
   const handleToggleUserStatus = async (userId: number, isActive: boolean) => {
     try {
       if (isActive) {
-        await apiClient.deactivateUser(userId)
+        const success = await apiClient.deactivateUser(userId)
+        if (success) {
+          await fetchUsers()
+        }
       } else {
-        await apiClient.activateUser(userId)
+        const success = await apiClient.activateUser(userId)
+        if (success) {
+          await fetchUsers()
+        }
       }
-      await fetchUsers()
     } catch (error) {
       console.error("Failed to toggle user status:", error)
     }
@@ -109,14 +114,16 @@ export default function UsersPage() {
         const updateData: Partial<User> = {
           displayName: formData.displayName,
           role: formData.role,
-          phone: formData.phone || null,
-          active: formData.active
+          active: formData.active,
+          credits: formData.credits
         }
 
-        await apiClient.updateUser(selectedUser.id, updateData)
-        await fetchUsers()
-        setIsEditDialogOpen(false)
-        resetForm()
+        const success = await apiClient.updateUser(selectedUser.id, updateData)
+        if (success) {
+          await fetchUsers()
+          setIsEditDialogOpen(false)
+          resetForm()
+        }
       } catch (error) {
         console.error("Failed to update user:", error)
       }
@@ -128,10 +135,12 @@ export default function UsersPage() {
 
     return withActionLoading('delete-user', async () => {
       try {
-        await apiClient.deleteUser(selectedUser.id)
-        await fetchUsers()
-        setIsDeleteDialogOpen(false)
-        setSelectedUser(null)
+        const success = await apiClient.deleteUser(selectedUser.id)
+        if (success) {
+          await fetchUsers()
+          setIsDeleteDialogOpen(false)
+          setSelectedUser(null)
+        }
       } catch (error) {
         console.error("Failed to delete user:", error)
       }
@@ -146,8 +155,8 @@ export default function UsersPage() {
       password: "",
       displayName: user.displayName,
       role: user.role,
-      phone: user.phone || "",
-      active: user.active
+      active: user.active,
+      credits: user.credits || 0
     })
     setIsEditDialogOpen(true)
   }
@@ -164,8 +173,8 @@ export default function UsersPage() {
       password: "",
       displayName: "",
       role: 'USER',
-      phone: "",
-      active: true
+      active: true,
+      credits: 0
     })
     setSelectedUser(null)
   }
@@ -211,6 +220,7 @@ export default function UsersPage() {
                   <TableHead>Display Name</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Credits</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Actions</TableHead>
@@ -219,13 +229,13 @@ export default function UsersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       Loading users...
                     </TableCell>
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -244,6 +254,7 @@ export default function UsersPage() {
                           {user.active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
+                      <TableCell>{user.credits || 0}</TableCell>
                       <TableCell>
                         {dayjs(user.createdAt).format("MMM DD, YYYY")}
                       </TableCell>
@@ -330,6 +341,10 @@ export default function UsersPage() {
                       <p className="text-sm text-muted-foreground">
                         {selectedUser.active ? "Active" : "Inactive"}
                       </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Credits</Label>
+                      <p className="text-sm text-muted-foreground">{selectedUser.credits || 0}</p>
                     </div>
                   </div>
                   <div>
@@ -424,15 +439,6 @@ export default function UsersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    placeholder="Enter phone number"
-                  />
-                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -501,15 +507,6 @@ export default function UsersPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="edit-phone">Phone</Label>
-                    <Input
-                      id="edit-phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="edit-active">Status</Label>
                     <Select value={formData.active ? "true" : "false"} onValueChange={(value) => setFormData({...formData, active: value === "true"})}>
                       <SelectTrigger>
@@ -520,6 +517,16 @@ export default function UsersPage() {
                         <SelectItem value="false">Inactive</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-credits">Credits</Label>
+                    <Input
+                      id="edit-credits"
+                      type="number"
+                      value={formData.credits || 0}
+                      onChange={(e) => setFormData({...formData, credits: Number(e.target.value)})}
+                      placeholder="Enter credits"
+                    />
                   </div>
                 </div>
               )}

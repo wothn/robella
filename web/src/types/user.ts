@@ -6,6 +6,7 @@ export interface User {
   avatar?: string | null
   active: boolean
   role: string
+  credits?: number
   createdAt: string
   updatedAt: string
   lastLoginAt?: string | null

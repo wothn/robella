@@ -16,6 +16,7 @@ import org.elmo.robella.common.ErrorCodeConstants;
 import org.elmo.robella.exception.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,26 +34,19 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
     @Transactional
     public UserResponse createUser(UserCreateRequest request) {
+        
         User user = new User();
-        user.setUsername(request.getUsername());
+        BeanUtils.copyProperties(request, user);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setEmail(request.getEmail());
-        user.setDisplayName(request.getDisplayName() != null ? request.getDisplayName() : request.getUsername());
-        user.setAvatar(request.getAvatar());
-
+        user.setCredits(BigDecimal.ZERO);
+        user.setActive(true);
+        user.setRole(Role.USER);
         if (existsByUsername(user.getUsername())) {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Username already exists!");
         }
-
         if (existsByEmail(user.getEmail())) {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_CONFLICT, "Email already exists!");
         }
-
-        user.setActive(true);
-        user.setRole(Role.USER);
-        user.setCreatedAt(OffsetDateTime.now());
-        user.setUpdatedAt(OffsetDateTime.now());
-
         try {
             save(user);
         } catch (Exception e) {
@@ -91,52 +85,34 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
 
     @Transactional
-    public UserResponse updateUser(Long id, UserUpdateRequest request) {
-        // 先验证用户是否存在并获取现有用户
-        User existingUser = getById(id);
-        if (existingUser == null) {
-            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + id);
-        }
+    public boolean updateUser(Long id, UserUpdateRequest request) {
+        User user = new User();
 
-        // 直接更新现有用户对象
-        if (request.getDisplayName() != null) {
-            existingUser.setDisplayName(request.getDisplayName());
-        }
-        if (request.getAvatar() != null) {
-            existingUser.setAvatar(request.getAvatar());
-        }
-        if (request.getActive() != null) {
-            existingUser.setActive(request.getActive());
-        }
-
-        existingUser.setUpdatedAt(OffsetDateTime.now());
+        user.setId(id);
+        BeanUtils.copyProperties(request, user);
 
         // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
-        updateById(existingUser);
-        
-        User updatedUser = getById(id);
-        UserResponse response = convertToResponse(updatedUser);
-        log.info("用户更新成功: {}", response.getUsername());
-        return response;
+        updateById(user);
+
+        log.info("用户更新成功: {}", user.getUsername());
+        return true;
     }
 
     @Transactional
-    public UserResponse setUserActive(Long id, Boolean active) {
-        User existingUser = getById(id);
-        if (existingUser == null) {
+    public boolean setUserActive(Long id, Boolean active) {
+        User user = getById(id);
+        if (user == null) {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + id);
         }
 
-        existingUser.setActive(active);
-        existingUser.setUpdatedAt(OffsetDateTime.now());
-
-        // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
-        updateById(existingUser);
+        user.setId(id);
+        user.setActive(active);
+        boolean result = updateById(user);
         
-        User updatedUser = getById(id);
-        UserResponse response = convertToResponse(updatedUser);
-        log.info("用户状态更新成功: {} -> {}", response.getUsername(), active);
-        return response;
+        if (result) {
+            log.info("用户状态更新成功: {} -> {}", user.getUsername(), active);
+        }
+        return result;
     }
 
     @Transactional
@@ -190,29 +166,21 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     }
 
     @Transactional
-    public void deleteUser(Long id) {
+    public boolean deleteUser(Long id) {
         User user = getById(id);
         if (user == null) {
             throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + id);
         }
-        removeById(id);
-        log.info("用户删除成功: {}", id);
-    }
-
-    @Transactional
-    public void deleteUserByUsername(String username) {
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getUsername, username);
-        User user = getOne(queryWrapper);
-        if (user == null) {
-            throw new BusinessException(ErrorCodeConstants.RESOURCE_NOT_FOUND, "User not found: " + username);
+        boolean result = removeById(id);
+        if (result) {
+            log.info("用户删除成功: {}", id);
         }
-        remove(queryWrapper);
-        log.info("用户删除成功: {}", username);
+        return result;
     }
 
+
     @Transactional
-    public void changePassword(String username, String currentPassword, String newPassword) {
+    public boolean changePassword(String username, String currentPassword, String newPassword) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, username);
         User user = getOne(queryWrapper);
@@ -232,8 +200,11 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         user.setUpdatedAt(OffsetDateTime.now());
 
         // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
-        updateById(user);
-        log.info("密码修改成功: {}", username);
+        boolean result = updateById(user);
+        if (result) {
+            log.info("密码修改成功: {}", username);
+        }
+        return result;
     }
 
     @Transactional
@@ -265,37 +236,21 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
     public UserResponse convertToResponse(User user) {
         UserResponse response = new UserResponse();
-        response.setId(user.getId());
-        response.setUsername(user.getUsername());
-        response.setEmail(user.getEmail());
-        response.setDisplayName(user.getDisplayName());
-        response.setAvatar(user.getAvatar());
-        response.setActive(user.getActive());
-
+        // Copy all common properties using BeanUtils
+        BeanUtils.copyProperties(user, response);
+        
         // Convert Role enum to string
         if (user.getRole() != null) {
             response.setRole(user.getRole().getValue());
         } else {
             response.setRole(Role.USER.getValue());
         }
-
-        // Set OffsetDateTime directly
-        response.setCreatedAt(user.getCreatedAt());
-        response.setUpdatedAt(user.getUpdatedAt());
-        response.setLastLoginAt(user.getLastLoginAt());
-
-        response.setGithubId(user.getGithubId());
+        
         return response;
     }
 
-    public User getUserByGithubId(String githubId) {
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getGithubId, githubId);
-        return getOne(queryWrapper);
-    }
-
     @Transactional
-    public UserResponse updateUserProfile(Long userId, UserProfileUpdateRequest updateRequest) {
+    public boolean updateUserProfile(Long userId, UserProfileUpdateRequest updateRequest) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getId, userId);
         User existingUser = getOne(queryWrapper);
@@ -322,13 +277,15 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         if (hasUpdate) {
             existingUser.setUpdatedAt(OffsetDateTime.now());
             // 使用 updateById 而不是 update(entity, wrapper) 以确保 TypeHandler 生效
-            updateById(existingUser);
+            boolean result = updateById(existingUser);
+            if (result) {
+                log.info("用户资料更新成功: {}", existingUser.getUsername());
+            }
+            return result;
         }
-
-        User updatedUser = getById(existingUser.getId());
-        UserResponse response = convertToResponse(updatedUser);
-        log.info("用户资料更新成功: {}", response.getUsername());
-        return response;
+        
+        // 如果没有实际更新，返回true
+        return true;
     }
 
     private boolean existsByUsername(String username) {

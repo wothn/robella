@@ -9,6 +9,7 @@ import org.elmo.robella.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,7 +25,7 @@ public class ProfileController {
     private final UserService userService;
 
     @GetMapping
-    public UserResponse getCurrentUser() {
+    public ResponseEntity<UserResponse> getCurrentUser() {
         Long userId = RequestContextHolder.getContext() != null ?
             RequestContextHolder.getContext().getUserId() : null;
 
@@ -33,11 +34,11 @@ public class ProfileController {
         }
         log.info("获取当前用户信息: {}", userId);
 
-        return userService.getUserById(userId);
+        return ResponseEntity.ok(userService.getUserById(userId));
     }
 
     @PutMapping
-    public UserResponse updateCurrentUser(
+    public ResponseEntity<Boolean> updateCurrentUser(
             @Valid @RequestBody UserProfileUpdateRequest updateRequest) {
         Long userId = RequestContextHolder.getContext() != null ?
             RequestContextHolder.getContext().getUserId() : null;
@@ -48,11 +49,11 @@ public class ProfileController {
 
         log.info("更新用户资料: {}", userId);
 
-        return userService.updateUserProfile(userId, updateRequest);
+        return ResponseEntity.ok(userService.updateUserProfile(userId, updateRequest));
     }
 
     @DeleteMapping
-    public void deleteCurrentUser() {
+    public ResponseEntity<Boolean> deleteCurrentUser() {
         Long userId = RequestContextHolder.getContext() != null ?
             RequestContextHolder.getContext().getUserId() : null;
 
@@ -62,13 +63,13 @@ public class ProfileController {
 
         log.info("删除当前用户: {}", userId);
 
-        userService.removeById(userId);
+        return ResponseEntity.ok(userService.removeById(userId));
     }
 
     
 
     @PutMapping("/password")
-    public void changePassword(
+    public ResponseEntity<Boolean> changePassword(
             @RequestParam String currentPassword,
             @RequestParam String newPassword) {
         String username = RequestContextHolder.getContext() != null ?
@@ -80,6 +81,6 @@ public class ProfileController {
 
         log.info("修改用户密码: {}", username);
 
-        userService.changePassword(username, currentPassword, newPassword);
+        return ResponseEntity.ok(userService.changePassword(username, currentPassword, newPassword));
     }
 }

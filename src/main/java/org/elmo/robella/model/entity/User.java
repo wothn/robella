@@ -1,10 +1,8 @@
 package org.elmo.robella.model.entity;
 
+import com.baomidou.mybatisplus.annotation.*;
+import org.elmo.robella.handler.SQLiteOffsetDateTimeTypeHandler;
 import org.elmo.robella.model.common.Role;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -17,7 +15,7 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("users")
+@TableName(value = "users", autoResultMap = true)
 public class User {
 
     @TableId(type = IdType.AUTO)
@@ -36,15 +34,16 @@ public class User {
     private BigDecimal credits;
 
     private Boolean active;
+
     private Role role;
 
-    @TableField("created_at")
+    @TableField(value = "created_at", typeHandler = SQLiteOffsetDateTimeTypeHandler.class, fill = FieldFill.INSERT)
     private OffsetDateTime createdAt;
 
-    @TableField("updated_at")
+    @TableField(value = "updated_at", typeHandler = SQLiteOffsetDateTimeTypeHandler.class, fill = FieldFill.INSERT_UPDATE)
     private OffsetDateTime updatedAt;
 
-    @TableField("last_login_at")
+    @TableField(value = "last_login_at", typeHandler = SQLiteOffsetDateTimeTypeHandler.class)
     private OffsetDateTime lastLoginAt;
 
     @TableField("github_id")

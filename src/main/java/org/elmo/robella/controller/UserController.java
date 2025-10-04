@@ -48,7 +48,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public ResponseEntity<UserResponse> updateUser(
+    public ResponseEntity<Boolean> updateUser(
             @PathVariable @NotNull Long id,
             @Valid @RequestBody UserUpdateRequest request) {
         return ResponseEntity.ok(userService.updateUser(id, request));
@@ -56,7 +56,7 @@ public class UserController {
 
     @PutMapping("/{id}/active")
     @RequiredRole(Role.ADMIN)
-    public ResponseEntity<UserResponse> setUserActive(
+    public ResponseEntity<Boolean> setUserActive(
             @PathVariable @NotNull Long id,
             @RequestParam Boolean active) {
         return ResponseEntity.ok(userService.setUserActive(id, active));
@@ -64,9 +64,8 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @RequiredRole(Role.ADMIN)
-    public ResponseEntity<Void> deleteUser(@PathVariable @NotNull Long id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Boolean> deleteUser(@PathVariable @NotNull Long id) {
+        return ResponseEntity.ok(userService.deleteUser(id));
     }
 
     @PostMapping("/login")
